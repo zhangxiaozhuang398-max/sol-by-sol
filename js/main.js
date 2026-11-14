@@ -1,7 +1,7 @@
 import * as E from "./game.js";
 import { CONFIG as C } from "./config.js";
 import { SITES, BASE, RINGS, WORLD_BASE, siteById } from "./sites.js";
-import { createWorld } from "./world2d.js";
+import { createWorld as createWorld2D } from "./world2d.js";
 import { FACTS } from "./facts.js";
 import { buildReport } from "./report.js";
 import { t, tr, pick, getLang, setLang, applyStatic } from "./i18n.js";
@@ -13,6 +13,20 @@ const num = (n) => n.toLocaleString(getLang() === "zh" ? "zh-CN" : "en-US");
 const sign = (n) => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : "±0");
 const N = C.totalSols;
 const PHASES = ["briefing", "day", "night", "settle"];
+const WORLD_QUERY = new URLSearchParams(location.search).get("world");
+const WORLD_MODE = WORLD_QUERY === "2d" ? "2d" : "3d";
+
+// The 3D base is at human scale (metres), not the 2D map's 463 m cells. The
+// numbers mirror the 2D base diagram so the two views feel like the same place.
+const BASE3D = {
+  spawn: { x: 0, z: 11.5, heading: Math.PI },
+  stations: [
+    { id: "habitat", kind: "habitat", icon: "🏠", x: 0, z: 0, r: 2.2, model: "habitat", solid: 2.0, labelY: 6.6 },
+    { id: "panels", kind: "panels", icon: "🔆", x: 5.4, z: -1.2, r: 2.8, model: "panels", solid: 1.2, labelY: 3.8 },
+    { id: "greenhouse", kind: "greenhouse", icon: "🌱", x: -5.3, z: -1.2, r: 2.8, model: "greenhouse", solid: 1.2, labelY: 4.3 },
+    { id: "antenna", kind: "antenna", icon: "📡", x: 9.5, z: -1.4, r: 2.4, model: "dish", solid: 0.9, labelY: 8.2 },
+  ],
+};
 const wIcon = (key) => E.WEATHER_ICONS[key];
 const wName = (key) => t(`weather.${key}`);
 
@@ -313,11 +327,11 @@ function renderDayClassic() {
         ${sitePanel()}
       </div>
       <div>
-        <div class="actions">
+        ${is3D() ? `<div class="actions-note">${esc(t("day.baseAtBase"))}</div>` : `<div class="actions">
           ${actionButton("do-clean", "🧽", "act.clean.name", t("act.clean.desc", { panel: s.panel, gain: clean.gain || 0 }), clean)}
           ${actionButton("do-tend", "🌱", "act.tend.name", t("act.tend.desc", { sci: C.greenhouse.tendScience, food: C.greenhouse.tendFood }), E.checkTend(s))}
           ${actionButton("do-call", "📡", "act.call.name", t("act.call.desc", { min: s.lightMinutes, days: C.call.forecastDays, sci: C.call.science }), E.checkCall(s))}
-        </div>
+        </div>`}
         <div class="log"><h4>${esc(t("day.log"))}</h4>
           <ul>${s.today.log.length ? s.today.log.map((l) => `<li>${tr(l.key, l.params)}</li>`).join("") : `<li>${esc(t("day.logEmpty"))}</li>`}</ul>
         </div>
@@ -325,7 +339,7 @@ function renderDayClassic() {
     </div>
     <div class="stage-foot">
       <span class="hint">${t("day.hint", { n: E.expectedIncome(s) })}${s.ap > 0 ? esc(t("day.hintAp", { n: s.ap })) : ""}</span>
-      ${world ? `<button class="btn small" id="to-walk" type="button">${esc(t("world.walkMode"))}</button>` : ""}
+      ${world ? `<button class="btn small" id="to-walk" type="button">${esc(t(is3D() ? "world.baseMode" : "world.walkMode"))}</button>` : ""}
       <button class="btn primary" id="go-night" type="button">${esc(t("day.sunset"))}</button>
     </div>`;
 
@@ -337,9 +351,10 @@ function renderDayClassic() {
   });
   const go = $("#go-eva");
   if (go) go.onclick = () => { E.doEva(s, ui.site); render(); };
-  $("#do-clean").onclick = () => { E.doClean(s); render(); };
-  $("#do-tend").onclick = () => { E.doTend(s); render(); };
-  $("#do-call").onclick = () => { E.doCall(s); render(); };
+  const doClean = $("#do-clean"), doTend = $("#do-tend"), doCall = $("#do-call");
+  if (doClean) doClean.onclick = () => { E.doClean(s); render(); };
+  if (doTend) doTend.onclick = () => { E.doTend(s); render(); };
+  if (doCall) doCall.onclick = () => { E.doCall(s); render(); };
   $("#go-night").onclick = () => {
     if (s.ap > 0 && !window.confirm(t("day.confirm", { n: s.ap }))) return;
     E.endDay(s);
@@ -348,18 +363,45 @@ function renderDayClassic() {
   };
 }
 
-// ---------- phase 2, walking: the real Mars surface (world2d.js) ----------
+// ---------- phase 2, walking: 3D base + 2D map fallback ----------
 let world = null;
 const walking = () => !!world && !ui.classic;
+const is3D = () => !!world && world.kind === "3d";
 
 async function ensureWorld() {
+  const mount = $("#world-view");
+  mount.innerHTML = "";
+  if (WORLD_MODE === "3d") {
+    try {
+      const { createWorld } = await import("./world3d.js");
+      const w = await createWorld({
+        mount, minimap: $("#minimap"), joystick: $("#joy"),
+        dataDir: "data/mars", modelDir: "assets/models",
+        onNear: () => updatePrompt(), onUse: () => usePrompt(),
+      });
+      if (w) {
+        await w.setScene("base");
+        world = w;
+        const sp = BASE3D.spawn;
+        world.setSpawn(sp.x, sp.z, sp.heading);
+        world.respawn();
+        window.solWorld = world; // handy for demos and tests
+        if (s && activeScreen() === "screen-game") render();
+        return;
+      }
+    } catch (err) {
+      console.warn("3D base unavailable, falling back to the 2D map", err);
+    }
+    // A failed 3D boot may have left a canvas behind; the 2D world adds its own.
+    mount.innerHTML = "";
+  }
   try {
-    world = await createWorld({
-      mount: $("#world-view"), minimap: $("#minimap"), joystick: $("#joy"),
+    world = await createWorld2D({
+      mount, minimap: $("#minimap"), joystick: $("#joy"),
       onNear: () => updatePrompt(), onUse: () => usePrompt(),
     });
   } catch (err) {
-    console.warn("3D world unavailable, using the simple map", err);
+    console.warn("2D Mars map unavailable", err);
     world = null;
   }
   if (!world) return;
@@ -372,6 +414,13 @@ async function ensureWorld() {
 
 function worldTargets() {
   const doneToday = { panels: s.today.cleaned, greenhouse: s.today.tended, antenna: s.today.called };
+  if (is3D()) {
+    return BASE3D.stations.map((st) => ({
+      ...st,
+      done: !!doneToday[st.id],
+      label: `${st.icon} ${t(`world.station.${st.id}`)}${doneToday[st.id] ? " ✓" : ""}`,
+    }));
+  }
   const list = SITES.map((x) => ({
     id: x.id, kind: "site", x: x.wx, z: x.wz, r: 2.2, tier: x.tier, icon: x.icon, done: s.visits[x.id] > 0,
     label: `${x.icon} ${t(`site.${x.id}.name`)}${s.visits[x.id] ? " ✓" : ""}`,
@@ -391,8 +440,21 @@ function syncWorld() {
   if (!world) { el.classList.add("hidden"); return; }
   if (!s || s.phase === "end" || activeScreen() !== "screen-game") { world.stop(); return; }
   const play = s.phase === "day" && !ui.classic;
+  // The 2D map is the site planner in 3D mode; hide the base while it is open.
+  if (s.phase === "day" && ui.classic) {
+    el.classList.add("hidden");
+    world.stop();
+    return;
+  }
   el.classList.remove("hidden");
   el.classList.toggle("play", play);
+  el.classList.toggle("is3d", is3D());
+  const keysEl = $(".world-keys");
+  if (keysEl) keysEl.innerHTML = t(is3D() ? "world.keys3d" : "world.keys");
+  const capEl = $(".world-map-cap");
+  if (capEl) capEl.textContent = t(is3D() ? "world.mapCapBase" : "world.mapCap");
+  const creditEl = $(".side-credit");
+  if (creditEl) creditEl.textContent = t(is3D() ? "world.credit3d" : "world.credit");
   world.setTargets(worldTargets());
   world.setLook(s.phase, E.weatherKey(s, s.sol));
   if (play && ui.worldDay !== s.sol) {
@@ -434,7 +496,10 @@ function updatePrompt() {
   $("#world").classList.toggle("has-card", !!id);
   if (!id) {
     el.classList.add("hint");
-    el.textContent = t(s.ap > 0 ? "world.hint.walk" : "world.hint.noAp");
+    const key = is3D()
+      ? (s.ap > 0 ? "world.hint.base" : "world.hint.baseNoAp")
+      : (s.ap > 0 ? "world.hint.walk" : "world.hint.noAp");
+    el.textContent = t(key);
     return;
   }
   const lock = (chk) => (chk.ok ? "" : `<span class="lock">🚫 ${tr(chk.reason.key, chk.reason.params)}</span>`);
@@ -528,10 +593,10 @@ function renderDayWorld() {
   stage.innerHTML = "";
   $("#side-day").innerHTML = `
     <div class="day-bar">
-      <div><h2 class="day-h">${esc(t("day.titleWorld"))}</h2><span class="sub">${wIcon(key)} ${esc(wName(key))} · ${t("day.hint", { n: E.expectedIncome(s) })}</span></div>
+      <div><h2 class="day-h">${esc(t(is3D() ? "day.titleBase" : "day.titleWorld"))}</h2><span class="sub">${wIcon(key)} ${esc(wName(key))} · ${t("day.hint", { n: E.expectedIncome(s) })}</span></div>
       <div class="log"><ul>${s.today.log.length ? s.today.log.map((l) => `<li>${tr(l.key, l.params)}</li>`).join("") : `<li>${esc(t("day.logEmpty"))}</li>`}</ul></div>
       <div class="btns">
-        <button class="btn small" id="to-classic" type="button">${esc(t("world.classic"))}</button>
+        <button class="btn small" id="to-classic" type="button">${esc(t(is3D() ? "world.roverMap" : "world.classic"))}</button>
         <button class="btn small" id="end-day" type="button">${esc(t("world.endDay"))}</button>
       </div>
     </div>`;
@@ -779,8 +844,10 @@ function renderCollection() {
 
 // ---------- help ----------
 function showHelp() {
+  const dayHelp = is3D() ? "help.l2_3d" : "help.l2";
+  const steps = [1, 2, 3, 4].map((i) => `<li>${t(i === 2 ? dayHelp : `help.l${i}`, { ap: C.actionPoints })}</li>`).join("");
   openInfo(`<h3>${esc(t("help.title", { n: N }))}</h3><p>${t("help.intro")}</p>
-    <ol class="help-list">${[1, 2, 3, 4].map((i) => `<li>${t(`help.l${i}`, { ap: C.actionPoints })}</li>`).join("")}</ol>
+    <ol class="help-list">${steps}</ol>
     <p>${t("help.end", { n: N })}</p>`);
 }
 
