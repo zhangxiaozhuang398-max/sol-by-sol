@@ -386,9 +386,9 @@ details.data-table th:first-child, details.data-table td:first-child { text-alig
   position: relative; height: 170px; border-radius: var(--radius); overflow: hidden;
   background: #2a160e; box-shadow: var(--shadow); transition: height 0.35s ease;
 }
-.world.play { height: min(66vh, 600px); min-height: 400px; }
+.world.play { height: min(68vh, 640px); min-height: 440px; }
 .world-view, .world-view canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.world-view canvas { cursor: grab; }
+.world-view canvas { cursor: pointer; }
 .world-top { position: absolute; top: 10px; left: 10px; display: flex; gap: 8px; flex-wrap: wrap; pointer-events: none; }
 .world-chip {
   background: rgba(27, 21, 48, 0.82); border: 2px solid var(--line); border-radius: 999px;
@@ -473,3 +473,6 @@ details.data-table th:first-child, details.data-table td:first-child { text-alig
   .world-prompt:not(.hint) { left: 10px; right: 10px; width: auto; bottom: 10px; max-height: 56%; }
   .world.has-card .joy { display: none; }
 }
+/* 2D map: keep the walking hint off the base at the top of the view */
+.world-prompt.hint { top: auto; bottom: 46px; }
+@media (max-width: 640px) { .world-prompt.hint { bottom: 12px; } }

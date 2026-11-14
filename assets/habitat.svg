@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320">
+  <!-- Mars habitat seen from above: central dome, two side modules, airlock tunnel to the south. Light from the north-west. -->
+  <defs>
+    <filter id="blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="7"/></filter>
+    <radialGradient id="dome" cx="38%" cy="34%" r="75%">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="0.45" stop-color="#e8e6ef"/><stop offset="1" stop-color="#9c98ad"/>
+    </radialGradient>
+    <linearGradient id="tube" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f4f3f8"/><stop offset="1" stop-color="#a7a3b8"/>
+    </linearGradient>
+    <linearGradient id="lock" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#d9d6e2"/><stop offset="0.5" stop-color="#f3f2f7"/><stop offset="1" stop-color="#9a96ab"/>
+    </linearGradient>
+    <radialGradient id="glass" cx="40%" cy="35%" r="70%">
+      <stop offset="0" stop-color="#b9fff6"/><stop offset="1" stop-color="#2b8f88"/>
+    </radialGradient>
+  </defs>
+
+  <!-- shadow -->
+  <g filter="url(#blur)" fill="#1a0d08" opacity="0.5" transform="translate(14 16)">
+    <circle cx="160" cy="140" r="78"/>
+    <rect x="40" y="112" width="240" height="56" rx="28"/>
+    <rect x="138" y="200" width="44" height="92" rx="12"/>
+  </g>
+
+  <!-- regolith berm around the base of the dome -->
+  <circle cx="160" cy="140" r="90" fill="#8a4a2c" opacity="0.55"/>
+  <circle cx="160" cy="140" r="84" fill="#a55a36" opacity="0.5"/>
+
+  <!-- side modules -->
+  <rect x="38" y="112" width="244" height="56" rx="28" fill="url(#tube)" stroke="#6f6b80" stroke-width="2"/>
+  <g stroke="#8d899e" stroke-width="2" opacity="0.8">
+    <line x1="66" y1="113" x2="66" y2="167"/><line x1="90" y1="113" x2="90" y2="167"/>
+    <line x1="230" y1="113" x2="230" y2="167"/><line x1="254" y1="113" x2="254" y2="167"/>
+  </g>
+  <circle cx="54" cy="140" r="9" fill="url(#glass)" stroke="#51607a" stroke-width="2"/>
+  <circle cx="266" cy="140" r="9" fill="url(#glass)" stroke="#51607a" stroke-width="2"/>
+
+  <!-- airlock tunnel -->
+  <rect x="138" y="196" width="44" height="92" rx="10" fill="url(#lock)" stroke="#6f6b80" stroke-width="2"/>
+  <g stroke="#8d899e" stroke-width="2"><line x1="139" y1="222" x2="181" y2="222"/><line x1="139" y1="246" x2="181" y2="246"/></g>
+  <rect x="146" y="262" width="28" height="22" rx="5" fill="#6c5ba8" stroke="#3d3368" stroke-width="2"/>
+  <circle cx="160" cy="273" r="4" fill="#f3b562"/>
+  <!-- ramp -->
+  <path d="M146 288 h28 l8 18 h-44 z" fill="#8c8898" stroke="#5c586c" stroke-width="2"/>
+
+  <!-- dome -->
+  <circle cx="160" cy="140" r="76" fill="url(#dome)" stroke="#6f6b80" stroke-width="2.5"/>
+  <g fill="none" stroke="#8d899e" stroke-width="1.6" opacity="0.75">
+    <circle cx="160" cy="140" r="52"/><circle cx="160" cy="140" r="26"/>
+    <line x1="160" y1="64" x2="160" y2="216"/><line x1="84" y1="140" x2="236" y2="140"/>
+    <line x1="106" y1="86" x2="214" y2="194"/><line x1="214" y1="86" x2="106" y2="194"/>
+  </g>
+  <!-- skylight -->
+  <circle cx="160" cy="140" r="20" fill="url(#glass)" stroke="#51607a" stroke-width="2.5"/>
+  <path d="M148 132 a14 14 0 0 1 14 -8" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+  <!-- orange mission stripe + hatch marks -->
+  <path d="M96 100 a76 76 0 0 1 28 -26" fill="none" stroke="#e46a3c" stroke-width="7" stroke-linecap="round"/>
+  <rect x="196" y="176" width="20" height="12" rx="3" fill="#e46a3c" transform="rotate(45 206 182)"/>
+  <!-- small roof antenna -->
+  <circle cx="212" cy="96" r="6" fill="#444058"/><circle cx="212" cy="96" r="2.5" fill="#4fd1c5"/>
+</svg>

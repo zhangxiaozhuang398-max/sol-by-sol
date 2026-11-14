@@ -1,7 +1,7 @@
 import * as E from "./game.js";
 import { CONFIG as C } from "./config.js";
 import { SITES, BASE, RINGS, WORLD_BASE, siteById } from "./sites.js";
-import { createWorld } from "./world.js";
+import { createWorld } from "./world2d.js";
 import { FACTS } from "./facts.js";
 import { buildReport } from "./report.js";
 import { t, tr, pick, getLang, setLang, applyStatic } from "./i18n.js";
@@ -367,7 +367,7 @@ async function ensureWorld() {
 function worldTargets() {
   const doneToday = { panels: s.today.cleaned, greenhouse: s.today.tended, antenna: s.today.called };
   const list = SITES.map((x) => ({
-    id: x.id, kind: "site", x: x.wx, z: x.wz, r: 2.8, tier: x.tier, done: s.visits[x.id] > 0,
+    id: x.id, kind: "site", x: x.wx, z: x.wz, r: 2.2, tier: x.tier, icon: x.icon, done: s.visits[x.id] > 0,
     label: `${x.icon} ${t(`site.${x.id}.name`)}${s.visits[x.id] ? " ✓" : ""}`,
   }));
   for (const st of WORLD_BASE.stations) {

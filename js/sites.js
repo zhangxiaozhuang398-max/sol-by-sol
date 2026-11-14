@@ -20,15 +20,16 @@ export const SITES = [
   { id: "delta", tier: 3, x: 300, y: 224, wx: 24.5, wz: 45.5, icon: "🏞️", fact: "jezero" },
 ];
 
-// The base on the 3D terrain, on the flat crater floor. Stations are where the
-// crew does the daytime jobs; the habitat door ends the day.
+// The base, on the flat crater floor, laid out west to east so it fits a wide
+// screen: greenhouse, habitat, solar panels, antenna. Stations are where the
+// crew does the daytime jobs; the habitat airlock (south side) ends the day.
 export const WORLD_BASE = {
-  spawn: { x: 56.5, z: 67.5, heading: Math.PI }, // south of the base, facing it
+  spawn: { x: 56.5, z: 64.1, heading: Math.PI }, // just south of the airlock, facing the base
   stations: [
     { id: "habitat", kind: "habitat", x: 56.5, z: 62.2, r: 1.5, mx: 56.5, mz: 60.5, solid: 1.9, icon: "🏠", labelY: 3.4 },
-    { id: "panels", kind: "panels", x: 61.5, z: 61.5, r: 2.4, solid: 1.2, icon: "🔆", labelY: 2.2 },
-    { id: "greenhouse", kind: "greenhouse", x: 51.5, z: 61.5, r: 2.3, solid: 1.3, icon: "🌱", labelY: 2.4 },
-    { id: "antenna", kind: "antenna", x: 57.5, z: 56.5, r: 2.2, solid: 0.6, icon: "📡", labelY: 3.9 },
+    { id: "panels", kind: "panels", x: 61.9, z: 61.0, r: 2.4, solid: 1.2, icon: "🔆", labelY: 2.2 },
+    { id: "greenhouse", kind: "greenhouse", x: 51.2, z: 61.0, r: 2.3, solid: 1.2, icon: "🌱", labelY: 2.4 },
+    { id: "antenna", kind: "antenna", x: 66.0, z: 60.8, r: 2.1, solid: 0.9, icon: "📡", labelY: 3.9 },
   ],
   // Where NASA's Perseverance rover really landed (18.4447°N, 77.4508°E), February 2021.
   landmark: { id: "perseverance", kind: "landmark", x: 37.7, z: 56.1, r: 2.4, solid: 0.9, icon: "🤖", labelY: 2.6, fact: "jezero" },
