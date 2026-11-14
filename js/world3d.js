@@ -633,7 +633,7 @@ export async function createWorld(opts) {
   scene.add(player);
 
   const st = {
-    x: 0, z: 0, heading: Math.PI, pitch: 0, moving: false, walkT: 0,
+    x: 0, z: 0, heading: Math.PI, moving: false, walkT: 0,
     spawn: { x: 0, z: 14, heading: Math.PI },
     mode: "cinematic", enabled: true, running: false,
     phase: "day", weather: "sunny", place: null,
@@ -1091,36 +1091,23 @@ export async function createWorld(opts) {
   window.addEventListener("keyup", (e) => keys.delete(e.code));
   window.addEventListener("blur", () => keys.clear());
 
-  // Look around: pointer-lock mouse look on desktop, drag on touch.
+  // drag on the view to look around
   let drag = null;
   const cv = renderer.domElement;
-  const coarse = matchMedia("(pointer: coarse)").matches;
   cv.style.touchAction = "none";
   cv.addEventListener("pointerdown", (e) => {
-    if (!canControl() || document.pointerLockElement === cv) return;
-    drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    if (!canControl()) return;
+    drag = { id: e.pointerId, x: e.clientX };
     cv.setPointerCapture(e.pointerId);
   });
   cv.addEventListener("pointermove", (e) => {
     if (!drag || drag.id !== e.pointerId) return;
     st.heading -= (e.clientX - drag.x) * 0.006;
-    st.pitch = clamp(st.pitch - (e.clientY - drag.y) * 0.004, -0.55, 0.55);
     drag.x = e.clientX;
-    drag.y = e.clientY;
   });
   const endDrag = (e) => { if (drag && drag.id === e.pointerId) drag = null; };
   cv.addEventListener("pointerup", endDrag);
   cv.addEventListener("pointercancel", endDrag);
-  cv.addEventListener("click", () => {
-    if (!canControl() || coarse || document.pointerLockElement === cv) return;
-    const p = cv.requestPointerLock?.();
-    if (p && p.catch) p.catch(() => {});
-  });
-  document.addEventListener("mousemove", (e) => {
-    if (document.pointerLockElement !== cv || !canControl()) return;
-    st.heading -= e.movementX * 0.0022;
-    st.pitch = clamp(st.pitch - e.movementY * 0.0018, -0.55, 0.55);
-  });
 
   if (joystick) {
     const knob = joystick.querySelector("i");
@@ -1154,26 +1141,22 @@ export async function createWorld(opts) {
   function step(dt) {
     st.time += dt;
     if (st.mode === "play") {
-      let fwd = 0, strafe = 0, turn = 0;
+      let fwd = 0, turn = 0;
       if (canControl()) {
         if (keys.has("ArrowUp") || keys.has("KeyW")) fwd += 1;
         if (keys.has("ArrowDown") || keys.has("KeyS")) fwd -= 0.6;
-        if (keys.has("ArrowLeft")) turn += 1;
-        if (keys.has("ArrowRight")) turn -= 1;
-        if (keys.has("KeyA")) strafe -= 1;
-        if (keys.has("KeyD")) strafe += 1;
+        if (keys.has("ArrowLeft") || keys.has("KeyA")) turn += 1;
+        if (keys.has("ArrowRight") || keys.has("KeyD")) turn -= 1;
         if (Math.abs(joy.y) > 0.15) fwd += -joy.y * (joy.y < 0 ? 1 : 0.6);
-        if (Math.abs(joy.x) > 0.2) strafe += joy.x;
+        if (Math.abs(joy.x) > 0.2) turn += -joy.x;
       }
       fwd = clamp(fwd, -0.6, 1);
-      strafe = clamp(strafe, -1, 1);
       turn = clamp(turn, -1, 1);
       st.heading += turn * TURN_SPEED * dt;
       const slow = st.weather === "dust" ? 0.8 : 1;
-      // heading h: forward = (sin h, cos h) with x east and z south; right = (-cos h, sin h)
-      const sinH = Math.sin(st.heading), cosH = Math.cos(st.heading);
-      let nx = st.x + (sinH * fwd - cosH * strafe) * WALK_SPEED * slow * dt;
-      let nz = st.z + (cosH * fwd + sinH * strafe) * WALK_SPEED * slow * dt;
+      // heading h: forward = (sin h, cos h) with x east and z south
+      let nx = st.x + Math.sin(st.heading) * fwd * WALK_SPEED * slow * dt;
+      let nz = st.z + Math.cos(st.heading) * fwd * WALK_SPEED * slow * dt;
       const d0 = Math.hypot(nx, nz);
       if (d0 > PLAY_RADIUS) { nx *= PLAY_RADIUS / d0; nz *= PLAY_RADIUS / d0; }
       for (const s of solids) {
@@ -1188,8 +1171,8 @@ export async function createWorld(opts) {
       }
       st.x = nx;
       st.z = nz;
-      st.moving = Math.abs(fwd) > 0.05 || Math.abs(strafe) > 0.05;
-      if (st.moving) st.walkT += dt * 9 * Math.min(1, Math.abs(fwd) + Math.abs(strafe) * 0.8);
+      st.moving = Math.abs(fwd) > 0.05;
+      if (st.moving) st.walkT += dt * 9 * Math.abs(fwd);
     } else {
       st.moving = false;
       st.orbit += dt * 0.07;
@@ -1218,13 +1201,12 @@ export async function createWorld(opts) {
     // camera
     let cx, cy, cz, lx, ly, lz;
     if (st.mode === "play") {
-      const sinH = Math.sin(st.heading), cosH = Math.cos(st.heading);
-      cx = st.x - sinH * CAM_BACK;
-      cz = st.z - cosH * CAM_BACK;
+      cx = st.x - Math.sin(st.heading) * CAM_BACK;
+      cz = st.z - Math.cos(st.heading) * CAM_BACK;
       cy = CAM_UP;
-      lx = st.x + sinH * 6;
-      lz = st.z + cosH * 6;
-      ly = 1.5 + Math.sin(st.pitch) * 6;
+      lx = st.x + Math.sin(st.heading) * 6;
+      ly = 1.5;
+      lz = st.z + Math.cos(st.heading) * 6;
     } else {
       // slow orbit around the place, looking a little up so the sky shows
       const r = 36;
@@ -1362,7 +1344,6 @@ export async function createWorld(opts) {
       st.x = st.spawn.x;
       st.z = st.spawn.z;
       st.heading = st.spawn.heading;
-      st.pitch = 0;
       st.near = null;
       st.snap = true;
       keys.clear();
