@@ -30,6 +30,16 @@ const M_PER_DEG = (2 * Math.PI * 3396190) / 360;
 
 // NASA models: file and how big to draw them. `rot` turns the model so that its
 // front faces south (+z) before the scene's own rotation is applied.
+// Slight camp variations so the six sites do not look like the same set.
+const SITE_STYLE = {
+  dune: { flag1: 0xf3b562, flag2: 0xff8a55, rover: [-6.4, 2.8, 0.25], tent: [4.9, 2.4, 0.1] },
+  crater: { flag1: 0xff8a55, flag2: 0x4fd1c5, rover: [-6.0, 1.8, 0.5], tent: [4.2, 3.8, -0.2] },
+  cliff: { flag1: 0x4fd1c5, flag2: 0xf3b562, rover: [5.4, 1.6, -0.4], tent: [-4.6, 2.8, 0.3] },
+  riverbed: { flag1: 0x7ad67a, flag2: 0xf3b562, rover: [-6.2, 3.8, 0.1], tent: [4.6, 1.4, 0.4] },
+  canyon: { flag1: 0xf3b562, flag2: 0xff8a55, rover: [-6.0, 1.2, 0.6], tent: [4.2, 4.2, -0.3] },
+  delta: { flag1: 0x4fd1c5, flag2: 0xff8a55, rover: [-6.2, 3.6, 0.2], tent: [4.8, 1.2, 0.2] },
+};
+
 const MODELS = {
   astronaut: { file: "astronaut.glb", height: 1.9, rot: 0 },
   habitat: { file: "habitat_1.glb", length: 9.5, rot: 0 },
@@ -87,6 +97,23 @@ function grainTexture() {
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.colorSpace = THREE.NoColorSpace;
   return tex;
+}
+
+// A soft warm disc used for the base camp light pools at night.
+function glowTexture() {
+  const S = 128;
+  const cv = document.createElement("canvas");
+  cv.width = cv.height = S;
+  const c = cv.getContext("2d");
+  const g = c.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+  g.addColorStop(0, "rgba(255,225,185,0.95)");
+  g.addColorStop(0.45, "rgba(255,205,150,0.45)");
+  g.addColorStop(1, "rgba(255,190,130,0)");
+  c.fillStyle = g;
+  c.fillRect(0, 0, S, S);
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
 }
 
 const mat = (color, opts = {}) => new THREE.MeshStandardMaterial({ color: srgb(color), roughness: 0.7, metalness: 0.1, ...opts });
@@ -578,6 +605,7 @@ export async function createWorld(opts) {
     groundMat.plain.color.set(0xa5764f).multiply(cur.ground);
     skylineMat.color.set(0x9a6a48).multiply(cur.ground);
     lamp.intensity = cur.lamp;
+    for (const p of lightPools) p.material.opacity = (cur.lamp / 220) * 0.55;
     dust.visible = st.weather === "dust";
   }
 
@@ -589,6 +617,8 @@ export async function createWorld(opts) {
   scene.add(objects);
   const decor = new THREE.Group();
   scene.add(decor);
+  const lightPools = [];
+  const decorSolids = [];
   const pulses = [];
 
   function setTargets(list) {
@@ -651,9 +681,12 @@ export async function createWorld(opts) {
   let decorToken = 0;
   function buildDecor(id) {
     decor.clear();
+    lightPools.length = 0;
+    decorSolids.length = 0;
     const token = ++decorToken;
     if (id !== "base") {
-      const flag = makeFlag(0xff8a55);
+      const style = SITE_STYLE[id] || SITE_STYLE.crater;
+      const flag = makeFlag(style.flag1);
       flag.position.set(-3.4, 0, -1.5);
       flag.rotation.y = 0.4;
       decor.add(flag);
@@ -664,13 +697,13 @@ export async function createWorld(opts) {
 
       // A small field camp, so a site reads as a destination rather than a
       // photo with a ring on it.
-      const flag2 = makeFlag(0x4fd1c5);
+      const flag2 = makeFlag(style.flag2);
       flag2.position.set(3.6, 0, 1.8);
       flag2.rotation.y = -0.5;
       decor.add(flag2);
       const rover = makeRoverPlaceholder();
-      rover.position.set(-5.2, 0, 3.2);
-      rover.rotation.y = 0.45;
+      rover.position.set(style.rover[0], 0, style.rover[1]);
+      rover.rotation.y = style.rover[2];
       rover.scale.setScalar(0.9);
       decor.add(rover);
       // Swap the blocky stand-in for NASA's Perseverance once it has loaded.
@@ -678,13 +711,13 @@ export async function createWorld(opts) {
         if (token !== decorToken) return;
         decor.remove(rover);
         const real = m.clone(true);
-        real.position.set(-5.2, 0, 3.2);
-        real.rotation.y = 0.45;
+        real.position.set(style.rover[0], 0, style.rover[1]);
+        real.rotation.y = style.rover[2];
         decor.add(real);
       }).catch(() => {});
-      const tent = part(new THREE.CylinderGeometry(1.2, 1.2, 3.2, 16, 1, true, 0, Math.PI), mat(0xe9e4f5, { roughness: 0.7, side: THREE.DoubleSide }), 4.4, 1.2, 3.2);
+      const tent = part(new THREE.CylinderGeometry(1.2, 1.2, 3.2, 16, 1, true, 0, Math.PI), mat(0xe9e4f5, { roughness: 0.7, side: THREE.DoubleSide }), style.tent[0], 1.2, style.tent[1]);
       tent.rotation.z = Math.PI / 2;
-      tent.rotation.y = Math.PI / 2;
+      tent.rotation.y = Math.PI / 2 + style.tent[2];
       decor.add(tent);
       for (const [x, z, size, color, ry] of [[2.4, 2.4, 0.5, 0x9a6a48, 0.2], [3.1, 2.8, 0.35, 0x6e5a4a, -0.4]]) {
         const box = part(new THREE.BoxGeometry(size, size, size), mat(color, { roughness: 0.9 }), x, size / 2, z);
@@ -697,6 +730,20 @@ export async function createWorld(opts) {
         rock.rotation.y = ry;
         decor.add(rock);
       }
+
+      // Warm camp light at night.
+      const siteGlow = glowTexture();
+      const sitePool = new THREE.Mesh(
+        new THREE.PlaneGeometry(14, 14),
+        new THREE.MeshBasicMaterial({ map: siteGlow, color: 0xffc98a, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
+      );
+      sitePool.rotation.x = -Math.PI / 2;
+      sitePool.position.set(0, 0.045, 0);
+      sitePool.renderOrder = 2;
+      decor.add(sitePool);
+      lightPools.push(sitePool);
+
+      buildSiteFeature(id);
       return;
     }
     const flag1 = makeFlag(0xf3b562);
@@ -711,6 +758,158 @@ export async function createWorld(opts) {
       const crate = part(new THREE.BoxGeometry(size, size, size), mat(color, { roughness: 0.92 }), x, size / 2, z);
       crate.rotation.y = ry;
       decor.add(crate);
+    }
+
+    // Compacted footpaths from the airlock to the three working stations.
+    const pathMat = new THREE.MeshBasicMaterial({ color: 0x6b4a35, transparent: true, opacity: 0.24, depthWrite: false });
+    const addPath = (x1, z1, x2, z2, width) => {
+      const dx = x2 - x1, dz = z2 - z1, len = Math.hypot(dx, dz);
+      const g = new THREE.Group();
+      const p = new THREE.Mesh(new THREE.PlaneGeometry(len, width), pathMat);
+      p.rotation.x = -Math.PI / 2;
+      g.add(p);
+      g.position.set((x1 + x2) / 2, 0.03, (z1 + z2) / 2);
+      g.rotation.y = -Math.atan2(dz, dx);
+      g.renderOrder = 1;
+      decor.add(g);
+    };
+    addPath(0, 2.8, 5.4, 1.4, 1.15);
+    addPath(0, 2.8, -5.3, 1.4, 1.15);
+    addPath(0, 2.8, 9.5, 0.9, 1.05);
+
+    // Warm pools on the ground under the lit structures (night only).
+    const glow = glowTexture();
+    for (const [x, z, size] of [[0, 0, 18], [5.4, -1.2, 10], [-5.3, -1.2, 9]]) {
+      const pool = new THREE.Mesh(
+        new THREE.PlaneGeometry(size, size),
+        new THREE.MeshBasicMaterial({ map: glow, color: 0xffc98a, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
+      );
+      pool.rotation.x = -Math.PI / 2;
+      pool.position.set(x, 0.045, z);
+      pool.renderOrder = 2;
+      decor.add(pool);
+      lightPools.push(pool);
+    }
+
+    // A rover parked between the habitat and the solar array.
+    const baseRover = makeRoverPlaceholder();
+    baseRover.position.set(6.8, 0, 4.6);
+    baseRover.rotation.y = -0.5;
+    baseRover.scale.setScalar(0.9);
+    decor.add(baseRover);
+    loadModel("perseverance").then((m) => {
+      if (token !== decorToken) return;
+      decor.remove(baseRover);
+      const real = m.clone(true);
+      real.position.set(6.8, 0, 4.6);
+      real.rotation.y = -0.5;
+      decor.add(real);
+    }).catch(() => {});
+  }
+
+  // Per-site geology, built from simple primitives on top of the real photo.
+  // The photo carries the real detail; these shapes give each place a silhouette
+  // and something to walk around.
+  function buildSiteFeature(id) {
+    const sand = mat(0xc49a6c, { roughness: 1, flatShading: true });
+    const layerA = mat(0x8a5a3c, { roughness: 0.95, flatShading: true });
+    const layerB = mat(0xa57450, { roughness: 0.95, flatShading: true });
+    const layerC = mat(0x6e4a34, { roughness: 0.95, flatShading: true });
+    const layers = [layerA, layerB, layerC];
+    const addRock = (x, z, s, ry = 0) => {
+      const m = part(new THREE.IcosahedronGeometry(1, 0), rockMat, x, s * 0.35, z);
+      m.scale.set(s * 1.3, s, s * 1.1);
+      m.rotation.set(ry * 0.5, ry, ry * 0.3);
+      decor.add(m);
+      decorSolids.push({ x, z, r: s * 1.05 });
+    };
+    const addSlab = (x, y, z, w, h, d, material, ry = 0) => {
+      const m = part(new THREE.BoxGeometry(w, h, d), material, x, y, z);
+      m.rotation.y = ry;
+      decor.add(m);
+      decorSolids.push({ x, z, r: Math.max(w, d) * 0.45 });
+    };
+
+    if (id === "dune") {
+      for (const [x, z, l, w, h, ry] of [[-15, -8, 22, 6, 2.4, 0.3], [14, -11, 18, 5, 1.8, -0.4], [-12, 13, 16, 4.5, 1.6, 0.8], [15, 10, 14, 4, 1.3, -0.2]]) {
+        const dune = part(new THREE.SphereGeometry(1, 16, 8), sand, x, 0.05, z);
+        dune.scale.set(l / 2, h, w / 2);
+        dune.rotation.y = ry;
+        decor.add(dune);
+      }
+      decor.add(part(new THREE.CylinderGeometry(0.04, 0.04, 3.2, 8), mat(0xdddddd, { metalness: 0.5 }), -2.2, 1.6, 2.0));
+      const sock = part(new THREE.CylinderGeometry(0.3, 0.12, 0.9, 8, 1, true), mat(0xff8a55, { roughness: 0.7, side: THREE.DoubleSide }), -1.75, 3.0, 2.0);
+      sock.rotation.z = Math.PI / 2;
+      decor.add(sock);
+      return;
+    }
+
+    if (id === "crater") {
+      const N = 18, R = 20;
+      for (let i = 0; i < N; i++) {
+        const a = (i / N) * Math.PI * 2;
+        if (Math.abs(a - Math.PI / 2) < 0.45) continue; // a gap to walk in from the south
+        const r = R + ((i % 3) - 1) * 1.4;
+        addRock(Math.cos(a) * r, Math.sin(a) * r, 1.2 + ((i * 7) % 5) * 0.55, i * 0.7);
+      }
+      const floor = new THREE.Mesh(new THREE.CircleGeometry(13, 32), new THREE.MeshBasicMaterial({ color: 0x5a3a2a, transparent: true, opacity: 0.22, depthWrite: false }));
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.y = 0.02;
+      floor.renderOrder = 1;
+      decor.add(floor);
+      return;
+    }
+
+    if (id === "cliff") {
+      for (let i = 0; i < 5; i++) {
+        const w = 13 - i * 1.5, h = 1.3 + (i % 2) * 0.4, d = 4.2 - i * 0.35;
+        addSlab(-16 + i * 0.35, 0.65 + i * 1.3, -2, w, h, d, layers[i % 3], 0.06 + i * 0.02);
+      }
+      for (const [x, z, s, ry] of [[-12.8, -4.6, 1.2, 0.2], [-13.6, 0.8, 0.9, 0.7], [-12.4, 2.4, 0.7, 0.4]]) addRock(x, z, s, ry);
+      return;
+    }
+
+    if (id === "canyon") {
+      for (const side of [-1, 1]) {
+        const x = side * 16;
+        for (let i = 0; i < 4; i++) {
+          const z = -13 + i * 8.5;
+          const h = 5.5 + (i % 2) * 2.2;
+          addSlab(x + side * (i % 2) * 1.2, h / 2, z, 7.5, h, 7, layers[(i + (side > 0 ? 1 : 0)) % 3], side * 0.08);
+        }
+        for (const [z, s] of [[-10, 1.1], [6, 0.8]]) addRock(x - side * 3.2, z, s, side);
+      }
+      return;
+    }
+
+    if (id === "riverbed") {
+      const bed = new THREE.Mesh(new THREE.PlaneGeometry(6.5, 48), new THREE.MeshBasicMaterial({ color: 0x5a4a3c, transparent: true, opacity: 0.42, depthWrite: false }));
+      bed.rotation.x = -Math.PI / 2;
+      bed.position.set(-10.5, 0.03, 0);
+      bed.renderOrder = 1;
+      decor.add(bed);
+      for (let i = 0; i < 20; i++) {
+        const z = -22 + i * 2.3;
+        const x = -10.5 + Math.sin(i * 1.7) * 2.4;
+        const s = 0.22 + (i % 5) * 0.16;
+        const pebble = part(new THREE.IcosahedronGeometry(1, 0), i % 3 ? rockMat : sand, x, s * 0.35, z);
+        pebble.scale.set(s * 1.4, s * 0.8, s);
+        pebble.rotation.y = i;
+        decor.add(pebble);
+      }
+      return;
+    }
+
+    if (id === "delta") {
+      const cx = 11, cz = -9;
+      for (let i = 0; i < 4; i++) {
+        const r = 8 - i * 1.7;
+        decor.add(part(new THREE.CylinderGeometry(r, r + 0.7, 0.8, 24), layers[i % 3], cx, 0.4 + i * 0.8, cz));
+      }
+      decorSolids.push({ x: cx, z: cz, r: 8 });
+      addSlab(cx - 3, 1.2, cz + 3, 5, 2.4, 3, layerA, 0.2);
+      addSlab(cx - 3, 2.6, cz + 3, 4, 0.5, 2.6, layerB, 0.2);
+      for (const [x, z, s] of [[6, -10, 1.2], [14, -4, 0.9], [9, -3, 0.7]]) addRock(x, z, s, 0.4);
     }
   }
 
@@ -824,6 +1023,11 @@ export async function createWorld(opts) {
       const d0 = Math.hypot(nx, nz);
       if (d0 > PLAY_RADIUS) { nx *= PLAY_RADIUS / d0; nz *= PLAY_RADIUS / d0; }
       for (const s of solids) {
+        const dx = nx - s.x, dz = nz - s.z;
+        const d = Math.hypot(dx, dz);
+        if (d < s.r && d > 0.0001) { nx = s.x + (dx / d) * s.r; nz = s.z + (dz / d) * s.r; }
+      }
+      for (const s of decorSolids) {
         const dx = nx - s.x, dz = nz - s.z;
         const d = Math.hypot(dx, dz);
         if (d < s.r && d > 0.0001) { nx = s.x + (dx / d) * s.r; nz = s.z + (dz / d) * s.r; }
