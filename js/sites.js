@@ -1,17 +1,37 @@
-// Places on the map around the base. Text lives in i18n.js under
-// site.<id>.name and site.<id>.desc. `fact` is a knowledge card unlocked the
-// first time the crew visits. Base sits at (180, 135) on a 360×270 map.
+// Places the crew can explore. Text lives in i18n.js under site.<id>.name and
+// site.<id>.desc. `fact` is a knowledge card unlocked the first time the crew
+// visits.
+//
+// wx / wz are positions on the real Jezero crater terrain grid (column, row of
+// the 128 × 128 MOLA cells, about 463 m each). They follow the ancient river
+// system on the crater's west side, which is visible in the elevation data:
+// the Neretva Vallis notch in the rim → the delta fan → the delta front → the
+// crater floor. x / y are for the simple 2D map (360 × 270) used as a fallback.
 
 export const BASE = { x: 180, y: 135 };
-export const RINGS = [67, 115, 166]; // tier 1 / 2 / 3 distance rings
+export const RINGS = [67, 115, 166]; // tier 1 / 2 / 3 distance rings on the 2D map
 
 export const SITES = [
-  { id: "dune", tier: 1, x: 120, y: 105, icon: "🏜️", fact: "thinAir" },
-  { id: "crater", tier: 1, x: 238, y: 168, icon: "🕳️", fact: "marsquake" },
-  { id: "cliff", tier: 2, x: 275, y: 72, icon: "🧱", fact: "layers" },
-  { id: "riverbed", tier: 2, x: 85, y: 200, icon: "🪨", fact: "gale" },
-  { id: "canyon", tier: 3, x: 40, y: 45, icon: "⛰️", fact: "eva" },
-  { id: "delta", tier: 3, x: 300, y: 224, icon: "🏞️", fact: "jezero" },
+  { id: "dune", tier: 1, x: 120, y: 105, wx: 50.5, wz: 67.5, icon: "🏜️", fact: "thinAir" },
+  { id: "crater", tier: 1, x: 238, y: 168, wx: 64.5, wz: 54.5, icon: "🕳️", fact: "marsquake" },
+  { id: "cliff", tier: 2, x: 275, y: 72, wx: 34.5, wz: 53.5, icon: "🧱", fact: "layers" },
+  { id: "riverbed", tier: 2, x: 85, y: 200, wx: 41.5, wz: 49.5, icon: "🪨", fact: "gale" },
+  { id: "canyon", tier: 3, x: 40, y: 45, wx: 15.5, wz: 49.5, icon: "⛰️", fact: "eva" },
+  { id: "delta", tier: 3, x: 300, y: 224, wx: 24.5, wz: 45.5, icon: "🏞️", fact: "jezero" },
 ];
+
+// The base on the 3D terrain, on the flat crater floor. Stations are where the
+// crew does the daytime jobs; the habitat door ends the day.
+export const WORLD_BASE = {
+  spawn: { x: 56.5, z: 67.5, heading: Math.PI }, // south of the base, facing it
+  stations: [
+    { id: "habitat", kind: "habitat", x: 56.5, z: 62.2, r: 1.5, mx: 56.5, mz: 60.5, solid: 1.9, icon: "🏠", labelY: 3.4 },
+    { id: "panels", kind: "panels", x: 61.5, z: 61.5, r: 2.4, solid: 1.2, icon: "🔆", labelY: 2.2 },
+    { id: "greenhouse", kind: "greenhouse", x: 51.5, z: 61.5, r: 2.3, solid: 1.3, icon: "🌱", labelY: 2.4 },
+    { id: "antenna", kind: "antenna", x: 57.5, z: 56.5, r: 2.2, solid: 0.6, icon: "📡", labelY: 3.9 },
+  ],
+  // Where NASA's Perseverance rover really landed (18.4447°N, 77.4508°E), February 2021.
+  landmark: { id: "perseverance", kind: "landmark", x: 37.7, z: 56.1, r: 2.4, solid: 0.9, icon: "🤖", labelY: 2.6, fact: "jezero" },
+};
 
 export const siteById = (id) => SITES.find((s) => s.id === id);

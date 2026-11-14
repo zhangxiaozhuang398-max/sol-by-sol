@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "fetch-data": "node --env-file-if-exists=.env scripts/fetch_donki.mjs",
-    "simulate": "node scripts/simulate.mjs"
+    "simulate": "node scripts/simulate.mjs",
+    "fetch-terrain": "node scripts/fetch_mars_terrain.mjs"
   }
 }

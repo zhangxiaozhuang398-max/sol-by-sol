@@ -62,7 +62,7 @@ a { color: var(--teal); }
 .btn.big { font-size: 1.15rem; padding: 14px 28px; }
 .btn.small { padding: 6px 12px; font-size: 0.9rem; }
 .btn.ghost { background: transparent; box-shadow: none; color: var(--muted); text-decoration: underline; }
-.info {
+button.info {
   border: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--line); color: var(--text);
   font-weight: 800; font-size: 0.8rem; cursor: pointer; flex: none;
 }
@@ -354,7 +354,7 @@ details.data-table th:first-child, details.data-table td:first-child { text-alig
   .layout { grid-template-columns: 1fr; }
   .side { display: contents; }
   .hud { order: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
-  .stage { order: 2; }
+  .main-col { order: 2; }
   .timeline { order: 3; }
   .res-divider { display: none; }
   .stepper { order: 3; width: 100%; margin: 0; overflow-x: auto; }
@@ -378,4 +378,98 @@ details.data-table th:first-child, details.data-table td:first-child { text-alig
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* ---------- walkable Mars world ---------- */
+.main-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.world {
+  position: relative; height: 170px; border-radius: var(--radius); overflow: hidden;
+  background: #2a160e; box-shadow: var(--shadow); transition: height 0.35s ease;
+}
+.world.play { height: min(66vh, 600px); min-height: 400px; }
+.world-view, .world-view canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.world-view canvas { cursor: grab; }
+.world-top { position: absolute; top: 10px; left: 10px; display: flex; gap: 8px; flex-wrap: wrap; pointer-events: none; }
+.world-chip {
+  background: rgba(27, 21, 48, 0.82); border: 2px solid var(--line); border-radius: 999px;
+  padding: 5px 12px; font-weight: 800; font-size: 0.9rem; display: inline-flex; gap: 6px; align-items: center;
+}
+.world-chip:empty { display: none; }
+.world-chip .pip { width: 12px; height: 12px; border-radius: 50%; background: var(--sand); display: inline-block; }
+.world-chip .pip.used { background: transparent; border: 2px solid var(--line); }
+.world-chip.alert { border-color: var(--red); background: rgba(77, 31, 53, 0.92); }
+.world-map {
+  position: absolute; top: 10px; right: 10px; padding: 4px; border-radius: 14px;
+  background: rgba(27, 21, 48, 0.82); border: 2px solid var(--line); line-height: 0;
+}
+.world-map canvas { width: 148px; height: 148px; border-radius: 10px; display: block; }
+.world-map-cap { font-size: 0.68rem; line-height: 1.2; color: var(--muted); text-align: center; padding: 4px 2px 2px; font-weight: 700; }
+.world-prompt {
+  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+  width: min(460px, calc(100% - 24px)); max-height: 62%; overflow-y: auto;
+  background: rgba(36, 28, 64, 0.95); border: 2px solid var(--sand); border-radius: var(--radius);
+  padding: 12px 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+.world-prompt:empty { display: none; }
+.world-prompt.hint { border-color: var(--line); width: auto; max-width: calc(100% - 24px); padding: 8px 14px; font-weight: 700; font-size: 0.92rem; text-align: center; }
+.world-prompt h4 { font-size: 1.15rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 4px; }
+.world-prompt p { margin: 4px 0 8px; font-size: 0.9rem; color: var(--muted); }
+.world-prompt .chips { margin-bottom: 8px; }
+.world-prompt .alerts { margin: 6px 0; }
+.world-prompt .site-go { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.world-prompt kbd, .world-keys kbd {
+  font: inherit; font-weight: 800; font-size: 0.8em; background: var(--card-2); border: 1px solid var(--line);
+  border-bottom-width: 3px; border-radius: 6px; padding: 1px 6px;
+}
+.world-toast {
+  position: absolute; left: 50%; top: 22%; transform: translateX(-50%); pointer-events: none;
+  font-family: "Baloo 2", var(--cjk); font-weight: 800; font-size: 1.5rem; color: #fff; text-align: center;
+  text-shadow: 0 2px 0 #1b1530, 0 0 14px rgba(0, 0, 0, 0.7); white-space: nowrap; opacity: 0;
+}
+.world-toast.show { animation: toast-rise 1.9s ease-out forwards; }
+@keyframes toast-rise { 0% { opacity: 0; transform: translate(-50%, 16px); } 15% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -34px); } }
+.world-keys {
+  position: absolute; left: 10px; bottom: 10px; font-size: 0.78rem; color: var(--text); font-weight: 700;
+  background: rgba(27, 21, 48, 0.7); border-radius: 10px; padding: 5px 9px; pointer-events: none;
+}
+.world-credit {
+  position: absolute; right: 10px; bottom: 8px; font-size: 0.66rem; color: rgba(255, 255, 255, 0.78);
+  text-shadow: 0 1px 2px #000; pointer-events: none; text-align: right; max-width: 46%;
+}
+.joy {
+  position: absolute; left: 14px; bottom: 14px; width: 108px; height: 108px; border-radius: 50%;
+  background: rgba(27, 21, 48, 0.55); border: 2px solid rgba(255, 255, 255, 0.35); display: none;
+}
+.joy i { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: rgba(243, 181, 98, 0.9); }
+.world:not(.play) .world-top, .world:not(.play) .world-map, .world:not(.play) .world-prompt,
+.world:not(.play) .world-keys, .world:not(.play) .joy, .world:not(.play) .world-toast { display: none; }
+.world:not(.play) .world-view canvas { cursor: default; }
+.stage.compact { min-height: 0; padding: 14px 18px; }
+.day-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.day-bar .log { margin: 0; flex: 1 1 260px; }
+.day-bar .log ul { flex-direction: row; flex-wrap: wrap; }
+.day-bar .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+@media (pointer: coarse) {
+  .world.play .joy { display: block; }
+  .world.play .world-keys { display: none; }
+  .world-prompt { bottom: 12px; left: auto; right: 12px; transform: none; width: min(340px, calc(100% - 150px)); }
+  .world-prompt.hint { left: 50%; right: auto; transform: translateX(-50%); bottom: auto; top: 54px; }
+}
+@media (max-width: 640px) {
+  .world.play { height: 70vh; min-height: 380px; }
+  .world-map canvas { width: 104px; height: 104px; }
+  .world-credit { display: none; }
+}
+.world-prompt.hint { bottom: auto; top: 54px; }
+.world.play .world-credit { display: none; }
+.world-prompt:not(.hint) { left: 12px; transform: none; width: min(370px, calc(100% - 24px)); }
+.world.has-card .world-keys { display: none; }
+.world-prompt { max-height: calc(100% - 70px); }
+.world-prompt .alert { font-size: 0.85rem; padding: 6px 10px; }
+.world-top { max-width: calc(100% - 190px); }
+@media (max-width: 640px) {
+  .world-top { max-width: calc(100% - 136px); }
+  .world-prompt.hint { top: auto; bottom: 12px; left: 132px; right: 10px; transform: none; max-width: none; font-size: 0.82rem; padding: 6px 10px; }
+  .world-prompt:not(.hint) { left: 10px; right: 10px; width: auto; bottom: 10px; max-height: 56%; }
+  .world.has-card .joy { display: none; }
 }

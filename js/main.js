@@ -1,6 +1,7 @@
 import * as E from "./game.js";
 import { CONFIG as C } from "./config.js";
-import { SITES, BASE, RINGS, siteById } from "./sites.js";
+import { SITES, BASE, RINGS, WORLD_BASE, siteById } from "./sites.js";
+import { createWorld } from "./world.js";
 import { FACTS } from "./facts.js";
 import { buildReport } from "./report.js";
 import { t, tr, pick, getLang, setLang, applyStatic } from "./i18n.js";
@@ -19,7 +20,7 @@ let pool = [];
 let s = null; // current mission
 let ui = freshUi();
 function freshUi() {
-  return { site: null, alloc: null, prevHud: null, lastPhase: null };
+  return { site: null, alloc: null, prevHud: null, lastPhase: null, classic: false, worldDay: null };
 }
 const stage = $("#stage");
 
@@ -49,6 +50,7 @@ function saveCollection(ids) {
 // ---------- helpers ----------
 function show(id) {
   $$(".screen").forEach((el) => el.classList.toggle("active", el.id === id));
+  if (world && id !== "screen-game") world.stop();
   window.scrollTo({ top: 0 });
 }
 const activeScreen = () => $(".screen.active")?.id;
@@ -77,6 +79,7 @@ function render() {
   renderHud();
   renderCalendar();
   const phaseKey = `${s.sol}-${s.phase}`;
+  syncWorld();
   renderStage();
   if (ui.lastPhase !== phaseKey) {
     if (ui.lastPhase !== null) window.scrollTo({ top: 0 });
@@ -162,6 +165,7 @@ function renderCalendar() {
 }
 
 function renderStage() {
+  if (s.phase !== "day") stage.classList.remove("compact");
   if (s.phase === "briefing") renderBriefing();
   else if (s.phase === "day") renderDay();
   else if (s.phase === "night") renderNight();
@@ -289,7 +293,7 @@ function actionButton(id, icon, name, desc, chk) {
     <span class="a-desc">${chk.ok ? desc : `🚫 ${tr(chk.reason.key, chk.reason.params)}`}</span></button>`;
 }
 
-function renderDay() {
+function renderDayClassic() {
   const pips = Array.from({ length: C.actionPoints }, (_, i) => `<span class="pip${i < s.ap ? "" : " used"}"></span>`).join("");
   const clean = E.checkClean(s);
   const key = E.weatherKey(s, s.sol);
@@ -315,11 +319,13 @@ function renderDay() {
     </div>
     <div class="stage-foot">
       <span class="hint">${t("day.hint", { n: E.expectedIncome(s) })}${s.ap > 0 ? esc(t("day.hintAp", { n: s.ap })) : ""}</span>
+      ${world ? `<button class="btn small" id="to-walk" type="button">${esc(t("world.walkMode"))}</button>` : ""}
       <button class="btn primary" id="go-night" type="button">${esc(t("day.sunset"))}</button>
     </div>`;
 
+  if ($("#to-walk")) $("#to-walk").onclick = () => { ui.classic = false; ui.worldDay = null; render(); };
   $$(".site", stage).forEach((el) => {
-    const pick_ = () => { ui.site = el.dataset.site; renderDay(); };
+    const pick_ = () => { ui.site = el.dataset.site; renderDayClassic(); };
     el.addEventListener("click", pick_);
     el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick_(); } });
   });
@@ -334,6 +340,193 @@ function renderDay() {
     ui.alloc = null;
     render();
   };
+}
+
+// ---------- phase 2, walking: the real Mars surface (world.js) ----------
+let world = null;
+const walking = () => !!world && !ui.classic;
+
+async function ensureWorld() {
+  try {
+    world = await createWorld({
+      mount: $("#world-view"), minimap: $("#minimap"), joystick: $("#joy"),
+      onNear: () => updatePrompt(), onUse: () => usePrompt(),
+    });
+  } catch (err) {
+    console.warn("3D world unavailable, using the simple map", err);
+    world = null;
+  }
+  if (!world) return;
+  const sp = WORLD_BASE.spawn;
+  world.setSpawn(sp.x, sp.z, sp.heading);
+  world.respawn();
+  window.solWorld = world; // handy for demos and tests
+  if (s && activeScreen() === "screen-game") render();
+}
+
+function worldTargets() {
+  const doneToday = { panels: s.today.cleaned, greenhouse: s.today.tended, antenna: s.today.called };
+  const list = SITES.map((x) => ({
+    id: x.id, kind: "site", x: x.wx, z: x.wz, r: 2.8, tier: x.tier, done: s.visits[x.id] > 0,
+    label: `${x.icon} ${t(`site.${x.id}.name`)}${s.visits[x.id] ? " ✓" : ""}`,
+  }));
+  for (const st of WORLD_BASE.stations) {
+    list.push({ ...st, done: !!doneToday[st.id], label: `${st.icon} ${t(`world.station.${st.id}`)}${doneToday[st.id] ? " ✓" : ""}` });
+  }
+  const lm = WORLD_BASE.landmark;
+  list.push({ ...lm, label: `${lm.icon} ${t("world.station.perseverance")}` });
+  return list;
+}
+
+// Keep the 3D view in step with the game: a banner with a slow orbit in the
+// morning and at night, full-size and walkable during the day.
+function syncWorld() {
+  const el = $("#world");
+  if (!world) { el.classList.add("hidden"); return; }
+  if (!s || s.phase === "end" || activeScreen() !== "screen-game") { world.stop(); return; }
+  const play = s.phase === "day" && !ui.classic;
+  el.classList.toggle("hidden", s.phase === "day" && ui.classic);
+  el.classList.toggle("play", play);
+  world.setTargets(worldTargets());
+  world.setLook(s.phase, E.weatherKey(s, s.sol));
+  if (play && ui.worldDay !== s.sol) {
+    world.respawn();
+    ui.worldDay = s.sol;
+  }
+  world.setMode(play ? "play" : "cinematic");
+  world.start();
+  if (play) {
+    const pips = Array.from({ length: C.actionPoints }, (_, i) => `<span class="pip${i < s.ap ? "" : " used"}"></span>`).join("");
+    $("#world-ap").innerHTML = `${esc(t("day.ap"))} ${pips}`;
+    const key = E.weatherKey(s, s.sol);
+    const storm = E.solarStormOn(s, s.sol);
+    const chip = $("#world-weather");
+    chip.classList.toggle("alert", !!storm);
+    chip.textContent = storm ? t("world.stormAlert") : `${wIcon(key)} ${wName(key)}`;
+  }
+  updatePrompt();
+}
+
+function promptButton(label, ok = true) {
+  return `<button class="btn primary" id="use-btn" type="button" ${ok ? "" : "disabled"}>${esc(label)} <kbd>E</kbd></button>`;
+}
+
+function updatePrompt() {
+  const el = $("#world-prompt");
+  if (!world || !s || s.phase !== "day" || ui.classic) { el.innerHTML = ""; return; }
+  const id = world.near;
+  el.className = "world-prompt";
+  $("#world").classList.toggle("has-card", !!id);
+  if (!id) {
+    el.classList.add("hint");
+    el.textContent = t(s.ap > 0 ? "world.hint.walk" : "world.hint.noAp");
+    return;
+  }
+  const lock = (chk) => (chk.ok ? "" : `<span class="lock">🚫 ${tr(chk.reason.key, chk.reason.params)}</span>`);
+  const st = siteById(id);
+  let html = "";
+  if (st) {
+    const chk = E.checkEva(s, id);
+    const c = chk.cost;
+    html = `<h4>${st.icon} ${esc(t(`site.${id}.name`))} <span class="chip">${esc(t(`tier.${st.tier}`))} · ${esc(t("day.apCost", { n: c.ap }))}</span></h4>
+      <p>${esc(t(`site.${id}.desc`))}</p>
+      <div class="chips"><span class="chip">⚡ −${c.power}</span><span class="chip">🫁 −${c.oxygen}</span>
+        <span class="chip${c.storm ? " bad" : ""}">☢️ +${c.dose}</span><span class="chip">🔬 +${c.science}</span></div>
+      ${alertHtml(chk.warnings)}
+      <div class="site-go">${promptButton(t("world.site.go"), chk.ok)}${lock(chk)}</div>`;
+  } else if (id === "panels") {
+    const chk = E.checkClean(s);
+    html = `<h4>🔆 ${esc(t("act.clean.name"))}</h4><p>${t("act.clean.desc", { panel: s.panel, gain: chk.gain || 0 })}</p>
+      <div class="site-go">${promptButton(t("world.panels.go"), chk.ok)}${lock(chk)}</div>`;
+  } else if (id === "greenhouse") {
+    const chk = E.checkTend(s);
+    html = `<h4>🌱 ${esc(t("act.tend.name"))}</h4><p>${t("act.tend.desc", { sci: C.greenhouse.tendScience, food: C.greenhouse.tendFood })}</p>
+      <div class="site-go">${promptButton(t("world.greenhouse.go"), chk.ok)}${lock(chk)}</div>`;
+  } else if (id === "antenna") {
+    const chk = E.checkCall(s);
+    html = `<h4>📡 ${esc(t("act.call.name"))}</h4><p>${t("act.call.desc", { min: s.lightMinutes, days: C.call.forecastDays, sci: C.call.science })}</p>
+      <div class="site-go">${promptButton(t("world.antenna.go"), chk.ok)}${lock(chk)}</div>`;
+  } else if (id === "habitat") {
+    html = `<h4>${esc(t("world.habitat.title"))}</h4><p>${esc(t("world.habitat.desc", { n: E.expectedIncome(s) }))}</p>
+      ${s.ap > 0 ? alertHtml([{ level: "warn", key: "world.habitat.apLeft", params: { n: s.ap } }]) : ""}
+      <div class="site-go">${promptButton(t("world.habitat.go"))}</div>`;
+  } else if (id === "perseverance") {
+    html = `<h4>${esc(t("world.landmark.title"))}</h4><p>${esc(t("world.landmark.desc"))}</p>
+      <div class="site-go">${promptButton(t("world.landmark.go"))}</div>`;
+  }
+  el.innerHTML = html;
+  const btn = $("#use-btn");
+  if (btn) btn.onclick = () => usePrompt();
+}
+
+function toast(text) {
+  const el = $("#world-toast");
+  el.textContent = text;
+  el.classList.remove("show");
+  void el.offsetWidth; // restart the animation
+  el.classList.add("show");
+}
+
+function endDayNow() {
+  if (s.ap > 0) {
+    if (world) world.setEnabled(false);
+    const yes = window.confirm(t("day.confirm", { n: s.ap }));
+    if (world) world.setEnabled(true);
+    if (!yes) return;
+  }
+  E.endDay(s);
+  ui.alloc = null;
+  render();
+}
+
+// The player pressed E (or tapped the button) next to something.
+function usePrompt() {
+  if (!world || !s || s.phase !== "day" || ui.classic) return;
+  const id = world.near;
+  if (!id) return;
+  if (siteById(id)) {
+    const r = E.doEva(s, id);
+    if (!r.ok) return;
+    toast(`+${r.cost.science} 🔬   −${r.cost.power} ⚡  −${r.cost.oxygen} 🫁  +${r.cost.dose} ☢️`);
+  } else if (id === "panels") {
+    const r = E.doClean(s);
+    if (!r.ok) return;
+    toast(t("world.toast.clean", { gain: r.gain }));
+  } else if (id === "greenhouse") {
+    if (!E.doTend(s).ok) return;
+    toast(t("world.toast.tend", { sci: C.greenhouse.tendScience }));
+  } else if (id === "antenna") {
+    if (!E.doCall(s).ok) return;
+    toast(t("world.toast.call"));
+  } else if (id === "habitat") {
+    endDayNow();
+    return;
+  } else if (id === "perseverance") {
+    openInfo(factHtml(WORLD_BASE.landmark.fact, "", true));
+    return;
+  }
+  render();
+}
+
+function renderDayWorld() {
+  const key = E.weatherKey(s, s.sol);
+  stage.innerHTML = `
+    <div class="day-bar">
+      <div><h2 class="day-h">${esc(t("day.titleWorld"))}</h2><span class="sub">${wIcon(key)} ${esc(wName(key))} · ${t("day.hint", { n: E.expectedIncome(s) })}</span></div>
+      <div class="log"><ul>${s.today.log.length ? s.today.log.map((l) => `<li>${tr(l.key, l.params)}</li>`).join("") : `<li>${esc(t("day.logEmpty"))}</li>`}</ul></div>
+      <div class="btns">
+        <button class="btn small" id="to-classic" type="button">${esc(t("world.classic"))}</button>
+        <button class="btn small" id="end-day" type="button">${esc(t("world.endDay"))}</button>
+      </div>
+    </div>`;
+  $("#to-classic").onclick = () => { ui.classic = true; ui.site = null; render(); };
+  $("#end-day").onclick = () => endDayNow();
+}
+
+function renderDay() {
+  stage.classList.toggle("compact", walking());
+  if (walking()) renderDayWorld();
+  else renderDayClassic();
 }
 
 // ---------- phase 3: night (split the power) ----------
@@ -638,6 +831,7 @@ $("#btn-collection").addEventListener("click", () => {
 });
 
 // ---------- boot ----------
+ensureWorld();
 applyStatic();
 updateCollectionCount();
 updateContinue();

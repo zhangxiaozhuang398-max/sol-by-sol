@@ -68,7 +68,26 @@
           <div class="sols-legend" data-i18n="cal.legend"></div>
         </section>
       </aside>
-      <main class="panel-box stage" id="stage" aria-live="polite"></main>
+      <div class="main-col">
+        <!-- The walkable Mars surface: real Jezero crater terrain (NASA MOLA + Viking) -->
+        <section class="world hidden" id="world" data-i18n-aria="world.aria">
+          <div class="world-view" id="world-view"></div>
+          <div class="world-top">
+            <span class="world-chip" id="world-ap"></span>
+            <span class="world-chip" id="world-weather"></span>
+          </div>
+          <div class="world-map">
+            <canvas id="minimap" width="168" height="168" data-i18n-aria="world.mapAria"></canvas>
+            <div class="world-map-cap" data-i18n="world.mapCap"></div>
+          </div>
+          <div class="world-toast" id="world-toast" aria-live="polite"></div>
+          <div class="world-prompt" id="world-prompt" aria-live="polite"></div>
+          <div class="joy" id="joy" aria-hidden="true"><i></i></div>
+          <div class="world-keys" data-i18n-html="world.keys"></div>
+          <div class="world-credit" data-i18n="world.credit"></div>
+        </section>
+        <main class="panel-box stage" id="stage" aria-live="polite"></main>
+      </div>
     </div>
   </section>
 
