@@ -23,8 +23,8 @@ import { DRACOLoader } from "./vendor/loaders/DRACOLoader.js";
 const WALK_SPEED = 7.5; // metres per second (a brisk, bounding walk)
 const TURN_SPEED = 2.3;
 const PLAY_RADIUS = 150; // metres from the centre of the place
-const CAM_BACK = 7.2;
-const CAM_UP = 2.9;
+const CAM_BACK = 8.8;
+const CAM_UP = 3.4;
 const SKY_R = 2600; // distance of the skyline mesh
 const M_PER_DEG = (2 * Math.PI * 3396190) / 360;
 
@@ -648,9 +648,57 @@ export async function createWorld(opts) {
 
   // Small, non-interactive props that make the base feel lived in. They are
   // deliberately not targets: the four stations are the only things with rules.
+  let decorToken = 0;
   function buildDecor(id) {
     decor.clear();
-    if (id !== "base") return;
+    const token = ++decorToken;
+    if (id !== "base") {
+      const flag = makeFlag(0xff8a55);
+      flag.position.set(-3.4, 0, -1.5);
+      flag.rotation.y = 0.4;
+      decor.add(flag);
+      const crate = part(new THREE.BoxGeometry(0.7, 0.5, 0.5), mat(0xe9e4f5, { roughness: 0.8 }), 1.4, 0.25, -3);
+      crate.rotation.y = -0.3;
+      decor.add(crate);
+      decor.add(part(new THREE.CylinderGeometry(0.12, 0.16, 0.35, 10), mat(0xff8a55, { roughness: 0.6 }), 0, 0.18, -4));
+
+      // A small field camp, so a site reads as a destination rather than a
+      // photo with a ring on it.
+      const flag2 = makeFlag(0x4fd1c5);
+      flag2.position.set(3.6, 0, 1.8);
+      flag2.rotation.y = -0.5;
+      decor.add(flag2);
+      const rover = makeRoverPlaceholder();
+      rover.position.set(-5.2, 0, 3.2);
+      rover.rotation.y = 0.45;
+      rover.scale.setScalar(0.9);
+      decor.add(rover);
+      // Swap the blocky stand-in for NASA's Perseverance once it has loaded.
+      loadModel("perseverance").then((m) => {
+        if (token !== decorToken) return;
+        decor.remove(rover);
+        const real = m.clone(true);
+        real.position.set(-5.2, 0, 3.2);
+        real.rotation.y = 0.45;
+        decor.add(real);
+      }).catch(() => {});
+      const tent = part(new THREE.CylinderGeometry(1.2, 1.2, 3.2, 16, 1, true, 0, Math.PI), mat(0xe9e4f5, { roughness: 0.7, side: THREE.DoubleSide }), 4.4, 1.2, 3.2);
+      tent.rotation.z = Math.PI / 2;
+      tent.rotation.y = Math.PI / 2;
+      decor.add(tent);
+      for (const [x, z, size, color, ry] of [[2.4, 2.4, 0.5, 0x9a6a48, 0.2], [3.1, 2.8, 0.35, 0x6e5a4a, -0.4]]) {
+        const box = part(new THREE.BoxGeometry(size, size, size), mat(color, { roughness: 0.9 }), x, size / 2, z);
+        box.rotation.y = ry;
+        decor.add(box);
+      }
+      for (const [x, z, size, ry] of [[-2.8, 1.2, 1.4, 0.4], [2.2, -1.8, 1.0, -0.3], [-1.8, -3.2, 0.8, 0.7]]) {
+        const rock = part(new THREE.IcosahedronGeometry(1, 0), rockMat, x, size * 0.35, z);
+        rock.scale.set(size, size * 0.75, size);
+        rock.rotation.y = ry;
+        decor.add(rock);
+      }
+      return;
+    }
     const flag1 = makeFlag(0xf3b562);
     flag1.position.set(-4.6, 0, 5.8);
     flag1.rotation.y = 0.35;
@@ -820,12 +868,12 @@ export async function createWorld(opts) {
       lz = st.z + Math.cos(st.heading) * 6;
     } else {
       // slow orbit around the place, looking a little up so the sky shows
-      const r = 30;
+      const r = 36;
       cx = Math.sin(st.orbit) * r;
       cz = Math.cos(st.orbit) * r + 2;
-      cy = 5.5;
+      cy = 8;
       lx = 0;
-      ly = 3.2;
+      ly = 2.4;
       lz = 0;
     }
     const k = st.snap ? 1 : Math.min(1, dt * 6);

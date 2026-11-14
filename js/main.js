@@ -27,6 +27,10 @@ const BASE3D = {
     { id: "antenna", kind: "antenna", icon: "📡", x: 9.5, z: -1.4, r: 2.4, model: "dish", solid: 0.9, labelY: 8.2 },
   ],
 };
+const SITE3D = {
+  spawn: { x: 0, z: 10, heading: Math.PI },
+  target: { x: 0, z: -4, r: 3, labelY: 3.2 },
+};
 const wIcon = (key) => E.WEATHER_ICONS[key];
 const wName = (key) => t(`weather.${key}`);
 
@@ -34,7 +38,7 @@ let pool = [];
 let s = null; // current mission
 let ui = freshUi();
 function freshUi() {
-  return { site: null, alloc: null, prevHud: null, lastPhase: null, classic: false, worldDay: null };
+  return { site: null, alloc: null, prevHud: null, lastPhase: null, classic: false, worldDay: null, place: "base", loading: false };
 }
 const stage = $("#stage");
 
@@ -255,7 +259,7 @@ function renderBriefing() {
       <span class="hint">${t("brief.ap", { n: C.actionPoints })}</span>
       <button class="btn primary" id="go-day" type="button">${esc(t("brief.go"))}</button>
     </div>`;
-  $("#go-day").onclick = () => { E.beginDay(s); ui.site = null; render(); };
+  $("#go-day").onclick = () => { E.beginDay(s); ui.site = null; ui.place = "base"; ui.worldDay = null; render(); };
 }
 
 // ---------- phase 2: day (the map) ----------
@@ -300,8 +304,9 @@ function sitePanel() {
       <span class="chip${c.storm ? " bad" : ""}">☢️ +${c.dose}</span><span class="chip">🔬 +${c.science}</span>
     </div>
     ${alertHtml(chk.warnings)}
+    ${is3D() ? `<p class="note">${esc(t("day.travelNote"))}</p>` : ""}
     <div class="site-go">
-      <button class="btn primary" id="go-eva" type="button" ${chk.ok ? "" : "disabled"}>${esc(t("day.go"))}</button>
+      <button class="btn primary" id="go-eva" type="button" ${chk.ok ? "" : "disabled"}>${esc(t(is3D() ? "day.travel" : "day.go"))}</button>
       ${chk.ok ? "" : `<span class="lock">${tr(chk.reason.key, chk.reason.params)}</span>`}
     </div>
   </div>`;
@@ -317,6 +322,9 @@ function renderDayClassic() {
   const pips = Array.from({ length: C.actionPoints }, (_, i) => `<span class="pip${i < s.ap ? "" : " used"}"></span>`).join("");
   const clean = E.checkClean(s);
   const key = E.weatherKey(s, s.sol);
+  const backLabel = is3D()
+    ? (ui.place === "base" ? t("world.baseMode") : t("world.backToSite", { site: t(`site.${ui.place}.name`) }))
+    : t("world.walkMode");
   stage.innerHTML = `
     <div class="stage-head"><h2>${esc(t("day.title"))}</h2><span class="sub">${wIcon(key)} ${esc(wName(key))}</span>
       <span class="ap-pips" aria-label="${esc(t("day.apAria", { n: s.ap }))}">${esc(t("day.ap"))} ${pips}</span></div>
@@ -339,18 +347,23 @@ function renderDayClassic() {
     </div>
     <div class="stage-foot">
       <span class="hint">${t("day.hint", { n: E.expectedIncome(s) })}${s.ap > 0 ? esc(t("day.hintAp", { n: s.ap })) : ""}</span>
-      ${world ? `<button class="btn small" id="to-walk" type="button">${esc(t(is3D() ? "world.baseMode" : "world.walkMode"))}</button>` : ""}
+      ${world ? `<button class="btn small" id="to-walk" type="button">${esc(backLabel)}</button>` : ""}
+      ${is3D() && ui.place !== "base" ? `<button class="btn small" id="map-to-base" type="button">${esc(t("world.returnBase"))}</button>` : ""}
       <button class="btn primary" id="go-night" type="button">${esc(t("day.sunset"))}</button>
     </div>`;
 
   if ($("#to-walk")) $("#to-walk").onclick = () => { ui.classic = false; ui.worldDay = null; render(); };
+  $("#map-to-base")?.addEventListener("click", () => travelTo("base"));
   $$(".site", stage).forEach((el) => {
     const pick_ = () => { ui.site = el.dataset.site; renderDayClassic(); };
     el.addEventListener("click", pick_);
     el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick_(); } });
   });
   const go = $("#go-eva");
-  if (go) go.onclick = () => { E.doEva(s, ui.site); render(); };
+  if (go) go.onclick = () => {
+    if (is3D()) travelTo(ui.site);
+    else { E.doEva(s, ui.site); render(); }
+  };
   const doClean = $("#do-clean"), doTend = $("#do-tend"), doCall = $("#do-call");
   if (doClean) doClean.onclick = () => { E.doClean(s); render(); };
   if (doTend) doTend.onclick = () => { E.doTend(s); render(); };
@@ -412,9 +425,70 @@ async function ensureWorld() {
   if (s && activeScreen() === "screen-game") render();
 }
 
+let placeToken = 0;
+
+function showWorldLoading(place) {
+  const el = $("#world-loading");
+  if (!el) return;
+  const p = el.querySelector("p");
+  if (p) p.textContent = place === "base" ? t("world.returning") : t("world.driving", { site: t(`site.${place}.name`) });
+  el.classList.add("show");
+}
+
+function hideWorldLoading() {
+  $("#world-loading")?.classList.remove("show");
+}
+
+async function loadPlace(place) {
+  const token = ++placeToken;
+  ui.loading = true;
+  showWorldLoading(place);
+  try {
+    await world.setScene(place);
+    if (token !== placeToken) return;
+    const sp = place === "base" ? BASE3D.spawn : SITE3D.spawn;
+    world.setSpawn(sp.x, sp.z, sp.heading);
+    world.respawn();
+    ui.worldDay = s ? s.sol : ui.worldDay;
+    ui.loading = false;
+    hideWorldLoading();
+    render();
+  } catch (err) {
+    if (token !== placeToken) return;
+    console.warn(`3D scene ${place} failed`, err);
+    ui.loading = false;
+    hideWorldLoading();
+    toast(t("world.sceneFail"));
+    if (place !== "base") { ui.place = "base"; travelTo("base"); }
+    else { ui.classic = true; render(); }
+  }
+}
+
+// Route B: the rover map is the travel layer; every place is a 3D scene.
+function travelTo(place) {
+  if (!is3D()) return;
+  ui.place = place;
+  ui.classic = false;
+  ui.site = null;
+  ui.loading = false;
+  render();
+}
+
 function worldTargets() {
   const doneToday = { panels: s.today.cleaned, greenhouse: s.today.tended, antenna: s.today.called };
   if (is3D()) {
+    if (ui.place !== "base") {
+      const st = siteById(ui.place);
+      if (st) {
+        const done = s.visits[st.id] > 0;
+        return [{
+          id: st.id, kind: "site", icon: st.icon,
+          x: SITE3D.target.x, z: SITE3D.target.z, r: SITE3D.target.r, labelY: SITE3D.target.labelY,
+          done,
+          label: `${st.icon} ${t(`site.${st.id}.name`)}${done ? " ✓" : ""}`,
+        }];
+      }
+    }
     return BASE3D.stations.map((st) => ({
       ...st,
       done: !!doneToday[st.id],
@@ -448,6 +522,10 @@ function syncWorld() {
   }
   el.classList.remove("hidden");
   el.classList.toggle("play", play);
+  if (is3D() && world.place !== ui.place) {
+    if (!ui.loading) loadPlace(ui.place);
+    return;
+  }
   el.classList.toggle("is3d", is3D());
   const keysEl = $(".world-keys");
   if (keysEl) keysEl.innerHTML = t(is3D() ? "world.keys3d" : "world.keys");
@@ -497,7 +575,9 @@ function updatePrompt() {
   if (!id) {
     el.classList.add("hint");
     const key = is3D()
-      ? (s.ap > 0 ? "world.hint.base" : "world.hint.baseNoAp")
+      ? (ui.place === "base"
+          ? (s.ap > 0 ? "world.hint.base" : "world.hint.baseNoAp")
+          : (s.ap > 0 ? "world.hint.site" : "world.hint.siteNoAp"))
       : (s.ap > 0 ? "world.hint.walk" : "world.hint.noAp");
     el.textContent = t(key);
     return;
@@ -590,16 +670,22 @@ function usePrompt() {
 
 function renderDayWorld() {
   const key = E.weatherKey(s, s.sol);
+  const atSite = is3D() && ui.place !== "base";
+  const title = is3D()
+    ? (atSite ? t("day.titleSite", { site: t(`site.${ui.place}.name`) }) : t("day.titleBase"))
+    : t("day.titleWorld");
   stage.innerHTML = "";
   $("#side-day").innerHTML = `
     <div class="day-bar">
-      <div><h2 class="day-h">${esc(t(is3D() ? "day.titleBase" : "day.titleWorld"))}</h2><span class="sub">${wIcon(key)} ${esc(wName(key))} · ${t("day.hint", { n: E.expectedIncome(s) })}</span></div>
+      <div><h2 class="day-h">${esc(title)}</h2><span class="sub">${wIcon(key)} ${esc(wName(key))} · ${t("day.hint", { n: E.expectedIncome(s) })}</span></div>
       <div class="log"><ul>${s.today.log.length ? s.today.log.map((l) => `<li>${tr(l.key, l.params)}</li>`).join("") : `<li>${esc(t("day.logEmpty"))}</li>`}</ul></div>
       <div class="btns">
+        ${atSite ? `<button class="btn small" id="to-base" type="button">${esc(t("world.returnBase"))}</button>` : ""}
         <button class="btn small" id="to-classic" type="button">${esc(t(is3D() ? "world.roverMap" : "world.classic"))}</button>
         <button class="btn small" id="end-day" type="button">${esc(t("world.endDay"))}</button>
       </div>
     </div>`;
+  $("#to-base")?.addEventListener("click", () => travelTo("base"));
   $("#to-classic").onclick = () => { ui.classic = true; ui.site = null; render(); };
   $("#end-day").onclick = () => endDayNow();
 }
@@ -741,7 +827,7 @@ function renderSettle() {
       <span class="hint">${esc(s.sol + 1 === N ? t("settle.lastNext") : t("settle.left", { n: N - s.sol }))}</span>
       <button class="btn primary" id="next-sol" type="button">${esc(t("settle.next", { n: s.sol + 1 }))}</button>
     </div>`;
-  $("#next-sol").onclick = () => { E.nextSol(s); render(); };
+  $("#next-sol").onclick = () => { E.nextSol(s); ui.place = "base"; ui.worldDay = null; render(); };
 }
 
 // ---------- end ----------
