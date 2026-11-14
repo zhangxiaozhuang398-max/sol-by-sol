@@ -4,7 +4,8 @@ import { SITES, BASE, RINGS, WORLD_BASE, siteById } from "./sites.js";
 import { createWorld as createWorld2D } from "./world2d.js";
 import { FACTS } from "./facts.js";
 import { buildReport } from "./report.js";
-import { t, tr, pick, getLang, setLang, applyStatic } from "./i18n.js?v=3d3";
+import { SHORT, guideLine, moodOf, suggestAlloc } from "./kid.js?v=k1";
+import { t, tr, pick, getLang, setLang, applyStatic } from "./i18n.js?v=k1";
 import { audio } from "./audio.js?v=3d3";
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -89,10 +90,15 @@ const activeScreen = () => $(".screen.active")?.id;
 function factHtml(id, label = "", withLesson = false) {
   const f = FACTS[id];
   if (!f) return "";
+  const short = SHORT[id] ? pick(SHORT[id]) : pick(f.text);
   return `${label ? `<div class="label">${esc(label)}</div>` : ""}
-    <h3>${f.icon} ${esc(pick(f.title))}</h3><p>${esc(pick(f.text))}</p>
-    ${withLesson && f.lesson ? `<p class="lesson">🎮 ${esc(pick(f.lesson))}</p>` : ""}
-    <p class="src">${esc(t("fact.source"))} <a href="${f.source.url}" target="_blank" rel="noopener">${esc(pick(f.source.label))} ↗</a></p>`;
+    <div class="kcard"><span class="kcard-icon" aria-hidden="true">${f.icon}</span>
+      <div><h3>${esc(pick(f.title))}</h3><p class="kcard-short">${esc(short)}</p></div></div>
+    <details class="more"><summary>${esc(t("learn.more"))}</summary>
+      <p>${esc(pick(f.text))}</p>
+      ${withLesson && f.lesson ? `<p class="lesson">🎮 ${esc(pick(f.lesson))}</p>` : ""}
+      <p class="src">${esc(t("fact.source"))} <a href="${f.source.url}" target="_blank" rel="noopener">${esc(pick(f.source.label))} ↗</a></p>
+    </details>`;
 }
 function openInfo(html) {
   $("#info-body").innerHTML = html;
@@ -126,6 +132,7 @@ function render() {
   const phaseKey = `${s.sol}-${s.phase}`;
   syncWorld();
   renderStage();
+  updateGuide();
   if (ui.lastPhase !== phaseKey) {
     stage.scrollTop = 0;
     if (ui.lastPhase !== null) window.scrollTo({ top: 0 });
@@ -145,54 +152,67 @@ function renderTop() {
 
 const nightsLeft = () => N - s.sol + (s.phase === "settle" || s.phase === "end" ? 0 : 1);
 
+const FACE = { ok: "😊", low: "😟", bad: "😱" };
+
 function renderHud() {
   const prev = ui.prevHud || {};
-  const nights = nightsLeft();
-  const foodShort = nights - s.food;
-  let batteryNote = "";
-  if (s.phase === "day") batteryNote = t("hud.note.batteryDay", { n: E.expectedIncome(s) });
-  if (s.phase === "night") batteryNote = t("hud.note.batteryNight", { n: s.today.income });
-  const items = [
-    { key: "battery", icon: "⚡", val: s.battery, max: C.max.battery, c: "var(--blue)", note: batteryNote, fact: "coldNights" },
-    { key: "oxygen", icon: "🫁", val: s.oxygen, max: C.max.oxygen, c: "var(--teal)", fact: "moxie",
-      note: t(s.oxygen < 25 ? "hud.note.o2low" : "hud.note.o2", { n: C.oxygenUse.crewDaily }), bad: s.oxygen < 25 },
-    { key: "dose", icon: "☢️", val: s.dose, max: C.max.dose, c: "var(--red)", fact: "radiationAddsUp",
-      note: t(s.dose >= 70 ? "hud.note.doseHigh" : "hud.note.dose"), bad: s.dose >= 70 },
-    { key: "food", icon: "🥫", val: s.food, unit: t("unit.days"), max: N, c: "var(--green)", fact: "veggie",
-      note: nights <= 0 ? "" : foodShort > 0 ? t("hud.note.foodShort", { n: foodShort }) : t("hud.note.foodOk"), bad: foodShort > 0 },
-  ];
-  let html = items.map((it) => {
-    const pct = Math.max(0, Math.min(100, (it.val / it.max) * 100));
-    const flash = prev[it.key] != null && prev[it.key] !== it.val ? " flash" : "";
-    const unit = it.unit ? `<small>${esc(it.unit)}</small>`
-      : it.key === "battery" && it.val > it.max ? `<small>${esc(t("hud.avail"))}</small>` : `<small>/${it.max}</small>`;
-    return `<div class="res${flash}" style="--c:${it.c}">
-      <div class="res-head"><span class="res-icon" aria-hidden="true">${it.icon}</span><span class="res-name">${esc(t(`hud.${it.key}`))}</span>
-      <span class="res-val">${it.val}${unit}</span>
-      <button class="info" data-fact="${it.fact}" aria-label="${esc(t("hud.info"))}">?</button></div>
-      <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
-      ${it.note ? `<div class="res-note${it.bad ? " bad" : ""}">${it.note}</div>` : ""}
-    </div>`;
-  }).join("");
-  const starsGot = E.starsFor(s.science);
-  html += `<div class="res-divider"></div>
-    <div class="res${prev.panel != null && prev.panel !== s.panel ? " flash" : ""}" style="--c:var(--muted)">
-      <div class="res-head"><span class="res-icon" aria-hidden="true">🔆</span><span class="res-name">${esc(t("hud.panel"))}</span><span class="res-val">${s.panel}<small>%</small></span>
-      <button class="info" data-fact="dustDevil" aria-label="${esc(t("hud.info"))}">?</button></div>
-      <div class="bar thin"><div class="fill" style="width:${s.panel}%"></div></div>
+  const flash = (k, v) => (prev[k] != null && prev[k] !== v ? " flash" : "");
+  const pct = (v, max) => Math.max(0, Math.min(100, (v / max) * 100));
+  const gauge = (key, icon, val, max, color, fact, valText) => {
+    const mood = moodOf(s, key);
+    const name = t(`hud.short.${key}`);
+    return `<button class="gauge ${mood}${flash(key, val)}" type="button" data-fact="${fact}" style="--c:${color};--p:${pct(val, max)}"
+        aria-label="${esc(`${name}: ${valText}. ${t(`hud.mood.${mood}`)}`)}">
+      <span class="ring" aria-hidden="true"><span class="ring-icon">${icon}</span></span>
+      <span class="g-name">${esc(name)}</span>
+      <span class="g-val">${valText}</span>
+      <span class="g-mood">${FACE[mood]} <span class="g-word">${esc(t(`hud.mood.${mood}`))}</span></span>
+    </button>`;
+  };
+  const night = s.phase === "night";
+  const battText = night && s.battery > C.max.battery ? `${s.battery}<small> ${esc(t("hud.share"))}</small>` : `${s.battery}<small>/${C.max.battery}</small>`;
+  const dMood = moodOf(s, "dose");
+  const got = E.starsFor(s.science);
+  const nextStar = C.stars.find((v) => s.science < v);
+  $("#hud").innerHTML = `
+    <div class="gauges">
+      ${gauge("oxygen", "🫁", s.oxygen, C.max.oxygen, "var(--teal)", "moxie", `${s.oxygen}<small>/${C.max.oxygen}</small>`)}
+      ${gauge("battery", "⚡", s.battery, C.max.battery, "var(--blue)", "coldNights", battText)}
+      ${gauge("food", "🥫", s.food, N, "var(--green)", "veggie", esc(t("hud.days", { n: s.food })))}
     </div>
-    <div class="res${prev.science != null && prev.science !== s.science ? " flash" : ""}" style="--c:var(--violet)">
-      <div class="res-head"><span class="res-icon" aria-hidden="true">🔬</span><span class="res-name">${esc(t("hud.science"))}</span><span class="res-val">${s.science}</span></div>
-      <div class="bar thin"><div class="fill" style="width:${Math.min(100, (s.science / C.stars[2]) * 100)}%"></div>
-        <div class="tick" style="left:${(C.stars[1] / C.stars[2]) * 100}%"></div></div>
-      <div class="stars-row">
-        <span class="${starsGot >= 1 ? "got" : ""}">${esc(t("hud.star1", { n: N }))}</span>
-        <span class="${starsGot >= 2 ? "got" : ""}">⭐⭐ ${C.stars[1]}</span>
-        <span class="${starsGot >= 3 ? "got" : ""}">⭐⭐⭐ ${C.stars[2]}</span>
-      </div>
-    </div>`;
-  $("#hud").innerHTML = html;
+    <button class="dose-badge ${dMood}${flash("dose", s.dose)}" type="button" data-fact="radiationAddsUp" style="--p:${pct(s.dose, C.max.dose)}"
+        aria-label="${esc(`${t("hud.short.dose")}: ${s.dose}/${C.max.dose}. ${t(`hud.dose.${dMood}`)}`)}">
+      <span class="d-icon" aria-hidden="true">☢️</span><span class="d-name">${esc(t("hud.short.dose"))}</span>
+      <span class="d-bar" aria-hidden="true"><i></i></span>
+      <span class="d-word">${FACE[dMood]} ${esc(t(`hud.dose.${dMood}`))} <small>${s.dose}/${C.max.dose}</small></span>
+    </button>
+    <div class="hud-mini">
+      <button class="mini${flash("panel", s.panel)}" type="button" data-fact="dustDevil" aria-label="${esc(t("hud.panel"))}: ${s.panel}%">🔆 <b>${s.panel}%</b> <small>${esc(t("hud.panel"))}</small></button>
+      <div class="mini sci${flash("science", s.science)}" title="${esc(t("hud.science"))}">🔬 <b>${s.science}</b> <span class="stars-got">${"⭐".repeat(got)}${"☆".repeat(C.stars.length - got)}</span>${nextStar != null ? ` <small>→ ${nextStar}</small>` : ""}</div>
+    </div>
+    <p class="hud-tap">${esc(t("hud.tap"))}</p>`;
   ui.prevHud = { battery: s.battery, oxygen: s.oxygen, dose: s.dose, food: s.food, panel: s.panel, science: s.science };
+}
+
+// ---------- the robot guide: one short sentence for right now ----------
+const BOT_FACE = { happy: "🙂", think: "🤔", worry: "😟", alarm: "😱" };
+function updateGuide(preview) {
+  const el = $("#guide");
+  if (!el) return;
+  if (!s || s.phase === "end" || activeScreen() !== "screen-game") { el.classList.add("hidden"); return; }
+  const p = preview || (s.phase === "night" && ui.alloc ? E.previewNight(s, ui.alloc) : null);
+  const line = guideLine(s, { walking: walking(), near: world ? world.near : null, place: ui.place, preview: p, suggested: !!ui.suggested });
+  if (!line) { el.classList.add("hidden"); return; }
+  const text = t(line.key, line.params);
+  el.classList.remove("hidden", "happy", "think", "worry", "alarm");
+  el.classList.add(line.mood);
+  if (el.dataset.text === text) return;
+  el.dataset.text = text;
+  el.innerHTML = `<span class="guide-bot" aria-hidden="true">🤖<i>${BOT_FACE[line.mood]}</i></span>
+    <p><b>${esc(t("guide.name"))}</b>${esc(text)}</p>`;
+  el.classList.remove("pop");
+  void el.offsetWidth; // restart the little bounce
+  el.classList.add("pop");
 }
 
 function renderCalendar() {
@@ -236,28 +256,25 @@ function renderBriefing() {
   const tKey = hasTomorrow ? E.weatherKey(s, s.sol + 1) : null;
   const stormToday = E.solarStormOn(s, s.sol);
   const upcoming = E.activeWarnings(s).filter((x) => x.sol > s.sol);
+  const card = (cls, label, big, name, detail) => `<div class="brief-card${cls}"><div class="label">${esc(label)}</div><div class="big">${big}</div>
+    <div class="name">${esc(name)}</div>${detail ? `<div class="detail big-num">${detail}</div>` : ""}</div>`;
 
-  let space;
+  let space, spaceMore = "";
   if (stormToday) {
     const ss = E.stormStrength(stormToday);
-    space = `<div class="brief-card danger"><div class="label">${esc(t("brief.space"))}</div><div class="big">☢️</div>
-      <div class="name">${esc(t("brief.space.today"))}</div>
-      <div class="detail">${tr("brief.space.today.detail", { sstrength: stormToday.strength, evaDose: ss.evaDose, shielded: ss.shielded, unshielded: ss.unshielded })}<br>${realStormLine(stormToday)}</div></div>`;
+    space = card(" danger", t("brief.space"), "☢️", t("brief.space.today"), esc(t("kbrief.stormToday")));
+    spaceMore = `<p>${tr("brief.space.today.detail", { sstrength: stormToday.strength, evaDose: ss.evaDose, shielded: ss.shielded, unshielded: ss.unshielded })}<br>${realStormLine(stormToday)}</p>`;
   } else if (upcoming.length) {
     const u = upcoming[0];
-    space = `<div class="brief-card warn"><div class="label">${esc(t("brief.space"))}</div><div class="big">⚠️</div>
-      <div class="name">${esc(t("brief.space.warn"))}</div>
-      <div class="detail">${tr("brief.space.warn.detail", { sol: u.sol, sstrength: u.strength })}<br>${realStormLine(u)}</div></div>`;
+    space = card(" warn", t("brief.space"), "⚠️", t("brief.space.warn"), esc(t("kbrief.stormIn", { n: u.sol - s.sol })));
+    spaceMore = `<p>${tr("brief.space.warn.detail", { sol: u.sol, sstrength: u.strength })}<br>${realStormLine(u)}</p>`;
   } else {
-    space = `<div class="brief-card"><div class="label">${esc(t("brief.space"))}</div><div class="big">🌞</div>
-      <div class="name">${esc(t("brief.space.calm"))}</div><div class="detail">${esc(t("brief.space.calm.detail"))}</div></div>`;
+    space = card("", t("brief.space"), "🌞", t("brief.space.calm"), "");
   }
 
-  const mail = s.mail.map((m) => `<div class="mail">
-    <h4>${t("mail.title", { sent: m.sent })}</h4>
-    <div>${t("mail.body", { sci: m.science })}</div>
-    <div class="mail-days">${m.forecast.map((n) => `<span class="mail-day">${n} ${wIcon(E.weatherKey(s, n))} ${esc(wName(E.weatherKey(s, n)))}</span>`).join("") || `<span class="mail-day">${esc(t("mail.none"))}</span>`}</div>
-  </div>`).join("");
+  const mail = s.mail.map((m) => `<div class="mail short"><b>${esc(t("kbrief.mail", { sci: m.science }))}</b>
+    <div class="mail-days">${m.forecast.map((n) => `<span class="mail-day">${n} ${wIcon(E.weatherKey(s, n))}</span>`).join("") || `<span class="mail-day">${esc(t("mail.none"))}</span>`}</div></div>`).join("");
+  const mailMore = s.mail.map((m) => `<p>${t("mail.title", { sent: m.sent })}<br>${t("mail.body", { sci: m.science })}</p>`).join("");
 
   const alerts = [];
   const add = (level, k, p = {}) => alerts.push({ level, key: k, params: p });
@@ -271,17 +288,18 @@ function renderBriefing() {
   if (s.dose >= 70) add("warn", "brief.alert.dose", { dose: s.dose });
 
   stage.innerHTML = `
-    <div class="stage-head"><h2>${esc(t("brief.title"))}</h2><span class="sub">${esc(t("brief.sub"))}</span></div>
+    <div class="stage-head"><h2>${esc(t("brief.title"))}</h2></div>
     <div class="brief-grid">
-      <div class="brief-card${key === "dust" ? " danger" : ""}"><div class="label">${esc(t("brief.today"))}</div><div class="big">${wIcon(key)}</div>
-        <div class="name">${esc(wName(key))}</div><div class="detail">${t("brief.income", { n: inc, panel: s.panel })}</div></div>
-      <div class="brief-card${tKey === "dust" ? " warn" : ""}"><div class="label">${esc(t("brief.tomorrow"))}</div>
-        ${hasTomorrow ? `<div class="big">${wIcon(tKey)}</div><div class="name">${esc(wName(tKey))}</div><div class="detail">${t("brief.tomorrow.income", { n: E.incomeFor(s, s.sol + 1) })}</div>`
-          : `<div class="big">🏁</div><div class="name">${esc(t("brief.lastDay"))}</div><div class="detail">${esc(t("brief.lastDay.detail"))}</div>`}</div>
+      ${card(key === "dust" ? " danger" : "", t("brief.today"), wIcon(key), wName(key), `⚡ +${inc}`)}
+      ${hasTomorrow ? card(tKey === "dust" ? " warn" : "", t("brief.tomorrow"), wIcon(tKey), wName(tKey), `⚡ +${E.incomeFor(s, s.sol + 1)}`)
+        : card("", t("brief.tomorrow"), "🏁", t("brief.lastDay"), "")}
       ${space}
     </div>
     ${mail}
-    ${alertHtml(alerts)}
+    <details class="more"><summary>${esc(t("kbrief.details"))}</summary>
+      <p>${t("brief.income", { n: inc, panel: s.panel })}</p>
+      ${spaceMore}${mailMore}${alertHtml(alerts)}
+    </details>
     <div class="stage-foot">
       <span class="hint">${t("brief.ap", { n: C.actionPoints })}</span>
       <button class="btn primary" id="go-day" type="button">${esc(t("brief.go"))}</button>
@@ -617,13 +635,8 @@ function updatePrompt() {
   el.className = "world-prompt";
   $("#world").classList.toggle("has-card", !!id);
   if (!id) {
-    el.classList.add("hint");
-    const key = is3D()
-      ? (ui.place === "base"
-          ? (s.ap > 0 ? "world.hint.base" : "world.hint.baseNoAp")
-          : (s.ap > 0 ? "world.hint.site" : "world.hint.siteNoAp"))
-      : (s.ap > 0 ? "world.hint.walk" : "world.hint.noAp");
-    el.textContent = t(key);
+    el.innerHTML = "";
+    updateGuide();
     return;
   }
   const lock = (chk) => (chk.ok ? "" : `<span class="lock">🚫 ${tr(chk.reason.key, chk.reason.params)}</span>`);
@@ -661,6 +674,7 @@ function updatePrompt() {
   el.innerHTML = html;
   const btn = $("#use-btn");
   if (btn) btn.onclick = () => usePrompt();
+  updateGuide();
 }
 
 function toast(text) {
@@ -745,24 +759,18 @@ function renderDay() {
 
 // ---------- phase 3: night (split the power) ----------
 function renderNight() {
-  if (!ui.alloc) ui.alloc = { o2: s.lastAlloc.o2, gh: s.lastAlloc.gh, shield: false };
+  if (!ui.alloc) { ui.alloc = { o2: s.lastAlloc.o2, gh: s.lastAlloc.gh, shield: false }; ui.suggested = false; }
   const storm = E.solarStormOn(s, s.sol);
-  const ss = E.stormStrength(storm);
   const tend = s.today.tended;
-  const before = s.battery - s.today.income;
   stage.innerHTML = `
-    <div class="stage-head"><h2>${esc(t("night.title"))}</h2><span class="sub">${esc(t("night.sub"))}</span></div>
-    <div class="pool"><span>${esc(t("night.pool"))}</span><span class="total">${s.battery} ⚡</span>
-      <span>${esc(t("night.poolFrom", { before, income: s.today.income }))}</span></div>
+    <div class="stage-head"><h2>${esc(t("night.title"))}</h2></div>
+    <div class="pool kid"><span>${t("knight.pool", { n: s.battery })}</span>
+      <button class="btn small suggest" id="suggest" type="button">${esc(t("knight.suggest"))}</button></div>
+    <p class="note suggest-note" id="suggest-note"></p>
     <div class="alloc-bar" id="alloc-bar"></div>
-    <div class="alloc-legend">
-      <span><i style="background:#8a5a6e"></i>${esc(t("night.leg.ls"))}</span><span><i style="background:var(--teal)"></i>${esc(t("night.leg.o2"))}</span>
-      <span><i style="background:var(--green)"></i>${esc(t("night.leg.gh"))}</span><span><i style="background:var(--red)"></i>${esc(t("night.leg.sh"))}</span>
-      <span><i style="background:var(--blue)"></i>${esc(t("night.leg.keep", { max: C.max.battery }))}</span><span><i style="background:#666"></i>${esc(t("night.leg.waste"))}</span>
-    </div>
-    <div class="alloc-rows">
+    <div class="alloc-rows kid">
       <div class="arow"><span class="ic" aria-hidden="true">❤️</span>
-        <div><div class="t">${esc(t("night.ls.name"))}</div><div class="d">${esc(t("night.ls.desc"))}</div></div>
+        <div><div class="t">${esc(t("night.ls.name"))}</div><div class="d">${esc(t("knight.ls"))}</div></div>
         <span class="cost">${C.power.lifeSupport} ⚡</span>
         <div class="ctrl"><span class="lock">${esc(t("night.always"))}</span></div></div>
       <div class="arow"><span class="ic" aria-hidden="true">🫁</span>
@@ -770,14 +778,15 @@ function renderNight() {
         <span class="cost" id="o2-cost"></span>
         <div class="ctrl"><input type="range" id="o2-range" min="0" max="${C.oxygenGen.maxPower}" step="${C.oxygenGen.step}" value="${ui.alloc.o2}" aria-label="${esc(t("night.o2.aria"))}"></div></div>
       <div class="arow"><span class="ic" aria-hidden="true">🌱</span>
-        <div><div class="t">${esc(t("night.gh.name"))}</div><div class="d">${t("night.gh.desc", { o2: C.greenhouse.o2, food: C.greenhouse.food + (tend ? C.greenhouse.tendFood : 0) })}${tend ? esc(t("night.gh.tended")) : ""}</div></div>
+        <div><div class="t">${esc(t("night.gh.name"))}</div><div class="d">${esc(t("knight.gh", { o2: C.greenhouse.o2, food: C.greenhouse.food + (tend ? C.greenhouse.tendFood : 0) }))}</div></div>
         <span class="cost">${C.power.greenhouse} ⚡</span>
         <div class="ctrl"><label class="switch"><input type="checkbox" id="gh-toggle" ${ui.alloc.gh ? "checked" : ""}><span class="track"></span><span class="state" id="gh-state"></span></label></div></div>
-      <div class="arow${ss ? " highlight" : ""}"><span class="ic" aria-hidden="true">🛡️</span>
-        <div><div class="t">${esc(t("night.sh.name"))}</div><div class="d">${ss ? t("night.sh.storm", { shielded: ss.shielded, unshielded: ss.unshielded }) : esc(t("night.sh.calm"))}</div></div>
+      <div class="arow${storm ? " highlight" : ""}"><span class="ic" aria-hidden="true">🛡️</span>
+        <div><div class="t">${esc(t("night.sh.name"))}</div><div class="d">${esc(t(storm ? "knight.shStorm" : "knight.shCalm"))}</div></div>
         <span class="cost">${C.power.shield} ⚡</span>
         <div class="ctrl"><label class="switch"><input type="checkbox" id="sh-toggle" ${ui.alloc.shield ? "checked" : ""}><span class="track"></span><span class="state" id="sh-state"></span></label></div></div>
     </div>
+    <div class="proj-label">${esc(t("knight.tomorrow"))}</div>
     <div class="proj" id="proj"></div>
     <div id="night-alerts"></div>
     <div class="stage-foot">
@@ -785,9 +794,19 @@ function renderNight() {
       <button class="btn primary" id="confirm-night" type="button">${esc(t("night.confirm"))}</button>
     </div>`;
 
-  $("#o2-range").addEventListener("input", (e) => { ui.alloc.o2 = +e.target.value; updateNight(); });
-  $("#gh-toggle").addEventListener("change", (e) => { ui.alloc.gh = e.target.checked; updateNight(); });
-  $("#sh-toggle").addEventListener("change", (e) => { ui.alloc.shield = e.target.checked; updateNight(); });
+  $("#o2-range").addEventListener("input", (e) => { ui.alloc.o2 = +e.target.value; ui.suggested = false; $("#suggest-note").textContent = ""; updateNight(); });
+  $("#gh-toggle").addEventListener("change", (e) => { ui.alloc.gh = e.target.checked; ui.suggested = false; $("#suggest-note").textContent = ""; updateNight(); });
+  $("#sh-toggle").addEventListener("change", (e) => { ui.alloc.shield = e.target.checked; ui.suggested = false; $("#suggest-note").textContent = ""; updateNight(); });
+  $("#suggest").onclick = () => {
+    ui.alloc = suggestAlloc(s);
+    $("#o2-range").value = ui.alloc.o2;
+    $("#gh-toggle").checked = ui.alloc.gh;
+    $("#sh-toggle").checked = ui.alloc.shield;
+    ui.suggested = true;
+    $("#suggest-note").textContent = t("knight.suggested");
+    audio.click();
+    updateNight();
+  };
   $("#confirm-night").onclick = () => {
     if (!E.confirmNight(s, ui.alloc).ok) return;
     ui.alloc = null;
@@ -800,7 +819,7 @@ function updateNight() {
   const a = ui.alloc;
   const p = E.previewNight(s, a);
   $("#o2-cost").textContent = `${a.o2} ⚡`;
-  $("#o2-desc").textContent = a.o2 ? t("night.o2.on", { made: p.o2Made, per: C.oxygenGen.step * 2, per2: C.oxygenGen.o2PerStep * 2 }) : t("night.o2.off");
+  $("#o2-desc").textContent = a.o2 ? t("knight.o2On", { n: p.o2Made }) : t("knight.o2Off");
   $("#gh-state").textContent = t(a.gh ? "ui.on" : "ui.off");
   $("#sh-state").textContent = t(a.shield ? "ui.on" : "ui.off");
 
@@ -819,18 +838,26 @@ function updateNight() {
   $("#alloc-bar").innerHTML = segs.filter((x) => x[1] > 0).map(([cls, v, label]) =>
     `<div class="seg ${cls}" style="flex:0 0 calc(${(v / basis) * 100}% - 2px)" title="${esc(label)} ${v}">${v / basis > 0.09 ? `${esc(label)} ${v}` : v / basis > 0.04 ? v : ""}</div>`).join("");
 
-  const tomorrow = p.hasNext ? t("night.tomorrow", { icon: wIcon(E.weatherKey(s, p.nextSol)), weather: wName(E.weatherKey(s, p.nextSol)), income: p.nextIncome }) : t("night.lastNight");
+  // tomorrow morning: value, change and a face
+  const face = (bad, low) => (bad ? "😱" : low ? "😟" : "😊");
+  const nights = nightsLeft() - 1;
   const cells = [
-    ["⚡", "hud.battery", p.battery, p.overBudget ? t("proj.battery.over") : p.overflow ? t("proj.battery.dw", { cost: p.cost, waste: p.overflow }) : t("proj.battery.d", { cost: p.cost }), "var(--blue)"],
-    ["🫁", "hud.oxygen", p.oxygen, t("proj.oxygen.d", { delta: sign(p.o2Made + p.ghO2 - C.oxygenUse.crewDaily), breath: C.oxygenUse.crewDaily }), "var(--teal)"],
-    ["🥫", "hud.food", `${Math.max(0, p.food)} ${t("unit.days")}`, t("proj.food.d", { delta: sign(p.foodGain - C.food.dailyUse) }), "var(--green)"],
-    ["☢️", "hud.dose", p.dose, t("proj.dose.d", { n: p.doseGain }), "var(--red)"],
+    ["⚡", "hud.short.battery", p.overBudget ? "—" : p.battery, `−${p.cost}`, face(p.overBudget || p.battery < 15, p.battery < 40), "var(--blue)"],
+    ["🫁", "hud.short.oxygen", p.oxygen, sign(p.o2Made + p.ghO2 - C.oxygenUse.crewDaily), face(p.oxygenRaw < 0 || p.oxygen < 20, p.oxygen < 40), "var(--teal)"],
+    ["🥫", "hud.short.food", t("hud.days", { n: Math.max(0, p.food) }), sign(p.foodGain - C.food.dailyUse), face(p.food < 0 || p.food <= 1, p.food < nights), "var(--green)"],
+    ["☢️", "hud.short.dose", p.dose, `+${p.doseGain}`, face(p.dose >= 85, p.doseGain > C.dose.daily || p.dose >= 60), "var(--red)"],
   ];
-  $("#proj").innerHTML = cells.map(([ic, k, v, d, c]) =>
-    `<div class="proj-item" style="--c:${c}"><div class="k">${ic} ${esc(t(k))}</div><div class="v">${v}</div><div class="delta">${esc(d)}</div></div>`).join("");
-  $("#night-alerts").innerHTML = alertHtml(p.warnings);
-  $("#night-hint").textContent = tomorrow;
+  $("#proj").innerHTML = cells.map(([ic, k, v, d, f, c]) =>
+    `<div class="proj-item kid" style="--c:${c}"><div class="k">${ic} ${esc(t(k))}</div><div class="v">${v} <span class="pf">${f}</span></div><div class="delta">${esc(d)}</div></div>`).join("");
+
+  // only the dangerous warnings stay visible; the rest fold away
+  const danger = p.warnings.filter((w) => w.level === "danger");
+  const rest = p.warnings.filter((w) => w.level !== "danger");
+  $("#night-alerts").innerHTML = alertHtml(danger) + (rest.length
+    ? `<details class="more"><summary>${esc(t("knight.more", { n: rest.length }))}</summary>${alertHtml(rest)}</details>` : "");
+  $("#night-hint").textContent = p.hasNext ? t("night.tomorrow", { icon: wIcon(E.weatherKey(s, p.nextSol)), weather: wName(E.weatherKey(s, p.nextSol)), income: p.nextIncome }) : t("night.lastNight");
   $("#confirm-night").disabled = p.overBudget;
+  updateGuide(p);
 }
 
 // ---------- phase 4: settle ----------
@@ -857,19 +884,36 @@ function renderSettle() {
   const o2Made = E.o2FromPower(a.o2);
   const storm = E.solarStormOn(s, s.sol);
   const w = (k, n) => (n ? t(k, { n }) : "");
+  const tile = (icon, nameKey, from, to, c, upIsGood, text) => {
+    const d = to - from;
+    const cls = d === 0 ? "" : (d > 0) === upIsGood ? " good" : " bad";
+    return `<div class="ktile" style="--c:${c}"><span class="kt-icon" aria-hidden="true">${icon}</span>
+      <span class="kt-name">${esc(t(nameKey))}</span><span class="kt-val">${text ?? to}</span>
+      <span class="kt-delta${cls}">${sign(d)}</span></div>`;
+  };
   stage.innerHTML = `
     <div class="stage-head"><h2>${esc(t("settle.title"))}</h2><span class="sub">${esc(t("settle.sub", { n: s.sol }))}</span></div>
-    <div class="changes">
-      ${change("⚡", "hud.battery", m.battery, s.battery, [w("why.income", h.income), w("why.eva", h.evaPower), w("why.night", E.nightCost(a)), w("why.overflow", h.overflow)], "var(--blue)")}
-      ${change("🫁", "hud.oxygen", m.oxygen, s.oxygen, [w("why.breath", C.oxygenUse.crewDaily), w("why.suit", h.evaOxygen), w("why.o2made", o2Made), a.gh ? w("why.gh", C.greenhouse.o2) : ""], "var(--teal)")}
-      ${change("🥫", "hud.food", m.food, s.food, [t("why.eat"), a.gh ? w("why.food", C.greenhouse.food + (h.tended ? C.greenhouse.tendFood : 0)) : ""], "var(--green)", ` ${t("unit.days")}`)}
-      ${change("☢️", "hud.dose", m.dose, s.dose, [w("why.base", h.nightDose), w("why.evaDose", h.evaDose)], "var(--red)")}
-      ${change("🔬", "hud.science", m.science, s.science, [h.evas.length ? t("why.evas", { n: h.evas.length }) : t("why.noEva")], "var(--violet)")}
-      ${change("🔆", "hud.panel", m.panel, s.panel, [h.cleaned ? t("why.cleaned") : "", t("why.dusted", { weather: wName(h.weather) }), h.dustDevil ? t("why.devil") : ""], "var(--muted)", "%")}
+    <div class="ktiles">
+      ${tile("🫁", "hud.short.oxygen", m.oxygen, s.oxygen, "var(--teal)", true)}
+      ${tile("⚡", "hud.short.battery", m.battery, s.battery, "var(--blue)", true)}
+      ${tile("🥫", "hud.short.food", m.food, s.food, "var(--green)", true, esc(t("hud.days", { n: s.food })))}
+      ${tile("☢️", "hud.short.dose", m.dose, s.dose, "var(--red)", false)}
+      ${tile("🔬", "hud.science", m.science, s.science, "var(--violet)", true)}
     </div>
     ${s.tonightNotes.length ? `<div class="notes">${s.tonightNotes.map((n) => `<div class="note">${tr(n.key, n.params)}</div>`).join("")}</div>` : ""}
-    ${storm ? stormBoxHtml(storm) : ""}
+    ${storm ? `<div class="storm-line">${esc(t("ksettle.storm", { date: storm.event.date }))}</div>` : ""}
     ${s.tonightCards.map((id) => `<div class="fact-card story">${factHtml(id, t("settle.story"), true)}</div>`).join("")}
+    <details class="more"><summary>${esc(t("ksettle.why"))}</summary>
+      <div class="changes">
+        ${change("⚡", "hud.battery", m.battery, s.battery, [w("why.income", h.income), w("why.eva", h.evaPower), w("why.night", E.nightCost(a)), w("why.overflow", h.overflow)], "var(--blue)")}
+        ${change("🫁", "hud.oxygen", m.oxygen, s.oxygen, [w("why.breath", C.oxygenUse.crewDaily), w("why.suit", h.evaOxygen), w("why.o2made", o2Made), a.gh ? w("why.gh", C.greenhouse.o2) : ""], "var(--teal)")}
+        ${change("🥫", "hud.food", m.food, s.food, [t("why.eat"), a.gh ? w("why.food", C.greenhouse.food + (h.tended ? C.greenhouse.tendFood : 0)) : ""], "var(--green)", ` ${t("unit.days")}`)}
+        ${change("☢️", "hud.dose", m.dose, s.dose, [w("why.base", h.nightDose), w("why.evaDose", h.evaDose)], "var(--red)")}
+        ${change("🔬", "hud.science", m.science, s.science, [h.evas.length ? t("why.evas", { n: h.evas.length }) : t("why.noEva")], "var(--violet)")}
+        ${change("🔆", "hud.panel", m.panel, s.panel, [h.cleaned ? t("why.cleaned") : "", t("why.dusted", { weather: wName(h.weather) }), h.dustDevil ? t("why.devil") : ""], "var(--muted)", "%")}
+      </div>
+      ${storm ? stormBoxHtml(storm) : ""}
+    </details>
     <div class="stage-foot">
       <span class="hint">${esc(s.sol + 1 === N ? t("settle.lastNext") : t("settle.left", { n: N - s.sol }))}</span>
       <button class="btn primary" id="next-sol" type="button">${esc(t("settle.next", { n: s.sol + 1 }))}</button>
