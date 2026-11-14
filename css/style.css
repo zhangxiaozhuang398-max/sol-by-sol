@@ -471,6 +471,7 @@ details.data-table th:first-child, details.data-table td:first-child { text-alig
 }
 @media (max-width: 640px) {
   .world.play { height: 70vh; min-height: 380px; }
+  .top-actions #btn-new { display: none; }
   .world-map canvas { width: 104px; height: 104px; }
   .world-credit { display: none; }
   .world.play .world-keys { display: none; }
@@ -650,3 +651,8 @@ body:has(#screen-game.active) .footer { display: none; }
   .game .timeline .sols-legend { display: none; }
 }
 .game .side { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+
+/* Phones: keep the top bar inside the viewport; New Mission lives on the title screen. */
+@media (max-width: 640px) {
+  .game .top-actions #btn-new { display: none !important; }
+}

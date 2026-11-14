@@ -4,7 +4,8 @@ import { SITES, BASE, RINGS, WORLD_BASE, siteById } from "./sites.js";
 import { createWorld as createWorld2D } from "./world2d.js";
 import { FACTS } from "./facts.js";
 import { buildReport } from "./report.js";
-import { t, tr, pick, getLang, setLang, applyStatic } from "./i18n.js";
+import { t, tr, pick, getLang, setLang, applyStatic } from "./i18n.js?v=3d2";
+import { audio } from "./audio.js?v=3d2";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -41,6 +42,18 @@ function freshUi() {
   return { site: null, alloc: null, prevHud: null, lastPhase: null, classic: false, worldDay: null, place: "base", loading: false };
 }
 const stage = $("#stage");
+
+// Optional synthesized sound. The button reflects the saved preference; the
+// AudioContext itself is only allowed to start after a user gesture.
+function updateSoundBtn() {
+  const b = $("#btn-sound");
+  if (!b) return;
+  const on = audio.isEnabled();
+  b.textContent = on ? "🔊" : "🔇";
+  b.setAttribute("aria-label", t(on ? "top.soundOn" : "top.soundOff"));
+}
+$("#btn-sound")?.addEventListener("click", () => { audio.toggle(); updateSoundBtn(); });
+document.addEventListener("pointerdown", () => audio.init(), { once: true });
 
 // ---------- saving (per browser, optional) ----------
 const SAVE_KEY = "solbysol.save";
@@ -84,6 +97,20 @@ function factHtml(id, label = "", withLesson = false) {
 function openInfo(html) {
   $("#info-body").innerHTML = html;
   $("#info").showModal();
+}
+
+// A place-specific field note: what this site is, where it is, and the real
+// science card behind it.
+function siteFieldHtml(id) {
+  const st = siteById(id);
+  if (!st) return "";
+  const p = world?.location;
+  const at = p ? `<p class="src">📍 ${p.lat.toFixed(2)}°N ${p.lon.toFixed(2)}°E · ${t("world.elev", { m: num(p.elevation) })}</p>` : "";
+  return `<div class="label">${esc(t("world.fieldNotes"))}</div>
+    <h3>${st.icon} ${esc(t(`site.${id}.name`))}</h3>
+    <p>${esc(t(`site.${id}.desc`))}</p>
+    ${at}
+    ${factHtml(st.fact, t("world.fieldFact"), true)}`;
 }
 
 function alertHtml(list) {
@@ -386,7 +413,7 @@ async function ensureWorld() {
   mount.innerHTML = "";
   if (WORLD_MODE === "3d") {
     try {
-      const { createWorld } = await import("./world3d.js");
+      const { createWorld } = await import("./world3d.js?v=3d2");
       const w = await createWorld({
         mount, minimap: $("#minimap"), joystick: $("#joy"),
         dataDir: "data/mars", modelDir: "assets/models",
@@ -443,6 +470,7 @@ async function loadPlace(place) {
   const token = ++placeToken;
   ui.loading = true;
   showWorldLoading(place);
+  audio.whoosh();
   try {
     await world.setScene(place);
     if (token !== placeToken) return;
@@ -453,6 +481,7 @@ async function loadPlace(place) {
     ui.loading = false;
     hideWorldLoading();
     render();
+    if (place !== "base") toast(t("world.arrived", { site: t(`site.${place}.name`) }));
   } catch (err) {
     if (token !== placeToken) return;
     console.warn(`3D scene ${place} failed`, err);
@@ -535,6 +564,7 @@ function syncWorld() {
   if (creditEl) creditEl.textContent = t(is3D() ? "world.credit3d" : "world.credit");
   world.setTargets(worldTargets());
   world.setLook(s.phase, E.weatherKey(s, s.sol));
+  audio.setWind(E.weatherKey(s, s.sol), s.phase);
   if (play && ui.worldDay !== s.sol) {
     world.respawn();
     ui.worldDay = s.sol;
@@ -561,6 +591,20 @@ function updateLocation() {
   $("#world-loc").textContent = `📍 ${p.lat.toFixed(2)}°N ${p.lon.toFixed(2)}°E${elev}`;
 }
 setInterval(updateLocation, 250);
+
+// Footsteps: the world modules only draw/move, so the UI watches the position.
+let lastStepAt = 0, lastStepPos = null;
+setInterval(() => {
+  if (!world || !s || s.phase !== "day" || ui.classic || activeScreen() !== "screen-game") { lastStepPos = null; return; }
+  const p = world.position;
+  if (!p) return;
+  const moved = lastStepPos ? Math.hypot(p.x - lastStepPos.x, p.z - lastStepPos.z) : 0;
+  lastStepPos = { x: p.x, z: p.z };
+  if (moved > 0.18 && performance.now() - lastStepAt > 300) {
+    audio.step();
+    lastStepAt = performance.now();
+  }
+}, 120);
 
 function promptButton(label, ok = true) {
   return `<button class="btn primary" id="use-btn" type="button" ${ok ? "" : "disabled"}>${esc(label)} <kbd>E</kbd></button>`;
@@ -620,6 +664,7 @@ function updatePrompt() {
 }
 
 function toast(text) {
+  audio.chime();
   const el = $("#world-toast");
   el.textContent = text;
   el.classList.remove("show");
@@ -682,10 +727,12 @@ function renderDayWorld() {
       <div class="btns">
         ${atSite ? `<button class="btn small" id="to-base" type="button">${esc(t("world.returnBase"))}</button>` : ""}
         <button class="btn small" id="to-classic" type="button">${esc(t(is3D() ? "world.roverMap" : "world.classic"))}</button>
+        ${atSite ? `<button class="btn small" id="site-notes" type="button">${esc(t("world.fieldNotes"))}</button>` : ""}
         <button class="btn small" id="end-day" type="button">${esc(t("world.endDay"))}</button>
       </div>
     </div>`;
   $("#to-base")?.addEventListener("click", () => travelTo("base"));
+  $("#site-notes")?.addEventListener("click", () => openInfo(siteFieldHtml(ui.place)));
   $("#to-classic").onclick = () => { ui.classic = true; ui.site = null; render(); };
   $("#end-day").onclick = () => endDayNow();
 }
@@ -940,6 +987,7 @@ function showHelp() {
 // ---------- language ----------
 function refreshLanguage() {
   applyStatic();
+  updateSoundBtn();
   updateCollectionCount();
   if (s && activeScreen() === "screen-game") render();
   if (s?.outcome && activeScreen() === "screen-end") renderEnd();
@@ -966,6 +1014,7 @@ function updateContinue() {
 document.addEventListener("click", (e) => {
   const btn = e.target.closest("button");
   if (!btn) return;
+  audio.click();
   if (btn.classList.contains("lang-toggle")) {
     setLang(getLang() === "en" ? "zh" : "en");
     refreshLanguage();
@@ -1002,6 +1051,7 @@ $("#btn-collection").addEventListener("click", () => {
 // ---------- boot ----------
 ensureWorld();
 applyStatic();
+updateSoundBtn();
 updateCollectionCount();
 updateContinue();
 $("#btn-start").disabled = true;

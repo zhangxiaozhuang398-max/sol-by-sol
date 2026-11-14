@@ -116,6 +116,98 @@ function glowTexture() {
   return t;
 }
 
+
+let rockTexCache = null, sandTexCache = null, strataTexCache = null;
+
+function canvasTexture(size, draw, repeatX = 1, repeatY = 1) {
+  const cv = document.createElement("canvas");
+  cv.width = cv.height = size;
+  draw(cv.getContext("2d"), size);
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(repeatX, repeatY);
+  t.anisotropy = 4;
+  return t;
+}
+
+function rockTexture() {
+  if (rockTexCache) return rockTexCache;
+  rockTexCache = canvasTexture(128, (c, S) => {
+    c.fillStyle = "#6e4630";
+    c.fillRect(0, 0, S, S);
+    let seed = 731;
+    const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+    for (let i = 0; i < 520; i++) {
+      const x = rnd() * S, y = rnd() * S, r = 0.6 + rnd() * 2.2;
+      c.fillStyle = rnd() > 0.55 ? "rgba(160,112,78,0.35)" : "rgba(52,32,22,0.3)";
+      c.beginPath();
+      c.arc(x, y, r, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.strokeStyle = "rgba(38,24,16,0.35)";
+    c.lineWidth = 1;
+    for (let i = 0; i < 9; i++) {
+      let x = rnd() * S, y = rnd() * S;
+      c.beginPath();
+      c.moveTo(x, y);
+      for (let j = 0; j < 4; j++) {
+        x += (rnd() - 0.5) * 18;
+        y += (rnd() - 0.5) * 18;
+        c.lineTo(x, y);
+      }
+      c.stroke();
+    }
+  }, 2, 2);
+  return rockTexCache;
+}
+
+function sandTexture() {
+  if (sandTexCache) return sandTexCache;
+  sandTexCache = canvasTexture(128, (c, S) => {
+    c.fillStyle = "#d0d0d0";
+    c.fillRect(0, 0, S, S);
+    let seed = 913;
+    const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+    for (let i = 0; i < 16; i++) {
+      const y = (i / 16) * S + rnd() * 3;
+      c.strokeStyle = i % 2 ? "rgba(90,90,90,0.16)" : "rgba(255,255,255,0.2)";
+      c.lineWidth = 1.2;
+      c.beginPath();
+      for (let x = 0; x <= S; x += 4) c.lineTo(x, y + Math.sin(x * 0.13 + i) * 2.4);
+      c.stroke();
+    }
+    for (let i = 0; i < 350; i++) {
+      c.fillStyle = rnd() > 0.5 ? "rgba(255,255,255,0.22)" : "rgba(70,70,70,0.13)";
+      c.fillRect(rnd() * S, rnd() * S, 1, 1);
+    }
+  }, 4, 4);
+  return sandTexCache;
+}
+
+function strataTexture() {
+  if (strataTexCache) return strataTexCache;
+  strataTexCache = canvasTexture(128, (c, S) => {
+    c.fillStyle = "#d2cec8";
+    c.fillRect(0, 0, S, S);
+    let seed = 157;
+    const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+    let y = 0;
+    while (y < S) {
+      const h = 2 + rnd() * 8;
+      const v = 0.55 + rnd() * 0.4;
+      c.fillStyle = `rgba(${Math.round(255 * v)},${Math.round(248 * v)},${Math.round(238 * v)},0.55)`;
+      c.fillRect(0, y, S, h);
+      y += h;
+    }
+    for (let i = 0; i < 260; i++) {
+      c.fillStyle = rnd() > 0.5 ? "rgba(60,50,40,0.12)" : "rgba(255,255,255,0.16)";
+      c.fillRect(rnd() * S, rnd() * S, 1 + rnd() * 2, 1);
+    }
+  }, 2, 1);
+  return strataTexCache;
+}
+
 const mat = (color, opts = {}) => new THREE.MeshStandardMaterial({ color: srgb(color), roughness: 0.7, metalness: 0.1, ...opts });
 function part(geo, material, x = 0, y = 0, z = 0) {
   const m = new THREE.Mesh(geo, material);
@@ -453,7 +545,7 @@ export async function createWorld(opts) {
 
   // ---- rocks (decoration, seeded per place) ----
   const rockGeo = new THREE.IcosahedronGeometry(1, 0);
-  const rockMat = new THREE.MeshStandardMaterial({ color: srgb(0x6e4630), roughness: 1, metalness: 0, flatShading: true });
+  const rockMat = new THREE.MeshStandardMaterial({ map: rockTexture(), color: 0xffffff, roughness: 1, metalness: 0, flatShading: true });
   let rocks = null;
   function buildRocks(seed, avoid) {
     if (rocks) { scene.remove(rocks); rocks.dispose(); }
@@ -678,6 +770,21 @@ export async function createWorld(opts) {
 
   // Small, non-interactive props that make the base feel lived in. They are
   // deliberately not targets: the four stations are the only things with rules.
+  function addTracks(x, z, ry, length = 6) {
+    const trackMat = new THREE.MeshBasicMaterial({ color: 0x3a2a20, transparent: true, opacity: 0.28, depthWrite: false });
+    const g = new THREE.Group();
+    for (const side of [-0.62, 0.62]) {
+      const p = new THREE.Mesh(new THREE.PlaneGeometry(0.26, length), trackMat);
+      p.rotation.x = -Math.PI / 2;
+      p.position.set(side, 0.025, length / 2 + 1.1);
+      p.renderOrder = 1;
+      g.add(p);
+    }
+    g.position.set(x, 0, z);
+    g.rotation.y = ry;
+    decor.add(g);
+  }
+
   let decorToken = 0;
   function buildDecor(id) {
     decor.clear();
@@ -706,6 +813,7 @@ export async function createWorld(opts) {
       rover.rotation.y = style.rover[2];
       rover.scale.setScalar(0.9);
       decor.add(rover);
+      addTracks(style.rover[0], style.rover[1], style.rover[2], 6);
       // Swap the blocky stand-in for NASA's Perseverance once it has loaded.
       loadModel("perseverance").then((m) => {
         if (token !== decorToken) return;
@@ -801,6 +909,7 @@ export async function createWorld(opts) {
     baseRover.scale.setScalar(0.9);
     decor.add(baseRover);
     decorSolids.push({ x: 6.8, z: 4.6, r: 1.6 });
+    addTracks(6.8, 4.6, -0.5, 6);
     loadModel("perseverance").then((m) => {
       if (token !== decorToken) return;
       decor.remove(baseRover);
@@ -815,10 +924,10 @@ export async function createWorld(opts) {
   // The photo carries the real detail; these shapes give each place a silhouette
   // and something to walk around.
   function buildSiteFeature(id) {
-    const sand = mat(0xc49a6c, { roughness: 1, flatShading: true });
-    const layerA = mat(0x8a5a3c, { roughness: 0.95, flatShading: true });
-    const layerB = mat(0xa57450, { roughness: 0.95, flatShading: true });
-    const layerC = mat(0x6e4a34, { roughness: 0.95, flatShading: true });
+    const sand = mat(0xc49a6c, { roughness: 1, flatShading: true, map: sandTexture() });
+    const layerA = mat(0x8a5a3c, { roughness: 0.95, flatShading: true, map: strataTexture() });
+    const layerB = mat(0xa57450, { roughness: 0.95, flatShading: true, map: strataTexture() });
+    const layerC = mat(0x6e4a34, { roughness: 0.95, flatShading: true, map: strataTexture() });
     const layers = [layerA, layerB, layerC];
     const addRock = (x, z, s, ry = 0) => {
       const m = part(new THREE.IcosahedronGeometry(1, 0), rockMat, x, s * 0.35, z);

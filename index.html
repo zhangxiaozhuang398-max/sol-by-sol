@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=3d2">
   <!-- three.js is served locally; world3d.js imports it by bare name. -->
   <script type="importmap">{"imports":{"three":"./js/vendor/three.module.min.js"}}</script>
 </head>
@@ -86,6 +86,7 @@
         <li><span>4</span><b data-i18n="step.settle"></b></li>
       </ol>
       <div class="top-actions">
+        <button class="btn small" id="btn-sound" type="button" aria-label="Sound">🔊</button>
         <button class="btn small" id="btn-help" data-i18n="top.help"></button>
         <button class="btn small" id="btn-new" data-i18n="top.new"></button>
         <button class="lang-toggle" data-i18n="lang.toggle" data-i18n-aria="lang.aria">中文</button>
@@ -132,6 +133,6 @@
 
   <footer class="footer" data-i18n-html="footer"></footer>
 
-  <script type="module" src="js/main.js"></script>
+  <script type="module" src="js/main.js?v=3d2"></script>
 </body>
 </html>
