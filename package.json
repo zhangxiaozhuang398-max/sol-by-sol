@@ -3,7 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "fetch-data": "node scripts/fetch_donki.mjs",
-    "simulate": "node scripts/simulate.mjs"
+    "fetch-data": "node --env-file-if-exists=.env scripts/fetch_donki.mjs",
+    "simulate": "node scripts/simulate.mjs",
+    "fetch-terrain": "node scripts/fetch_mars_terrain.mjs"
+  },
+  "devDependencies": {
+    "jpeg-js": "^0.4.4",
+    "pngjs": "^7.0.0"
   }
 }

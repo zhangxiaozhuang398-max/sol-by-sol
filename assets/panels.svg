@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="260" viewBox="0 0 300 260">
+  <!-- Solar array field seen from above: three rows of tilted panels on frames. -->
+  <defs>
+    <filter id="blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter>
+    <linearGradient id="cell" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5f86e0"/><stop offset="0.5" stop-color="#2b4aa3"/><stop offset="1" stop-color="#16285f"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.5" stop-color="#ffffff" stop-opacity="0.35"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <g id="row">
+      <rect x="0" y="0" width="240" height="52" rx="4" fill="#1a0d08" opacity="0.5" filter="url(#blur)" transform="translate(12 14)"/>
+      <rect x="0" y="0" width="240" height="52" rx="4" fill="#c9c6d3" stroke="#6f6b80" stroke-width="2"/>
+      <rect x="5" y="5" width="230" height="42" rx="2" fill="url(#cell)"/>
+      <g stroke="#0f1c45" stroke-width="1.5">
+        <line x1="5" y1="19" x2="235" y2="19"/><line x1="5" y1="33" x2="235" y2="33"/>
+        <line x1="28" y1="5" x2="28" y2="47"/><line x1="51" y1="5" x2="51" y2="47"/><line x1="74" y1="5" x2="74" y2="47"/>
+        <line x1="97" y1="5" x2="97" y2="47"/><line x1="120" y1="5" x2="120" y2="47"/><line x1="143" y1="5" x2="143" y2="47"/>
+        <line x1="166" y1="5" x2="166" y2="47"/><line x1="189" y1="5" x2="189" y2="47"/><line x1="212" y1="5" x2="212" y2="47"/>
+      </g>
+      <rect x="60" y="5" width="46" height="42" fill="url(#sheen)" transform="skewX(-20) translate(14 0)"/>
+    </g>
+  </defs>
+  <!-- cable trench to the habitat -->
+  <path d="M30 130 H6" stroke="#5c3a28" stroke-width="6" stroke-linecap="round" opacity="0.7"/>
+  <use href="#row" x="30" y="24"/>
+  <use href="#row" x="30" y="104"/>
+  <use href="#row" x="30" y="184"/>
+  <!-- junction box -->
+  <rect x="18" y="116" width="20" height="28" rx="4" fill="#e9e4f5" stroke="#6f6b80" stroke-width="2"/>
+  <circle cx="28" cy="130" r="4" fill="#f3b562"/>
+</svg>

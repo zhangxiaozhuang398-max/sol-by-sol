@@ -1,0 +1,154 @@
+{
+  "name": "Jezero crater, Mars",
+  "bbox": {
+    "north": 18.8828125,
+    "south": 17.8828125,
+    "west": 77.15625,
+    "east": 78.15625
+  },
+  "cells": 128,
+  "chunk": 1024,
+  "overview": "map/overview.jpg",
+  "layers": [
+    {
+      "name": "base",
+      "pxPerCell": 24,
+      "metersPerPixel": 19,
+      "chunks": [
+        {
+          "file": "map/jezero_0_0.jpg",
+          "row": 0,
+          "col": 0
+        },
+        {
+          "file": "map/jezero_0_1.jpg",
+          "row": 0,
+          "col": 1
+        },
+        {
+          "file": "map/jezero_0_2.jpg",
+          "row": 0,
+          "col": 2
+        },
+        {
+          "file": "map/jezero_1_0.jpg",
+          "row": 1,
+          "col": 0
+        },
+        {
+          "file": "map/jezero_1_1.jpg",
+          "row": 1,
+          "col": 1
+        },
+        {
+          "file": "map/jezero_1_2.jpg",
+          "row": 1,
+          "col": 2
+        },
+        {
+          "file": "map/jezero_2_0.jpg",
+          "row": 2,
+          "col": 0
+        },
+        {
+          "file": "map/jezero_2_1.jpg",
+          "row": 2,
+          "col": 1
+        },
+        {
+          "file": "map/jezero_2_2.jpg",
+          "row": 2,
+          "col": 2
+        }
+      ]
+    },
+    {
+      "name": "detail",
+      "pxPerCell": 48,
+      "metersPerPixel": 9.6,
+      "chunks": [
+        {
+          "file": "map/jezero_hd_1_0.jpg",
+          "row": 1,
+          "col": 0
+        },
+        {
+          "file": "map/jezero_hd_1_1.jpg",
+          "row": 1,
+          "col": 1
+        },
+        {
+          "file": "map/jezero_hd_1_2.jpg",
+          "row": 1,
+          "col": 2
+        },
+        {
+          "file": "map/jezero_hd_1_3.jpg",
+          "row": 1,
+          "col": 3
+        },
+        {
+          "file": "map/jezero_hd_2_0.jpg",
+          "row": 2,
+          "col": 0
+        },
+        {
+          "file": "map/jezero_hd_2_1.jpg",
+          "row": 2,
+          "col": 1
+        },
+        {
+          "file": "map/jezero_hd_2_2.jpg",
+          "row": 2,
+          "col": 2
+        },
+        {
+          "file": "map/jezero_hd_2_3.jpg",
+          "row": 2,
+          "col": 3
+        },
+        {
+          "file": "map/jezero_hd_3_0.jpg",
+          "row": 3,
+          "col": 0
+        },
+        {
+          "file": "map/jezero_hd_3_1.jpg",
+          "row": 3,
+          "col": 1
+        },
+        {
+          "file": "map/jezero_hd_3_2.jpg",
+          "row": 3,
+          "col": 2
+        },
+        {
+          "file": "map/jezero_hd_3_3.jpg",
+          "row": 3,
+          "col": 3
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "name": "MRO Context Camera (CTX) mosaic of Jezero, via NASA Mars Trek",
+      "url": "https://trek.nasa.gov/mars/",
+      "layer": "Jezero_CTX_BlockAdj_dd",
+      "zoom": 12
+    },
+    {
+      "name": "Mars 2020 controlled CTX mosaic of Jezero, via NASA Mars Trek",
+      "url": "https://trek.nasa.gov/mars/",
+      "layer": "JEZ_ctx_B_soc_008_orthoMosaic_6m_Eqc_latTs0_lon0",
+      "zoom": 13
+    },
+    {
+      "name": "Viking MDIM 2.1 colour mosaic, 232 m (NASA Mars Trek)",
+      "url": "https://trek.nasa.gov/mars/",
+      "layer": "Mars_Viking_MDIM21_ClrMosaic_global_232m"
+    }
+  ],
+  "note": "CTX is a black-and-white camera. Each pixel keeps its real CTX brightness and is tinted a natural Mars tone, nudged by the Viking colour mosaic.",
+  "builtAt": "2026-11-14T07:17:26.149Z"
+}

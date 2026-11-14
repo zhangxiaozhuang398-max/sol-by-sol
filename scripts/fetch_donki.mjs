@@ -1,7 +1,8 @@
 // Fetch real historical solar storms (CMEs) from NASA DONKI and save a curated
 // event pool for the game.
 //
-// Usage:   NASA_API_KEY=your_key node scripts/fetch_donki.mjs
+// Usage:   npm run fetch-data
+//          (put NASA_API_KEY=your_key in a .env file; it is git-ignored, never commit it)
 // Get a free key at https://api.nasa.gov/ (DEMO_KEY works but is heavily rate-limited).
 // Output:  data/space_weather_events.json
 
@@ -10,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const API_KEY = process.env.NASA_API_KEY || "DEMO_KEY";
+console.log(API_KEY === "DEMO_KEY" ? "Using DEMO_KEY (low rate limit)" : "Using your NASA_API_KEY from the environment");
 const BASE = "https://api.nasa.gov/DONKI/CME";
 
 // Active solar periods with well-known storms. One request per window.

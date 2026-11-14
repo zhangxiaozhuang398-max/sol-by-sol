@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="240" viewBox="0 0 200 240">
+  <!-- Six-wheeled Mars rover seen from above, front at the top. Loosely modelled on Perseverance. -->
+  <defs>
+    <filter id="blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter>
+    <linearGradient id="deck" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fbfaff"/><stop offset="1" stop-color="#b3afc4"/>
+    </linearGradient>
+  </defs>
+  <rect x="50" y="56" width="100" height="140" rx="12" fill="#1a0d08" opacity="0.5" filter="url(#blur)" transform="translate(12 14)"/>
+  <!-- suspension -->
+  <g stroke="#5c586c" stroke-width="6" stroke-linecap="round">
+    <line x1="60" y1="92" x2="34" y2="58"/><line x1="140" y1="92" x2="166" y2="58"/>
+    <line x1="56" y1="130" x2="28" y2="130"/><line x1="144" y1="130" x2="172" y2="130"/>
+    <line x1="60" y1="168" x2="34" y2="200"/><line x1="140" y1="168" x2="166" y2="200"/>
+  </g>
+  <!-- wheels -->
+  <g fill="#3a3745" stroke="#1d1b26" stroke-width="2">
+    <rect x="20" y="38" width="22" height="38" rx="7"/><rect x="158" y="38" width="22" height="38" rx="7"/>
+    <rect x="14" y="111" width="22" height="38" rx="7"/><rect x="164" y="111" width="22" height="38" rx="7"/>
+    <rect x="20" y="182" width="22" height="38" rx="7"/><rect x="158" y="182" width="22" height="38" rx="7"/>
+  </g>
+  <g stroke="#6d6a7a" stroke-width="2">
+    <line x1="22" y1="48" x2="40" y2="48"/><line x1="22" y1="57" x2="40" y2="57"/><line x1="22" y1="66" x2="40" y2="66"/>
+    <line x1="160" y1="48" x2="178" y2="48"/><line x1="160" y1="57" x2="178" y2="57"/><line x1="160" y1="66" x2="178" y2="66"/>
+    <line x1="16" y1="121" x2="34" y2="121"/><line x1="16" y1="130" x2="34" y2="130"/><line x1="16" y1="139" x2="34" y2="139"/>
+    <line x1="166" y1="121" x2="184" y2="121"/><line x1="166" y1="130" x2="184" y2="130"/><line x1="166" y1="139" x2="184" y2="139"/>
+    <line x1="22" y1="192" x2="40" y2="192"/><line x1="22" y1="201" x2="40" y2="201"/><line x1="22" y1="210" x2="40" y2="210"/>
+    <line x1="160" y1="192" x2="178" y2="192"/><line x1="160" y1="201" x2="178" y2="201"/><line x1="160" y1="210" x2="178" y2="210"/>
+  </g>
+  <!-- body deck -->
+  <rect x="52" y="60" width="96" height="134" rx="12" fill="url(#deck)" stroke="#6f6b80" stroke-width="2.5"/>
+  <rect x="62" y="104" width="76" height="52" rx="6" fill="#d7d4e2" stroke="#8d899e" stroke-width="1.5"/>
+  <circle cx="84" cy="130" r="13" fill="#e9e4f5" stroke="#8d899e" stroke-width="2"/>
+  <circle cx="84" cy="130" r="5" fill="#8d899e"/>
+  <!-- power unit at the back -->
+  <rect x="80" y="186" width="40" height="34" rx="6" fill="#444058" stroke="#1f1c30" stroke-width="2"/>
+  <g stroke="#6d6a7a" stroke-width="2"><line x1="88" y1="188" x2="88" y2="218"/><line x1="100" y1="188" x2="100" y2="218"/><line x1="112" y1="188" x2="112" y2="218"/></g>
+  <!-- robotic arm + mast camera at the front -->
+  <path d="M70 62 L62 30 L88 18" fill="none" stroke="#5c586c" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="88" cy="18" r="9" fill="#e46a3c" stroke="#7a3115" stroke-width="2"/>
+  <rect x="112" y="64" width="26" height="22" rx="5" fill="#444058" stroke="#1f1c30" stroke-width="2"/>
+  <circle cx="120" cy="75" r="4" fill="#4fd1c5"/><circle cx="131" cy="75" r="4" fill="#4fd1c5"/>
+  <!-- antenna -->
+  <circle cx="122" cy="168" r="12" fill="#f5f6fa" stroke="#6f6b80" stroke-width="2"/>
+  <circle cx="122" cy="168" r="3" fill="#6f6b80"/>
+</svg>
