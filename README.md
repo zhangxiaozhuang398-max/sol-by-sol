@@ -6,6 +6,8 @@ Built for the **NASA Space Apps Challenge 2026** challenge *Build a Junior Astro
 
 **▶ Play:** https://zhangxiaozhuang398-max.github.io/sol-by-sol/ (no download, no account)
 
+**Languages:** English and Simplified Chinese (中文). Use the 🌐 button on any screen, or open the game with `?lang=zh` / `?lang=en`. The choice is remembered in the browser.
+
 ## The problem
 
 Space content for kids is usually either too simple (posters and fun facts) or too technical. Few tools let a young player *feel* the engineering trade-offs mission planners face: power spent on a shield tonight is power not spent making oxygen tomorrow.
@@ -68,7 +70,8 @@ Plain HTML, CSS and JavaScript (ES modules), no framework, no build step. Hosted
 index.html, css/style.css
 js/game.js     pure game logic (seeded, testable)
 js/cards.js    action cards
-js/facts.js    sourced science facts
+js/facts.js    sourced science facts (English + Chinese)
+js/i18n.js     interface text (English + Chinese)
 js/main.js     user interface
 data/space_weather_events.json   curated NASA DONKI events
 scripts/       data fetch + balance simulation

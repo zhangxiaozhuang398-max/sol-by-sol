@@ -244,8 +244,9 @@ function makeReport(s) {
     storm: null,
     events: [],
     facts: [],
-    line(icon, text, delta = "", kind = "") {
-      lines.push({ icon, text, delta, kind });
+    // key is an i18n key; deltaKey (optional) translates the right-hand note
+    line(icon, key, delta = "", kind = "", params = {}, deltaKey = null) {
+      lines.push({ icon, key, params, delta, deltaKey, kind });
     },
   };
 }
@@ -265,10 +266,10 @@ export function endSol(s) {
   const draw = batteryDraw(s);
   const spare = Math.max(0, power - allocTotal(s));
   s.battery += spare - draw;
-  if (s.alloc.o2) r.line("🫁", `O₂ Maker made oxygen`, `+${s.alloc.o2} 🫁`);
-  if (s.alloc.lab) r.line("🔬", `Lab experiments`, `+${s.alloc.lab} 🔬`);
-  if (spare) r.line("🔋", `Spare solar power stored`, `+${spare} 🔋`);
-  if (draw) r.line("🔋", `Used stored battery power`, `−${draw} 🔋`);
+  if (s.alloc.o2) r.line("🫁", "night.o2Made", `+${s.alloc.o2} 🫁`);
+  if (s.alloc.lab) r.line("🔬", "night.lab", `+${s.alloc.lab} 🔬`);
+  if (spare) r.line("🔋", "night.spare", `+${spare} 🔋`);
+  if (draw) r.line("🔋", "night.draw", `−${draw} 🔋`);
   s.o2 += s.alloc.o2;
   s.science += s.alloc.lab;
   if (s.alloc.o2) r.facts.push("moxie");
@@ -283,23 +284,23 @@ export function endSol(s) {
   // 3. breathing
   const breath = s.resting ? cfg.restBreathing : cfg.breathing;
   s.o2 -= breath;
-  r.line("😮‍💨", "Crew breathed through the night", `−${breath} 🫁`);
+  r.line("😮‍💨", "night.breath", `−${breath} 🫁`);
 
   // 4. heaters
   if (s.battery >= cfg.heater) {
     s.battery -= cfg.heater;
-    r.line("🌡️", "Heaters kept the base warm", `−${cfg.heater} 🔋`);
+    r.line("🌡️", "night.heat", `−${cfg.heater} 🔋`);
   } else {
     s.battery = 0;
     s.o2 -= cfg.coldNightO2;
-    r.line("🥶", "Battery empty! Cold night, life support struggled", `−${cfg.coldNightO2} 🫁`, "bad");
+    r.line("🥶", "night.cold", `−${cfg.coldNightO2} 🫁`, "bad");
     r.facts.unshift("coldNights");
   }
 
   // 5. background cosmic rays
   if (s.sol % cfg.cosmicEvery === 0) {
     s.dose += 1;
-    r.line("✨", "Cosmic rays from deep space", "+1 ☢️");
+    r.line("✨", "night.cosmic", "+1 ☢️");
     r.facts.unshift("thinAir", "marsRadiation");
   }
 
@@ -313,13 +314,14 @@ export function endSol(s) {
     s.stormsFaced.push({ sol: s.sol, ...storm.event, blocked, taken, dose: storm.dose });
     r.line(
       "☀️",
-      `Solar storm hit! Shield blocked ${blocked} of ${storm.dose}`,
+      "night.storm",
       taken ? `+${taken} ☢️` : "0 ☢️",
       taken ? "bad" : "good",
+      { blocked, dose: storm.dose },
     );
     r.stormFacts = [storm.event.date.startsWith("2017-09") ? "mars2017" : "cme", storm.surprise ? "forecast" : "radiationAddsUp"];
   } else if (s.alloc.shield) {
-    r.line("🛡️", "Shield was ready, but no storm came tonight", "");
+    r.line("🛡️", "night.noStorm", "");
     r.facts.unshift("forecast");
   }
 
@@ -328,15 +330,15 @@ export function endSol(s) {
     const roll = s.rng.int(1, 3);
     if (roll === 1 && !s.panelsClean && s.sol < cfg.maxSol) {
       s.panelsClean = true;
-      r.line("🌀", "A dust devil blew the solar panels clean!", "+1 ⚡ later", "good");
+      r.line("🌀", "night.dustDevil", "", "good", {}, "night.dustDevil.delta");
       r.facts.unshift("dustDevil");
     } else if (roll === 2 && !s.o2Broken && s.sol < cfg.maxSol) {
       s.o2Broken = true;
-      r.line("⚙️", "A part in the O₂ Maker broke", "O₂ Maker max 2", "bad");
+      r.line("⚙️", "night.broke", "", "bad", {}, "night.broke.delta");
       r.facts.unshift("moxie");
     } else if (roll === 3) {
       s.science += 1;
-      r.line("🌋", "Your seismometer felt a marsquake", "+1 🔬", "good");
+      r.line("🌋", "night.quake", "+1 🔬", "good");
       r.facts.unshift("marsquake");
     }
   }
@@ -367,14 +369,6 @@ function finish(s, cause) {
   s.result = { cause, stars, sol: s.sol, science: s.science };
 }
 
-export const describeWeather = {
-  sunny: { icon: "☀️", label: "Clear sky" },
-  hazy: { icon: "🌤️", label: "Dusty haze" },
-  dust: { icon: "🌪️", label: "Dust storm" },
-};
-
-export const describeForecast = {
-  calm: { icon: "🟢", label: "Space weather calm", detail: "No solar storm expected tonight." },
-  watch: { icon: "🟡", label: "Storm watch", detail: "A solar storm might arrive in the next sol or two. Forecasts aren't perfect!" },
-  warning: { icon: "🔴", label: "Storm warning", detail: "A solar storm is arriving tonight. Power up the shield!" },
-};
+// Labels live in i18n.js under weather.<type> and forecast.<level>.
+export const WEATHER_ICONS = { sunny: "☀️", hazy: "🌤️", dust: "🌪️" };
+export const FORECAST_ICONS = { calm: "🟢", watch: "🟡", warning: "🔴" };
