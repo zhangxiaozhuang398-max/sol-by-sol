@@ -729,7 +729,10 @@ export async function createWorld(opts) {
         rock.scale.set(size, size * 0.75, size);
         rock.rotation.y = ry;
         decor.add(rock);
+        decorSolids.push({ x, z, r: size * 0.85 });
       }
+      decorSolids.push({ x: style.rover[0], z: style.rover[1], r: 1.5 });
+      decorSolids.push({ x: style.tent[0], z: style.tent[1], r: 1.5 });
 
       // Warm camp light at night.
       const siteGlow = glowTexture();
@@ -797,6 +800,7 @@ export async function createWorld(opts) {
     baseRover.rotation.y = -0.5;
     baseRover.scale.setScalar(0.9);
     decor.add(baseRover);
+    decorSolids.push({ x: 6.8, z: 4.6, r: 1.6 });
     loadModel("perseverance").then((m) => {
       if (token !== decorToken) return;
       decor.remove(baseRover);
