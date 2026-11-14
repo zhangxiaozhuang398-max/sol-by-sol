@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sol by Sol: Mars Outpost Trainer</title>
-  <meta name="description" content="A browser game for kids 7-12: run a Mars outpost, split your power, and survive real solar storms from NASA DONKI data. English and Chinese.">
+  <meta name="description" content="A browser game for kids 7-12: run a Mars outpost, explore the map, split your power, and survive real solar storms from NASA DONKI data. English and Chinese.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
@@ -30,117 +30,70 @@
         <li data-i18n-html="title.how1"></li>
         <li data-i18n-html="title.how2"></li>
         <li data-i18n-html="title.how3"></li>
+        <li data-i18n-html="title.how4"></li>
       </ol>
       <button id="btn-start" class="btn primary big" data-i18n="title.start"></button>
+      <button id="btn-continue" class="btn big hidden" data-i18n="title.continue"></button>
       <p class="badge" data-i18n-html="title.badge"></p>
       <button id="btn-collection" class="btn ghost"><span data-i18n="title.collection"></span> <span id="collection-count"></span></button>
     </div>
   </section>
 
-  <!-- Game screen -->
+  <!-- Game screen: one Mars day = 4 phases shown in the stepper -->
   <section id="screen-game" class="screen">
     <header class="topbar">
-      <div class="sol-label"><span id="sol-num">Sol 1</span><small>/ 20</small>
-        <button class="info" data-fact="sol" aria-label="?">?</button>
+      <div class="brand">
+        <span class="brand-planet" aria-hidden="true"></span>
+        <div><div class="brand-title">Sol by Sol</div><div class="brand-sub" id="sol-label"></div></div>
       </div>
-      <div class="chips">
-        <span id="chip-weather" class="chip"></span>
-        <button id="chip-forecast" class="chip"></button>
+      <ol class="stepper" id="stepper" data-i18n-aria="step.aria">
+        <li><span>1</span><b data-i18n="step.briefing"></b></li>
+        <li><span>2</span><b data-i18n="step.day"></b></li>
+        <li><span>3</span><b data-i18n="step.night"></b></li>
+        <li><span>4</span><b data-i18n="step.settle"></b></li>
+      </ol>
+      <div class="top-actions">
+        <button class="btn small" id="btn-help" data-i18n="top.help"></button>
+        <button class="btn small" id="btn-new" data-i18n="top.new"></button>
         <button class="lang-toggle" data-i18n="lang.toggle" data-i18n-aria="lang.aria">中文</button>
       </div>
     </header>
-    <div class="progress" id="progress"></div>
 
-    <div class="scene" id="scene" aria-hidden="true">
-      <svg viewBox="0 0 600 170" preserveAspectRatio="xMidYMax slice">
-        <defs>
-          <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" class="sky-top"/><stop offset="1" class="sky-bottom"/>
-          </linearGradient>
-        </defs>
-        <rect width="600" height="170" fill="url(#sky)"/>
-        <circle cx="500" cy="42" r="14" class="sun"/>
-        <g class="dust-layer">
-          <circle cx="80" cy="60" r="2"/><circle cx="200" cy="90" r="1.5"/><circle cx="330" cy="50" r="2"/>
-          <circle cx="420" cy="100" r="1.5"/><circle cx="540" cy="80" r="2"/><circle cx="140" cy="120" r="1.5"/>
-        </g>
-        <path d="M0 132 Q150 110 300 128 T600 120 V170 H0Z" class="ground"/>
-        <path d="M0 150 Q200 140 400 152 T600 148 V170 H0Z" class="ground-near"/>
-        <path id="shield-arc" d="M215 132 a85 85 0 0 1 170 0" class="shield-arc"/>
-        <path id="berm1" d="M228 132 a72 40 0 0 1 144 0Z" class="berm"/>
-        <path d="M250 132 a50 50 0 0 1 100 0Z" class="dome"/>
-        <rect x="285" y="112" width="30" height="20" rx="10" class="door"/>
-        <g id="panels">
-          <rect x="400" y="116" width="46" height="14" rx="2" class="panel" transform="rotate(-12 423 123)"/>
-          <rect x="455" y="120" width="46" height="14" rx="2" class="panel" transform="rotate(-12 478 127)"/>
-        </g>
-        <g class="mast"><line x1="190" y1="132" x2="190" y2="96"/><circle cx="190" cy="94" r="5"/></g>
-      </svg>
+    <div class="layout">
+      <aside class="side">
+        <section class="panel-box hud" id="hud" data-i18n-aria="hud.aria"></section>
+        <section class="panel-box timeline" data-i18n-aria="cal.aria">
+          <div class="card-title" data-i18n="cal.title"></div>
+          <div class="sols" id="sols"></div>
+          <div class="sols-legend" data-i18n="cal.legend"></div>
+        </section>
+      </aside>
+      <main class="panel-box stage" id="stage" aria-live="polite"></main>
     </div>
-
-    <main class="layout">
-      <section class="panel-box meters">
-        <div class="meter" data-key="o2"><div class="meter-head"><span data-i18n="meter.o2"></span><b class="val"></b><button class="info" data-fact="moxie" aria-label="?">?</button></div><div class="bar"><i></i></div></div>
-        <div class="meter" data-key="battery"><div class="meter-head"><span data-i18n="meter.battery"></span><b class="val"></b><button class="info" data-fact="coldNights" aria-label="?">?</button></div><div class="bar"><i></i></div></div>
-        <div class="meter danger" data-key="dose"><div class="meter-head"><span data-i18n="meter.dose"></span><b class="val"></b><button class="info" data-fact="radiationAddsUp" aria-label="?">?</button></div><div class="bar"><i></i></div></div>
-        <div class="science"><span data-i18n="meter.science"></span><b id="science-val">0</b><small id="star-goal"></small></div>
-      </section>
-
-      <section id="intel" class="panel-box intel hidden" aria-live="polite"></section>
-
-      <section class="panel-box power">
-        <h2 data-i18n="power.title"></h2>
-        <div class="supply"><span data-i18n="power.supply"></span><div id="supply-pips" class="pips"></div></div>
-        <div class="slots">
-          <div class="slot" data-slot="o2"><div class="slot-title" data-i18n="slot.o2"></div><div class="slot-effect" data-i18n="slot.o2.effect"></div><div class="pips big" data-pips></div><div class="slot-btns"><button class="btn round" data-minus data-i18n-aria="power.less">−</button><button class="btn round" data-plus data-i18n-aria="power.more">+</button></div></div>
-          <div class="slot" data-slot="shield"><div class="slot-title" data-i18n="slot.shield"></div><div class="slot-effect" data-i18n="slot.shield.effect"></div><div class="pips big" data-pips></div><div class="slot-btns"><button class="btn round" data-minus data-i18n-aria="power.less">−</button><button class="btn round" data-plus data-i18n-aria="power.more">+</button></div></div>
-          <div class="slot" data-slot="lab"><div class="slot-title" data-i18n="slot.lab"></div><div class="slot-effect" data-i18n="slot.lab.effect"></div><div class="pips big" data-pips></div><div class="slot-btns"><button class="btn round" data-minus data-i18n-aria="power.less">−</button><button class="btn round" data-plus data-i18n-aria="power.more">+</button></div></div>
-        </div>
-        <p id="power-note" class="note"></p>
-      </section>
-
-      <section class="panel-box actions">
-        <h2 data-i18n="actions.title"></h2>
-        <div id="hand" class="hand"></div>
-      </section>
-
-      <section class="panel-box plan">
-        <div id="preview" class="preview"></div>
-        <button id="btn-end" class="btn primary big" disabled></button>
-      </section>
-    </main>
   </section>
 
   <!-- End screen -->
   <section id="screen-end" class="screen">
     <div class="end-card">
       <div class="title-top"><button class="lang-toggle" data-i18n="lang.toggle" data-i18n-aria="lang.aria">中文</button></div>
-      <h1 id="end-title"></h1>
-      <div id="end-stars" class="stars"></div>
-      <p id="end-why" class="why"></p>
+      <div id="end-hero" class="end-hero"></div>
+      <div id="end-report" class="report"></div>
       <h3 data-i18n="end.chart"></h3>
       <div id="chart" class="chart"></div>
+      <div id="end-stats" class="stats"></div>
       <h3 data-i18n="end.storms"></h3>
       <ul id="storm-list" class="storm-list"></ul>
       <h3 data-i18n="end.cards"></h3>
       <div id="new-cards" class="card-grid"></div>
       <div class="end-btns">
         <button id="btn-again" class="btn primary big" data-i18n="end.again"></button>
+        <button id="btn-replay" class="btn" data-i18n="end.replay"></button>
         <button id="btn-home" class="btn ghost" data-i18n="end.home"></button>
       </div>
     </div>
   </section>
 
-  <!-- Night report dialog -->
-  <dialog id="night" class="sheet">
-    <h2 id="night-title"></h2>
-    <ul id="night-lines" class="night-lines"></ul>
-    <div id="night-storm"></div>
-    <div id="night-fact" class="fact-card"></div>
-    <button id="btn-next" class="btn primary big"></button>
-  </dialog>
-
-  <!-- Fact / info dialog -->
+  <!-- Fact / help dialog -->
   <dialog id="info" class="sheet small">
     <div id="info-body" class="fact-card"></div>
     <button class="btn primary" data-close data-i18n="info.gotIt"></button>

@@ -1,28 +1,49 @@
-import {
-  newGame, endSol, setAlloc, choose, canAdd, canChoose, powerToday, slotMax,
-  allocTotal, batteryDraw, previewNight, WEATHER_ICONS, FORECAST_ICONS,
-} from "./game.js";
-import { CARDS } from "./cards.js";
+import * as E from "./game.js";
+import { CONFIG as C } from "./config.js";
+import { SITES, BASE, RINGS, siteById } from "./sites.js";
 import { FACTS } from "./facts.js";
-import { t, pick, getLang, setLang, applyStatic } from "./i18n.js";
+import { buildReport } from "./report.js";
+import { t, tr, pick, getLang, setLang, applyStatic } from "./i18n.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const esc = (v) => String(v).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const num = (n) => n.toLocaleString(getLang() === "zh" ? "zh-CN" : "en-US");
+const sign = (n) => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : "±0");
+const N = C.totalSols;
+const PHASES = ["briefing", "day", "night", "settle"];
+const wIcon = (key) => E.WEATHER_ICONS[key];
+const wName = (key) => t(`weather.${key}`);
 
 let pool = [];
-let s = null;
-let nightReport = null; // report currently shown (or last shown) in the night dialog
-let endFresh = []; // knowledge cards newly unlocked on the end screen
+let s = null; // current mission
+let ui = freshUi();
+function freshUi() {
+  return { site: null, alloc: null, prevHud: null, lastPhase: null };
+}
+const stage = $("#stage");
 
-// ---------- saved knowledge cards (per browser, optional) ----------
-const KEY = "solbysol.knowledge";
+// ---------- saving (per browser, optional) ----------
+const SAVE_KEY = "solbysol.save";
+const SAVE_V = 2;
+const COLL_KEY = "solbysol.knowledge";
+function save() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: SAVE_V, g: s })); } catch { /* storage blocked: fine */ }
+}
+function loadSave() {
+  try {
+    const data = JSON.parse(localStorage.getItem(SAVE_KEY));
+    return data && data.v === SAVE_V && data.g && data.g.phase !== "end" ? data.g : null;
+  } catch { return null; }
+}
+function clearSave() {
+  try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ }
+}
 function loadCollection() {
-  try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; }
+  try { return JSON.parse(localStorage.getItem(COLL_KEY)) || []; } catch { return []; }
 }
 function saveCollection(ids) {
-  try { localStorage.setItem(KEY, JSON.stringify(ids)); } catch { /* storage blocked: fine */ }
+  try { localStorage.setItem(COLL_KEY, JSON.stringify(ids)); } catch { /* ignore */ }
 }
 
 // ---------- helpers ----------
@@ -32,208 +53,513 @@ function show(id) {
 }
 const activeScreen = () => $(".screen.active")?.id;
 
-function factHtml(id, label = "") {
+function factHtml(id, label = "", withLesson = false) {
   const f = FACTS[id];
   if (!f) return "";
   return `${label ? `<div class="label">${esc(label)}</div>` : ""}
     <h3>${f.icon} ${esc(pick(f.title))}</h3><p>${esc(pick(f.text))}</p>
-    <p class="src">${esc(t("night.source"))} <a href="${f.source.url}" target="_blank" rel="noopener">${esc(pick(f.source.label))} ↗</a></p>`;
+    ${withLesson && f.lesson ? `<p class="lesson">🎮 ${esc(pick(f.lesson))}</p>` : ""}
+    <p class="src">${esc(t("fact.source"))} <a href="${f.source.url}" target="_blank" rel="noopener">${esc(pick(f.source.label))} ↗</a></p>`;
 }
-
 function openInfo(html) {
   $("#info-body").innerHTML = html;
   $("#info").showModal();
 }
 
-// ---------- game rendering ----------
+function alertHtml(list) {
+  if (!list.length) return "";
+  return `<div class="alerts">${list.map((a) => `<div class="alert ${a.level}"><span class="tag">${esc(t(`alert.${a.level}`))}</span><span>${tr(a.key, a.params)}</span></div>`).join("")}</div>`;
+}
+
+// ---------- rendering: shared ----------
 function render() {
-  const w = s.weather[s.sol].type;
-  const fc = s.forecast[s.sol];
-  const power = powerToday(s);
-
-  $("#sol-num").textContent = t("game.sol", { n: s.sol });
-  $("#chip-weather").textContent = `${WEATHER_ICONS[w]} ${t(`weather.${w}`)} · ⚡${power}`;
-  const chipF = $("#chip-forecast");
-  chipF.className = `chip ${fc}`;
-  chipF.textContent = `${FORECAST_ICONS[fc]} ${t(`forecast.${fc}`)}`;
-
-  $("#progress").innerHTML = Array.from({ length: s.cfg.maxSol }, (_, i) =>
-    `<i class="${i + 1 < s.sol ? "done" : i + 1 === s.sol ? "now" : ""}"></i>`).join("");
-
-  // scene
-  $("#scene").className = `scene ${w} ${fc === "warning" ? "warning" : ""}`;
-  $("#shield-arc").style.strokeWidth = s.alloc.shield * 3;
-  $("#berm1").style.opacity = s.berm ? 0.5 + s.berm * 0.25 : 0;
-
-  // meters
-  for (const key of ["o2", "battery", "dose"]) {
-    const m = $(`.meter[data-key="${key}"]`);
-    $(".val", m).textContent = `${s[key]} / 10`;
-    $(".bar i", m).style.width = `${s[key] * 10}%`;
-    m.classList.toggle("low", key === "dose" ? s.dose >= 7 : s[key] <= 2);
+  renderTop();
+  renderHud();
+  renderCalendar();
+  const phaseKey = `${s.sol}-${s.phase}`;
+  renderStage();
+  if (ui.lastPhase !== phaseKey) {
+    if (ui.lastPhase !== null) window.scrollTo({ top: 0 });
+    ui.lastPhase = phaseKey;
   }
-  $("#science-val").textContent = s.science;
-  const next = s.cfg.stars.find((goal) => s.science < goal);
-  $("#star-goal").textContent = next ? t("goal.next", { n: next }) : t("goal.done");
-
-  renderIntel();
-  renderPower(power);
-  renderHand();
-  renderPreview();
+  save();
 }
 
-function renderIntel() {
-  const box = $("#intel");
-  if (!s.intel) { box.classList.add("hidden"); return; }
-  box.classList.remove("hidden");
-  const rows = s.intel.map((i) => {
-    const storm = i.storm
-      ? t("intel.storm", { strength: esc(t(`strength.${i.storm.event.strength}`)), dose: i.storm.dose })
-      : esc(t("intel.noStorm"));
-    return `<li><b>${esc(t("intel.sol", { n: i.sol }))}</b> ${WEATHER_ICONS[i.weather]} ${esc(t(`weather.${i.weather}`))} · ${storm}</li>`;
+function renderTop() {
+  $("#sol-label").textContent = s.phase === "end" ? t("top.over", { n: s.outcome.sol }) : `${t("game.sol", { n: s.sol })} / ${N}`;
+  const idx = PHASES.indexOf(s.phase);
+  $$("#stepper li").forEach((li, i) => {
+    li.classList.toggle("active", i === idx);
+    li.classList.toggle("done", s.phase === "end" || i < idx);
+  });
+}
+
+const nightsLeft = () => N - s.sol + (s.phase === "settle" || s.phase === "end" ? 0 : 1);
+
+function renderHud() {
+  const prev = ui.prevHud || {};
+  const nights = nightsLeft();
+  const foodShort = nights - s.food;
+  let batteryNote = "";
+  if (s.phase === "day") batteryNote = t("hud.note.batteryDay", { n: E.expectedIncome(s) });
+  if (s.phase === "night") batteryNote = t("hud.note.batteryNight", { n: s.today.income });
+  const items = [
+    { key: "battery", icon: "⚡", val: s.battery, max: C.max.battery, c: "var(--blue)", note: batteryNote, fact: "coldNights" },
+    { key: "oxygen", icon: "🫁", val: s.oxygen, max: C.max.oxygen, c: "var(--teal)", fact: "moxie",
+      note: t(s.oxygen < 25 ? "hud.note.o2low" : "hud.note.o2", { n: C.oxygenUse.crewDaily }), bad: s.oxygen < 25 },
+    { key: "dose", icon: "☢️", val: s.dose, max: C.max.dose, c: "var(--red)", fact: "radiationAddsUp",
+      note: t(s.dose >= 70 ? "hud.note.doseHigh" : "hud.note.dose"), bad: s.dose >= 70 },
+    { key: "food", icon: "🥫", val: s.food, unit: t("unit.days"), max: N, c: "var(--green)", fact: "veggie",
+      note: nights <= 0 ? "" : foodShort > 0 ? t("hud.note.foodShort", { n: foodShort }) : t("hud.note.foodOk"), bad: foodShort > 0 },
+  ];
+  let html = items.map((it) => {
+    const pct = Math.max(0, Math.min(100, (it.val / it.max) * 100));
+    const flash = prev[it.key] != null && prev[it.key] !== it.val ? " flash" : "";
+    const unit = it.unit ? `<small>${esc(it.unit)}</small>`
+      : it.key === "battery" && it.val > it.max ? `<small>${esc(t("hud.avail"))}</small>` : `<small>/${it.max}</small>`;
+    return `<div class="res${flash}" style="--c:${it.c}">
+      <div class="res-head"><span class="res-icon" aria-hidden="true">${it.icon}</span><span class="res-name">${esc(t(`hud.${it.key}`))}</span>
+      <span class="res-val">${it.val}${unit}</span>
+      <button class="info" data-fact="${it.fact}" aria-label="${esc(t("hud.info"))}">?</button></div>
+      <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
+      ${it.note ? `<div class="res-note${it.bad ? " bad" : ""}">${it.note}</div>` : ""}
+    </div>`;
   }).join("");
-  box.innerHTML = `<h3>${esc(t("intel.title"))}</h3><ul>${rows}</ul>`;
+  const starsGot = E.starsFor(s.science);
+  html += `<div class="res-divider"></div>
+    <div class="res${prev.panel != null && prev.panel !== s.panel ? " flash" : ""}" style="--c:var(--muted)">
+      <div class="res-head"><span class="res-icon" aria-hidden="true">🔆</span><span class="res-name">${esc(t("hud.panel"))}</span><span class="res-val">${s.panel}<small>%</small></span>
+      <button class="info" data-fact="dustDevil" aria-label="${esc(t("hud.info"))}">?</button></div>
+      <div class="bar thin"><div class="fill" style="width:${s.panel}%"></div></div>
+    </div>
+    <div class="res${prev.science != null && prev.science !== s.science ? " flash" : ""}" style="--c:var(--violet)">
+      <div class="res-head"><span class="res-icon" aria-hidden="true">🔬</span><span class="res-name">${esc(t("hud.science"))}</span><span class="res-val">${s.science}</span></div>
+      <div class="bar thin"><div class="fill" style="width:${Math.min(100, (s.science / C.stars[2]) * 100)}%"></div>
+        <div class="tick" style="left:${(C.stars[1] / C.stars[2]) * 100}%"></div></div>
+      <div class="stars-row">
+        <span class="${starsGot >= 1 ? "got" : ""}">${esc(t("hud.star1", { n: N }))}</span>
+        <span class="${starsGot >= 2 ? "got" : ""}">⭐⭐ ${C.stars[1]}</span>
+        <span class="${starsGot >= 3 ? "got" : ""}">⭐⭐⭐ ${C.stars[2]}</span>
+      </div>
+    </div>`;
+  $("#hud").innerHTML = html;
+  ui.prevHud = { battery: s.battery, oxygen: s.oxygen, dose: s.dose, food: s.food, panel: s.panel, science: s.science };
 }
 
-function renderPower(power) {
-  const used = allocTotal(s);
-  const draw = batteryDraw(s);
-  const spare = Math.max(0, power - used);
-  $("#supply-pips").innerHTML =
-    Array.from({ length: power }, (_, i) => `<span class="pip ${i < used ? "used" : "solar"}">⚡</span>`).join("") +
-    Array.from({ length: draw }, () => `<span class="pip batt" title="${esc(t("power.fromBattery"))}">🔋</span>`).join("");
+function renderCalendar() {
+  let html = "";
+  for (let n = 1; n <= N; n++) {
+    const known = E.isKnown(s, n);
+    const key = E.weatherKey(s, n);
+    const storm = s.solarStorms.find((x) => x.sol === n && E.warningKnown(s, x));
+    const cls = ["sol", n < s.sol || s.phase === "end" ? "past" : "", n === s.sol && s.phase !== "end" ? "today" : "", known ? "" : "unknown"].join(" ");
+    const label = known ? t("cal.tip", { n, weather: wName(key) }) : t("cal.tipUnknown", { n });
+    html += `<div class="${cls}" title="${esc(label)}${storm ? esc(t("cal.tipStorm")) : ""}">
+      <span class="w" aria-hidden="true">${known ? wIcon(key) : "?"}</span>${n}
+      ${storm ? '<span class="flare" aria-hidden="true">☀️</span>' : ""}</div>`;
+  }
+  $("#sols").innerHTML = html;
+}
 
-  for (const slotEl of $$(".slot")) {
-    const slot = slotEl.dataset.slot;
-    const max = slotMax(s, slot);
-    $("[data-pips]", slotEl).innerHTML = Array.from({ length: s.cfg.slotMax }, (_, i) =>
-      `<span class="pip ${i < s.alloc[slot] ? "solar" : ""}" ${i >= max ? 'style="opacity:.2"' : ""}>${i < s.alloc[slot] ? "⚡" : ""}</span>`).join("");
-    $("[data-plus]", slotEl).disabled = !canAdd(s, slot);
-    $("[data-minus]", slotEl).disabled = s.alloc[slot] === 0;
-    slotEl.classList.toggle("broken", slot === "o2" && s.o2Broken);
+function renderStage() {
+  if (s.phase === "briefing") renderBriefing();
+  else if (s.phase === "day") renderDay();
+  else if (s.phase === "night") renderNight();
+  else if (s.phase === "settle") renderSettle();
+  else showEnd();
+}
+
+// ---------- phase 1: briefing ----------
+function realStormLine(storm) {
+  return t("brief.space.real", { date: esc(storm.event.date), speed: num(storm.event.speedKmS) });
+}
+
+function renderBriefing() {
+  const key = E.weatherKey(s, s.sol);
+  const inc = E.expectedIncome(s);
+  const hasTomorrow = s.sol < N;
+  const tKey = hasTomorrow ? E.weatherKey(s, s.sol + 1) : null;
+  const stormToday = E.solarStormOn(s, s.sol);
+  const upcoming = E.activeWarnings(s).filter((x) => x.sol > s.sol);
+
+  let space;
+  if (stormToday) {
+    const ss = E.stormStrength(stormToday);
+    space = `<div class="brief-card danger"><div class="label">${esc(t("brief.space"))}</div><div class="big">☢️</div>
+      <div class="name">${esc(t("brief.space.today"))}</div>
+      <div class="detail">${tr("brief.space.today.detail", { sstrength: stormToday.strength, evaDose: ss.evaDose, shielded: ss.shielded, unshielded: ss.unshielded })}<br>${realStormLine(stormToday)}</div></div>`;
+  } else if (upcoming.length) {
+    const u = upcoming[0];
+    space = `<div class="brief-card warn"><div class="label">${esc(t("brief.space"))}</div><div class="big">⚠️</div>
+      <div class="name">${esc(t("brief.space.warn"))}</div>
+      <div class="detail">${tr("brief.space.warn.detail", { sol: u.sol, sstrength: u.strength })}<br>${realStormLine(u)}</div></div>`;
+  } else {
+    space = `<div class="brief-card"><div class="label">${esc(t("brief.space"))}</div><div class="big">🌞</div>
+      <div class="name">${esc(t("brief.space.calm"))}</div><div class="detail">${esc(t("brief.space.calm.detail"))}</div></div>`;
   }
 
-  const notes = [];
-  if (s.o2Broken) notes.push(t("note.broken"));
-  if (s.forecast[s.sol] === "warning" && s.alloc.shield === 0) notes.push(t("note.noShield"));
-  if (draw) notes.push(t("note.draw", { n: draw }));
-  else if (spare) notes.push(t("note.spare", { n: spare }));
-  $("#power-note").textContent = notes.join(" ");
+  const mail = s.mail.map((m) => `<div class="mail">
+    <h4>${t("mail.title", { sent: m.sent })}</h4>
+    <div>${t("mail.body", { sci: m.science })}</div>
+    <div class="mail-days">${m.forecast.map((n) => `<span class="mail-day">${n} ${wIcon(E.weatherKey(s, n))} ${esc(wName(E.weatherKey(s, n)))}</span>`).join("") || `<span class="mail-day">${esc(t("mail.none"))}</span>`}</div>
+  </div>`).join("");
+
+  const alerts = [];
+  const add = (level, k, p = {}) => alerts.push({ level, key: k, params: p });
+  if (s.sol === C.weatherGen.seasonStartSol) add("warn", "brief.alert.season");
+  if (key === "dust") add("danger", "brief.alert.dust", { income: inc });
+  if (tKey === "dust" && key !== "dust") add("warn", "brief.alert.tomorrowDust");
+  if (s.oxygen < 25) add("warn", "brief.alert.lowO2", { oxygen: s.oxygen });
+  const short = nightsLeft() - s.food;
+  if (short > 0 && short >= nightsLeft() - 2) add("warn", "brief.alert.food", { food: s.food, nights: nightsLeft() });
+  if (s.panel <= 80) add("info", "brief.alert.panel", { panel: s.panel, gain: E.incomeFor(s, s.sol, 100) - inc });
+  if (s.dose >= 70) add("warn", "brief.alert.dose", { dose: s.dose });
+
+  stage.innerHTML = `
+    <div class="stage-head"><h2>${esc(t("brief.title"))}</h2><span class="sub">${esc(t("brief.sub"))}</span></div>
+    <div class="brief-grid">
+      <div class="brief-card${key === "dust" ? " danger" : ""}"><div class="label">${esc(t("brief.today"))}</div><div class="big">${wIcon(key)}</div>
+        <div class="name">${esc(wName(key))}</div><div class="detail">${t("brief.income", { n: inc, panel: s.panel })}</div></div>
+      <div class="brief-card${tKey === "dust" ? " warn" : ""}"><div class="label">${esc(t("brief.tomorrow"))}</div>
+        ${hasTomorrow ? `<div class="big">${wIcon(tKey)}</div><div class="name">${esc(wName(tKey))}</div><div class="detail">${t("brief.tomorrow.income", { n: E.incomeFor(s, s.sol + 1) })}</div>`
+          : `<div class="big">🏁</div><div class="name">${esc(t("brief.lastDay"))}</div><div class="detail">${esc(t("brief.lastDay.detail"))}</div>`}</div>
+      ${space}
+    </div>
+    ${mail}
+    ${alertHtml(alerts)}
+    <div class="stage-foot">
+      <span class="hint">${t("brief.ap", { n: C.actionPoints })}</span>
+      <button class="btn primary" id="go-day" type="button">${esc(t("brief.go"))}</button>
+    </div>`;
+  $("#go-day").onclick = () => { E.beginDay(s); ui.site = null; render(); };
 }
 
-function renderHand() {
-  $("#hand").innerHTML = s.hand.map((id) => {
-    const c = CARDS[id];
-    const ok = canChoose(s, id);
-    return `<button class="card ${s.chosen === id ? "chosen" : ""}" data-card="${id}" ${ok ? "" : "disabled"} aria-pressed="${s.chosen === id}">
-      <span class="c-icon">${c.icon}</span><span class="c-name">${esc(t(`card.${id}.name`))}</span>
-      <span class="c-hint">${esc(t(`card.${id}.hint`))}</span>
-      <span class="c-gain">✔ ${esc(t(`card.${id}.gain`))}</span><span class="c-cost">✖ ${esc(t(`card.${id}.cost`))}</span>
-    </button>`;
+// ---------- phase 2: day (the map) ----------
+function mapSvg() {
+  const tracks = SITES.filter((x) => s.visits[x.id]).map((x) =>
+    `<line x1="${BASE.x}" y1="${BASE.y}" x2="${x.x}" y2="${x.y}" stroke="rgba(255,255,255,0.18)" stroke-width="2" stroke-dasharray="2 5"/>`).join("");
+  const rocks = [[30, 240], [70, 150], [150, 30], [210, 250], [300, 140], [335, 40], [250, 100], [110, 240], [20, 110], [345, 180]]
+    .map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="${2 + (i % 3)}" fill="rgba(0,0,0,0.25)"/>`).join("");
+  const sites = SITES.map((x) => {
+    const chk = E.checkEva(s, x.id);
+    const v = s.visits[x.id];
+    const cls = ["site", v ? "visited" : "", ui.site === x.id ? "selected" : "", chk.ok ? "" : "disabled"].join(" ");
+    const name = t(`site.${x.id}.name`);
+    return `<g class="${cls}" data-site="${x.id}" tabindex="0" role="button" aria-label="${esc(name)}, ${esc(t(`tier.${x.tier}`))}">
+      <circle class="dot" cx="${x.x}" cy="${x.y}" r="17"/>
+      <text class="emoji" x="${x.x}" y="${x.y}">${x.icon}</text>
+      <text class="name" x="${x.x}" y="${x.y + 31}">${esc(name)}${v ? ` ✓${v}` : ""}</text>
+    </g>`;
   }).join("");
+  return `<svg class="map" viewBox="0 0 360 270" role="group" aria-label="${esc(t("day.mapAria"))}">
+    <defs><radialGradient id="ground" cx="50%" cy="50%" r="70%"><stop offset="0" stop-color="#b9502c"/><stop offset="1" stop-color="#5a2412"/></radialGradient></defs>
+    <rect width="360" height="270" rx="12" fill="url(#ground)"/>
+    ${rocks}
+    ${RINGS.map((r) => `<circle class="ring" cx="${BASE.x}" cy="${BASE.y}" r="${r}"/>`).join("")}
+    ${RINGS.map((r, i) => `<text class="ring-label" x="${BASE.x + r - 4}" y="${BASE.y - 4}" text-anchor="end">${esc(t(`tier.${i + 1}`))}</text>`).join("")}
+    ${tracks}
+    <g class="base"><circle cx="${BASE.x}" cy="${BASE.y}" r="19" fill="#2e2550" stroke="var(--sand)" stroke-width="2"/><text x="${BASE.x}" y="${BASE.y}">🏠</text></g>
+    ${sites}
+  </svg>`;
 }
 
-function renderPreview() {
-  const btn = $("#btn-end");
-  if (!s.chosen) {
-    $("#preview").innerHTML = `<div class="note">${esc(t("preview.empty"))}</div>`;
-    btn.disabled = true;
-    btn.textContent = t("preview.pickFirst");
-    return;
+function sitePanel() {
+  if (!ui.site) return `<div class="site-panel"><p>${esc(t("day.siteHint"))}</p></div>`;
+  const st = siteById(ui.site);
+  const chk = E.checkEva(s, st.id);
+  const c = chk.cost;
+  return `<div class="site-panel">
+    <h4>${st.icon} ${esc(t(`site.${st.id}.name`))} <span class="chip">${esc(t(`tier.${st.tier}`))} · ${esc(t("day.apCost", { n: c.ap }))}</span></h4>
+    <p>${esc(t(`site.${st.id}.desc`))}</p>
+    <div class="chips">
+      <span class="chip">⚡ −${c.power}</span><span class="chip">🫁 −${c.oxygen}</span>
+      <span class="chip${c.storm ? " bad" : ""}">☢️ +${c.dose}</span><span class="chip">🔬 +${c.science}</span>
+    </div>
+    ${alertHtml(chk.warnings)}
+    <div class="site-go">
+      <button class="btn primary" id="go-eva" type="button" ${chk.ok ? "" : "disabled"}>${esc(t("day.go"))}</button>
+      ${chk.ok ? "" : `<span class="lock">${tr(chk.reason.key, chk.reason.params)}</span>`}
+    </div>
+  </div>`;
+}
+
+function actionButton(id, icon, name, desc, chk) {
+  return `<button class="action" id="${id}" type="button" ${chk.ok ? "" : "disabled"}>
+    <span class="a-icon" aria-hidden="true">${icon}</span><span class="a-name">${esc(t(name))}</span>
+    <span class="a-desc">${chk.ok ? desc : `🚫 ${tr(chk.reason.key, chk.reason.params)}`}</span></button>`;
+}
+
+function renderDay() {
+  const pips = Array.from({ length: C.actionPoints }, (_, i) => `<span class="pip${i < s.ap ? "" : " used"}"></span>`).join("");
+  const clean = E.checkClean(s);
+  const key = E.weatherKey(s, s.sol);
+  stage.innerHTML = `
+    <div class="stage-head"><h2>${esc(t("day.title"))}</h2><span class="sub">${wIcon(key)} ${esc(wName(key))}</span>
+      <span class="ap-pips" aria-label="${esc(t("day.apAria", { n: s.ap }))}">${esc(t("day.ap"))} ${pips}</span></div>
+    <div class="day-grid">
+      <div class="map-wrap">
+        <div class="map-title">${esc(t("day.mapTitle"))}</div>
+        ${mapSvg()}
+        ${sitePanel()}
+      </div>
+      <div>
+        <div class="actions">
+          ${actionButton("do-clean", "🧽", "act.clean.name", t("act.clean.desc", { panel: s.panel, gain: clean.gain || 0 }), clean)}
+          ${actionButton("do-tend", "🌱", "act.tend.name", t("act.tend.desc", { sci: C.greenhouse.tendScience, food: C.greenhouse.tendFood }), E.checkTend(s))}
+          ${actionButton("do-call", "📡", "act.call.name", t("act.call.desc", { min: s.lightMinutes, days: C.call.forecastDays, sci: C.call.science }), E.checkCall(s))}
+        </div>
+        <div class="log"><h4>${esc(t("day.log"))}</h4>
+          <ul>${s.today.log.length ? s.today.log.map((l) => `<li>${tr(l.key, l.params)}</li>`).join("") : `<li>${esc(t("day.logEmpty"))}</li>`}</ul>
+        </div>
+      </div>
+    </div>
+    <div class="stage-foot">
+      <span class="hint">${t("day.hint", { n: E.expectedIncome(s) })}${s.ap > 0 ? esc(t("day.hintAp", { n: s.ap })) : ""}</span>
+      <button class="btn primary" id="go-night" type="button">${esc(t("day.sunset"))}</button>
+    </div>`;
+
+  $$(".site", stage).forEach((el) => {
+    const pick_ = () => { ui.site = el.dataset.site; renderDay(); };
+    el.addEventListener("click", pick_);
+    el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick_(); } });
+  });
+  const go = $("#go-eva");
+  if (go) go.onclick = () => { E.doEva(s, ui.site); render(); };
+  $("#do-clean").onclick = () => { E.doClean(s); render(); };
+  $("#do-tend").onclick = () => { E.doTend(s); render(); };
+  $("#do-call").onclick = () => { E.doCall(s); render(); };
+  $("#go-night").onclick = () => {
+    if (s.ap > 0 && !window.confirm(t("day.confirm", { n: s.ap }))) return;
+    E.endDay(s);
+    ui.alloc = null;
+    render();
+  };
+}
+
+// ---------- phase 3: night (split the power) ----------
+function renderNight() {
+  if (!ui.alloc) ui.alloc = { o2: s.lastAlloc.o2, gh: s.lastAlloc.gh, shield: false };
+  const storm = E.solarStormOn(s, s.sol);
+  const ss = E.stormStrength(storm);
+  const tend = s.today.tended;
+  const before = s.battery - s.today.income;
+  stage.innerHTML = `
+    <div class="stage-head"><h2>${esc(t("night.title"))}</h2><span class="sub">${esc(t("night.sub"))}</span></div>
+    <div class="pool"><span>${esc(t("night.pool"))}</span><span class="total">${s.battery} ⚡</span>
+      <span>${esc(t("night.poolFrom", { before, income: s.today.income }))}</span></div>
+    <div class="alloc-bar" id="alloc-bar"></div>
+    <div class="alloc-legend">
+      <span><i style="background:#8a5a6e"></i>${esc(t("night.leg.ls"))}</span><span><i style="background:var(--teal)"></i>${esc(t("night.leg.o2"))}</span>
+      <span><i style="background:var(--green)"></i>${esc(t("night.leg.gh"))}</span><span><i style="background:var(--red)"></i>${esc(t("night.leg.sh"))}</span>
+      <span><i style="background:var(--blue)"></i>${esc(t("night.leg.keep", { max: C.max.battery }))}</span><span><i style="background:#666"></i>${esc(t("night.leg.waste"))}</span>
+    </div>
+    <div class="alloc-rows">
+      <div class="arow"><span class="ic" aria-hidden="true">❤️</span>
+        <div><div class="t">${esc(t("night.ls.name"))}</div><div class="d">${esc(t("night.ls.desc"))}</div></div>
+        <span class="cost">${C.power.lifeSupport} ⚡</span>
+        <div class="ctrl"><span class="lock">${esc(t("night.always"))}</span></div></div>
+      <div class="arow"><span class="ic" aria-hidden="true">🫁</span>
+        <div><div class="t">${esc(t("night.o2.name"))}</div><div class="d" id="o2-desc"></div></div>
+        <span class="cost" id="o2-cost"></span>
+        <div class="ctrl"><input type="range" id="o2-range" min="0" max="${C.oxygenGen.maxPower}" step="${C.oxygenGen.step}" value="${ui.alloc.o2}" aria-label="${esc(t("night.o2.aria"))}"></div></div>
+      <div class="arow"><span class="ic" aria-hidden="true">🌱</span>
+        <div><div class="t">${esc(t("night.gh.name"))}</div><div class="d">${t("night.gh.desc", { o2: C.greenhouse.o2, food: C.greenhouse.food + (tend ? C.greenhouse.tendFood : 0) })}${tend ? esc(t("night.gh.tended")) : ""}</div></div>
+        <span class="cost">${C.power.greenhouse} ⚡</span>
+        <div class="ctrl"><label class="switch"><input type="checkbox" id="gh-toggle" ${ui.alloc.gh ? "checked" : ""}><span class="track"></span><span class="state" id="gh-state"></span></label></div></div>
+      <div class="arow${ss ? " highlight" : ""}"><span class="ic" aria-hidden="true">🛡️</span>
+        <div><div class="t">${esc(t("night.sh.name"))}</div><div class="d">${ss ? t("night.sh.storm", { shielded: ss.shielded, unshielded: ss.unshielded }) : esc(t("night.sh.calm"))}</div></div>
+        <span class="cost">${C.power.shield} ⚡</span>
+        <div class="ctrl"><label class="switch"><input type="checkbox" id="sh-toggle" ${ui.alloc.shield ? "checked" : ""}><span class="track"></span><span class="state" id="sh-state"></span></label></div></div>
+    </div>
+    <div class="proj" id="proj"></div>
+    <div id="night-alerts"></div>
+    <div class="stage-foot">
+      <span class="hint" id="night-hint"></span>
+      <button class="btn primary" id="confirm-night" type="button">${esc(t("night.confirm"))}</button>
+    </div>`;
+
+  $("#o2-range").addEventListener("input", (e) => { ui.alloc.o2 = +e.target.value; updateNight(); });
+  $("#gh-toggle").addEventListener("change", (e) => { ui.alloc.gh = e.target.checked; updateNight(); });
+  $("#sh-toggle").addEventListener("change", (e) => { ui.alloc.shield = e.target.checked; updateNight(); });
+  $("#confirm-night").onclick = () => {
+    if (!E.confirmNight(s, ui.alloc).ok) return;
+    ui.alloc = null;
+    render();
+  };
+  updateNight();
+}
+
+function updateNight() {
+  const a = ui.alloc;
+  const p = E.previewNight(s, a);
+  $("#o2-cost").textContent = `${a.o2} ⚡`;
+  $("#o2-desc").textContent = a.o2 ? t("night.o2.on", { made: p.o2Made, per: C.oxygenGen.step * 2, per2: C.oxygenGen.o2PerStep * 2 }) : t("night.o2.off");
+  $("#gh-state").textContent = t(a.gh ? "ui.on" : "ui.off");
+  $("#sh-state").textContent = t(a.shield ? "ui.on" : "ui.off");
+
+  const basis = Math.max(s.battery, p.cost);
+  const segs = [
+    ["ls", C.power.lifeSupport, t("seg.ls")],
+    ["o2", a.o2, t("seg.o2")],
+    ["gh", a.gh ? C.power.greenhouse : 0, t("seg.gh")],
+    ["sh", a.shield ? C.power.shield : 0, t("seg.sh")],
+  ];
+  if (p.overBudget) segs.push(["over", p.cost - s.battery, t("seg.over")]);
+  else {
+    segs.push(["keep", p.battery, t("seg.keep")]);
+    segs.push(["waste", p.overflow, t("seg.waste")]);
   }
-  const p = previewNight(s);
-  const fc = s.forecast[s.sol];
-  const cls = (v) => (v <= 0 ? "bad" : v <= 2 ? "warn" : "");
-  let storm = "";
-  if (fc === "warning") storm = `<div class="row warn"><span>${esc(t("preview.stormTonight"))}</span><span>${esc(t("preview.shieldBlocks", { n: s.alloc.shield + s.berm }))}</span></div>`;
-  else if (fc === "watch") storm = `<div class="row"><span>${esc(t("preview.stormSoon"))}</span><span></span></div>`;
-  $("#preview").innerHTML = `
-    <div class="note">${esc(t("preview.intro"))}</div>
-    <div class="row ${cls(p.o2)}"><span>${esc(t("preview.o2"))}</span><span>${s.o2} → ${Math.max(p.o2, 0)}${p.o2 <= 0 ? esc(t("preview.runOut")) : ""}</span></div>
-    <div class="row ${p.cold ? "bad" : cls(p.battery)}"><span>${esc(t("preview.battery"))}</span><span>${s.battery} → ${p.battery}${p.cold ? esc(t("preview.tooCold")) : ""}</span></div>
-    ${storm}`;
-  btn.disabled = false;
-  btn.textContent = t("preview.end", { n: s.sol });
+  $("#alloc-bar").innerHTML = segs.filter((x) => x[1] > 0).map(([cls, v, label]) =>
+    `<div class="seg ${cls}" style="flex:0 0 calc(${(v / basis) * 100}% - 2px)" title="${esc(label)} ${v}">${v / basis > 0.09 ? `${esc(label)} ${v}` : v / basis > 0.04 ? v : ""}</div>`).join("");
+
+  const tomorrow = p.hasNext ? t("night.tomorrow", { icon: wIcon(E.weatherKey(s, p.nextSol)), weather: wName(E.weatherKey(s, p.nextSol)), income: p.nextIncome }) : t("night.lastNight");
+  const cells = [
+    ["⚡", "hud.battery", p.battery, p.overBudget ? t("proj.battery.over") : p.overflow ? t("proj.battery.dw", { cost: p.cost, waste: p.overflow }) : t("proj.battery.d", { cost: p.cost }), "var(--blue)"],
+    ["🫁", "hud.oxygen", p.oxygen, t("proj.oxygen.d", { delta: sign(p.o2Made + p.ghO2 - C.oxygenUse.crewDaily), breath: C.oxygenUse.crewDaily }), "var(--teal)"],
+    ["🥫", "hud.food", `${Math.max(0, p.food)} ${t("unit.days")}`, t("proj.food.d", { delta: sign(p.foodGain - C.food.dailyUse) }), "var(--green)"],
+    ["☢️", "hud.dose", p.dose, t("proj.dose.d", { n: p.doseGain }), "var(--red)"],
+  ];
+  $("#proj").innerHTML = cells.map(([ic, k, v, d, c]) =>
+    `<div class="proj-item" style="--c:${c}"><div class="k">${ic} ${esc(t(k))}</div><div class="v">${v}</div><div class="delta">${esc(d)}</div></div>`).join("");
+  $("#night-alerts").innerHTML = alertHtml(p.warnings);
+  $("#night-hint").textContent = tomorrow;
+  $("#confirm-night").disabled = p.overBudget;
 }
 
-// ---------- night ----------
-function renderNight(r, animate) {
-  $("#night-title").textContent = t("night.title", { n: r.sol });
-  $("#night-lines").innerHTML = r.lines.map((l, i) => {
-    const delta = l.deltaKey ? t(l.deltaKey) : l.delta;
-    const style = animate ? `animation-delay:${i * 0.18}s` : "animation:none;opacity:1";
-    return `<li class="${l.kind}" style="${style}"><span>${l.icon}</span><span>${esc(t(l.key, l.params))}</span><span class="d">${esc(delta)}</span></li>`;
-  }).join("");
-
-  if (r.storm) {
-    const e = r.storm.event;
-    const text = t("night.stormBox", {
-      date: esc(e.date),
-      speed: num(e.speedKmS),
-      instrument: esc(e.instrument),
-      sep: e.hadParticleStorm ? esc(t("night.stormSep")) : "",
-    });
-    $("#night-storm").innerHTML = `<div class="storm-box">${text}
-      <a href="${e.link}" target="_blank" rel="noopener">${esc(t("night.stormLink"))}</a></div>`;
-  } else $("#night-storm").innerHTML = "";
-
-  $("#night-fact").innerHTML = factHtml(r.fact, t("night.didYouKnow"));
-  $("#btn-next").textContent = r.over ? t("night.report") : t("night.next", { n: r.sol + 1 });
+// ---------- phase 4: settle ----------
+function change(icon, nameKey, from, to, parts, c, unit = "") {
+  const d = to - from;
+  return `<div class="change" style="--c:${c}"><div class="k">${icon} ${esc(t(nameKey))}</div>
+    <div class="v">${from}${esc(unit)} → ${to}${esc(unit)} <small>(${sign(d)})</small></div>
+    <div class="why">${parts.filter(Boolean).join(esc(t("fmt.sep")))}</div></div>`;
 }
 
-function showNight(r) {
-  nightReport = r;
-  renderNight(r, true);
-  $("#night").showModal();
+function stormBoxHtml(storm) {
+  const e = storm.event;
+  const text = t("night.stormBox", {
+    date: esc(e.date), speed: num(e.speedKmS), instrument: esc(e.instrument),
+    sep: e.hadParticleStorm ? t("night.stormSep") : "",
+  });
+  return `<div class="storm-box">${text} <a href="${esc(e.link)}" target="_blank" rel="noopener">${esc(t("night.stormLink"))}</a></div>`;
+}
+
+function renderSettle() {
+  const h = s.history[s.history.length - 1];
+  const m = s.morning;
+  const a = h.alloc;
+  const o2Made = E.o2FromPower(a.o2);
+  const storm = E.solarStormOn(s, s.sol);
+  const w = (k, n) => (n ? t(k, { n }) : "");
+  stage.innerHTML = `
+    <div class="stage-head"><h2>${esc(t("settle.title"))}</h2><span class="sub">${esc(t("settle.sub", { n: s.sol }))}</span></div>
+    <div class="changes">
+      ${change("⚡", "hud.battery", m.battery, s.battery, [w("why.income", h.income), w("why.eva", h.evaPower), w("why.night", E.nightCost(a)), w("why.overflow", h.overflow)], "var(--blue)")}
+      ${change("🫁", "hud.oxygen", m.oxygen, s.oxygen, [w("why.breath", C.oxygenUse.crewDaily), w("why.suit", h.evaOxygen), w("why.o2made", o2Made), a.gh ? w("why.gh", C.greenhouse.o2) : ""], "var(--teal)")}
+      ${change("🥫", "hud.food", m.food, s.food, [t("why.eat"), a.gh ? w("why.food", C.greenhouse.food + (h.tended ? C.greenhouse.tendFood : 0)) : ""], "var(--green)", ` ${t("unit.days")}`)}
+      ${change("☢️", "hud.dose", m.dose, s.dose, [w("why.base", h.nightDose), w("why.evaDose", h.evaDose)], "var(--red)")}
+      ${change("🔬", "hud.science", m.science, s.science, [h.evas.length ? t("why.evas", { n: h.evas.length }) : t("why.noEva")], "var(--violet)")}
+      ${change("🔆", "hud.panel", m.panel, s.panel, [h.cleaned ? t("why.cleaned") : "", t("why.dusted", { weather: wName(h.weather) }), h.dustDevil ? t("why.devil") : ""], "var(--muted)", "%")}
+    </div>
+    ${s.tonightNotes.length ? `<div class="notes">${s.tonightNotes.map((n) => `<div class="note">${tr(n.key, n.params)}</div>`).join("")}</div>` : ""}
+    ${storm ? stormBoxHtml(storm) : ""}
+    ${s.tonightCards.map((id) => `<div class="fact-card story">${factHtml(id, t("settle.story"), true)}</div>`).join("")}
+    <div class="stage-foot">
+      <span class="hint">${esc(s.sol + 1 === N ? t("settle.lastNext") : t("settle.left", { n: N - s.sol }))}</span>
+      <button class="btn primary" id="next-sol" type="button">${esc(t("settle.next", { n: s.sol + 1 }))}</button>
+    </div>`;
+  $("#next-sol").onclick = () => { E.nextSol(s); render(); };
 }
 
 // ---------- end ----------
-function chartSvg(history, storms) {
-  const W = 600, H = 200, P = 26;
-  const n = Math.max(history.length - 1, 1);
-  const x = (i) => P + (i / n) * (W - 2 * P);
-  const y = (v) => H - P - (v / 10) * (H - 2 * P);
-  const line = (key, color) =>
-    `<polyline fill="none" stroke="${color}" stroke-width="3" stroke-linejoin="round" points="${history.map((h, i) => `${x(i)},${y(Math.max(0, Math.min(10, h[key])))}`).join(" ")}"/>`;
-  const grid = [0, 5, 10].map((v) => `<line x1="${P}" x2="${W - P}" y1="${y(v)}" y2="${y(v)}" stroke="#4b3f7a" stroke-dasharray="4 4"/><text x="4" y="${y(v) + 4}" fill="#c5b8e0" font-size="11">${v}</text>`).join("");
-  const marks = storms.map((st) => `<text x="${x(st.sol)}" y="${P - 6}" text-anchor="middle" font-size="14">☀️</text>`).join("");
-  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t("end.chartAria"))}">${grid}${marks}
-    ${line("o2", "#4fd1c5")}${line("battery", "#6ea8ff")}${line("dose", "#ff5d73")}
-    <text x="${W - P}" y="${H - 6}" text-anchor="end" fill="#c5b8e0" font-size="11">${esc(t("end.axis"))}</text></svg>
-    <div class="legend"><span style="color:#4fd1c5">${esc(t("end.legendO2"))}</span><span style="color:#6ea8ff">${esc(t("end.legendBattery"))}</span><span style="color:#ff5d73">${esc(t("end.legendDose"))}</span><span>${esc(t("end.legendStorm"))}</span></div>`;
+const SERIES = [
+  { key: "battery", color: "#6ea8ff", label: "hud.battery" },
+  { key: "oxygen", color: "#4fd1c5", label: "hud.oxygen" },
+  { key: "dose", color: "#ff5d73", label: "hud.dose" },
+];
+const CH = { W: 640, H: 240, l: 34, r: 74, t: 26, b: 28 };
+const cx = (n) => CH.l + (n / N) * (CH.W - CH.l - CH.r);
+const cy = (v) => CH.t + (1 - Math.max(0, Math.min(100, v)) / 100) * (CH.H - CH.t - CH.b);
+
+function chartPoints() {
+  return [{ sol: 0, battery: C.start.battery, oxygen: C.start.oxygen, dose: C.start.dose, food: C.start.food, science: 0, weather: null }]
+    .concat(s.history.map((h) => ({ sol: h.sol, battery: h.battery, oxygen: h.oxygen, dose: h.dose, food: h.food, science: h.science, weather: h.weather, solarStorm: h.solarStorm })));
+}
+
+function chartHtml() {
+  const pts = chartPoints();
+  const last = pts[pts.length - 1];
+  let grid = "";
+  for (let v = 0; v <= 100; v += 25) {
+    grid += `<line x1="${CH.l}" x2="${CH.W - CH.r}" y1="${cy(v)}" y2="${cy(v)}" stroke="#4b3f7a" stroke-dasharray="4 4"/>
+      <text x="${CH.l - 6}" y="${cy(v) + 4}" text-anchor="end" fill="#c5b8e0" font-size="11">${v}</text>`;
+  }
+  for (let n = 0; n <= N; n++) {
+    grid += `<text x="${cx(n)}" y="${CH.H - 8}" text-anchor="middle" fill="#c5b8e0" font-size="11">${n === 0 ? "" : n}</text>`;
+  }
+  const bands = s.weather.map((w, n) => (n >= 1 && n <= last.sol && w === "dust"
+    ? `<rect x="${cx(n - 1)}" y="${CH.t}" width="${cx(n) - cx(n - 1)}" height="${CH.H - CH.t - CH.b}" fill="rgba(228,106,60,0.22)"/>` : "")).join("");
+  const flares = s.solarStorms.filter((x) => x.sol <= last.sol)
+    .map((x) => `<text x="${(cx(x.sol - 1) + cx(x.sol)) / 2}" y="${CH.t - 8}" text-anchor="middle" font-size="14">☀️</text>`).join("");
+  const lines = SERIES.map((se) =>
+    `<polyline fill="none" stroke="${se.color}" stroke-width="3" stroke-linejoin="round" points="${pts.map((p) => `${cx(p.sol)},${cy(p[se.key])}`).join(" ")}"/>`).join("");
+  const labels = SERIES.map((se) => ({ se, y: cy(last[se.key]), v: last[se.key] })).sort((a, b) => a.y - b.y);
+  for (let i = 1; i < labels.length; i++) if (labels[i].y - labels[i - 1].y < 14) labels[i].y = labels[i - 1].y + 14;
+  const endLabels = labels.map((l) => `<text x="${cx(last.sol) + 8}" y="${l.y + 4}" fill="${l.se.color}" font-size="12" font-weight="700">${l.v}</text>`).join("");
+  const rows = pts.slice(1).map((p) => `<tr><td>${p.sol}</td><td>${wIcon(p.weather)} ${esc(wName(p.weather))}${p.solarStorm ? " ☀️" : ""}</td>
+    <td>${p.battery}</td><td>${p.oxygen}</td><td>${p.dose}</td><td>${p.food}</td><td>${p.science}</td></tr>`).join("");
+  return `<svg viewBox="0 0 ${CH.W} ${CH.H}" role="img" aria-label="${esc(t("end.chartAria"))}">${bands}${grid}${flares}${lines}${endLabels}</svg>
+    <div class="legend">${SERIES.map((se) => `<span style="color:${se.color}">━ ${esc(t(se.label))}</span>`).join("")}<span>${esc(t("end.legendDust"))}</span><span>${esc(t("end.legendStorm"))}</span></div>
+    <details class="data-table"><summary>${esc(t("end.table"))}</summary><div class="table-scroll"><table>
+      <tr><th>${esc(t("end.col.sol"))}</th><th>${esc(t("end.col.weather"))}</th><th>${esc(t("hud.battery"))}</th><th>${esc(t("hud.oxygen"))}</th><th>${esc(t("hud.dose"))}</th><th>${esc(t("hud.food"))}</th><th>${esc(t("hud.science"))}</th></tr>${rows}</table></div></details>`;
 }
 
 function renderEnd() {
-  const { cause, stars, sol } = s.result;
-  $("#end-title").textContent = t(`end.${cause}`);
-  $("#end-stars").textContent = cause === "win" ? "⭐".repeat(stars) + "☆".repeat(3 - stars) : "";
-  const why = t(`end.${cause}.why`, { sol, max: s.cfg.maxSol, sci: s.science });
-  const tail = cause === "win" ? t("end.goals", { goals: s.cfg.stars.join(" / ") }) : t("end.tryAgain");
-  $("#end-why").textContent = `${why} ${tail}`;
-  $("#chart").innerHTML = chartSvg(s.history, s.stormsFaced);
+  const r = buildReport(s);
+  const o = s.outcome;
+  const st = r.stats;
+  $("#end-hero").innerHTML = o.success
+    ? `<div class="emoji">🎉</div><h1>${tr(r.title.key, r.title.params)}</h1><div class="stars" aria-label="${esc(t("end.starsAria", { n: o.stars }))}">${"⭐".repeat(o.stars)}${"☆".repeat(C.stars.length - o.stars)}</div>`
+    : `<div class="emoji">🚨</div><h1>${esc(t("end.fail"))}</h1><p class="why">${tr(r.title.key, r.title.params)}</p><p class="why">${esc(t("end.tryAgain"))}</p>`;
+  $("#end-report").innerHTML = `
+    <div class="report-box"><h3>${esc(t("end.what"))}</h3><ul>${r.lines.map((l) => `<li>${tr(l.key, l.params)}</li>`).join("")}</ul></div>
+    <div class="report-box"><h3>${esc(t("end.tips"))}</h3><ul>${r.tips.map((l) => `<li>${tr(l.key, l.params)}</li>`).join("")}</ul></div>`;
+  $("#chart").innerHTML = chartHtml();
+  $("#end-stats").innerHTML = [
+    ["stat.sols", `${st.sols} / ${N}`], ["stat.science", st.science], ["stat.evas", st.evas],
+    ["stat.sites", `${st.sitesVisited} / ${SITES.length}`], ["stat.clean", st.cleanings], ["stat.calls", st.calls],
+    ["stat.gh", st.ghNights], ["stat.dose", st.maxDose],
+  ].map(([k, v]) => `<div class="stat"><div class="k">${esc(t(k))}</div><div class="v">${v}</div></div>`).join("");
 
-  $("#storm-list").innerHTML = s.stormsFaced.length
-    ? s.stormsFaced.map((st) => `<li>${t("end.stormItem", { sol: st.sol, date: esc(st.date), speed: num(st.speedKmS), blocked: st.blocked, dose: st.dose })}
-        <a href="${st.link}" target="_blank" rel="noopener">${esc(t("end.stormLink"))}</a></li>`).join("")
+  const faced = s.history.filter((h) => h.solarStorm);
+  $("#storm-list").innerHTML = faced.length
+    ? faced.map((h) => {
+      const ss = C.solarStorm.strengths[h.solarStorm];
+      const shielded = h.alloc && h.alloc.shield;
+      return `<li>${t(shielded ? "end.stormShielded" : "end.stormOpen", { sol: h.sol, date: esc(h.stormEvent.date), speed: num(h.stormEvent.speedKmS), dose: h.nightDose, full: ss.unshielded })}
+        <a href="${esc(h.stormEvent.link)}" target="_blank" rel="noopener">${esc(t("end.stormLink"))}</a></li>`;
+    }).join("")
     : `<li>${esc(t("end.noStorms"))}</li>`;
 
-  $("#new-cards").innerHTML = endFresh.length
-    ? endFresh.map((f) => `<div class="fact-card">${factHtml(f)}</div>`).join("")
+  $("#new-cards").innerHTML = ui.endFresh.length
+    ? ui.endFresh.map((f) => `<div class="fact-card">${factHtml(f)}</div>`).join("")
     : `<p class="note">${esc(t("end.noCards"))}</p>`;
 }
 
 function showEnd() {
-  const before = loadCollection();
-  endFresh = s.factsSeen.filter((f) => !before.includes(f));
-  saveCollection([...before, ...endFresh]);
-  updateCollectionCount();
+  if (activeScreen() !== "screen-end") {
+    const before = loadCollection();
+    ui.endFresh = Object.keys(s.cardsSeen).filter((f) => FACTS[f] && !before.includes(f));
+    saveCollection([...before, ...ui.endFresh]);
+    updateCollectionCount();
+    clearSave();
+    show("screen-end");
+  }
   renderEnd();
-  show("screen-end");
 }
 
 // ---------- collection ----------
 function updateCollectionCount() {
-  $("#collection-count").textContent = `(${loadCollection().length}/${Object.keys(FACTS).length})`;
+  $("#collection-count").textContent = `(${loadCollection().filter((id) => FACTS[id]).length}/${Object.keys(FACTS).length})`;
 }
 function renderCollection() {
   const have = loadCollection();
@@ -242,22 +568,37 @@ function renderCollection() {
     : `<div class="fact-card locked"><h3>🔒 ???</h3><p>${esc(t("collection.locked"))}</p></div>`).join("");
 }
 
+// ---------- help ----------
+function showHelp() {
+  openInfo(`<h3>${esc(t("help.title", { n: N }))}</h3><p>${t("help.intro")}</p>
+    <ol class="help-list">${[1, 2, 3, 4].map((i) => `<li>${t(`help.l${i}`, { ap: C.actionPoints })}</li>`).join("")}</ol>
+    <p>${t("help.end", { n: N })}</p>`);
+}
+
 // ---------- language ----------
 function refreshLanguage() {
   applyStatic();
   updateCollectionCount();
   if (s && activeScreen() === "screen-game") render();
-  if (s?.result && activeScreen() === "screen-end") renderEnd();
-  if ($("#night").open && nightReport) renderNight(nightReport, false);
+  if (s?.outcome && activeScreen() === "screen-end") renderEnd();
   if ($("#collection").open) renderCollection();
   if ($("#info").open) $("#info").close(); // its content was built in the old language
+  updateContinue();
 }
 
 // ---------- events ----------
-function startGame() {
-  s = newGame(pool, Date.now() % 2147483647);
-  render();
+const seedParam = parseInt(new URLSearchParams(location.search).get("seed"), 10);
+
+function startGame(seed) {
+  s = E.newGame(pool, Number.isNaN(seed) ? undefined : seed);
+  ui = freshUi();
+  ui.endFresh = [];
   show("screen-game");
+  render();
+}
+
+function updateContinue() {
+  $("#btn-continue").classList.toggle("hidden", !loadSave());
 }
 
 document.addEventListener("click", (e) => {
@@ -266,46 +607,40 @@ document.addEventListener("click", (e) => {
   if (btn.classList.contains("lang-toggle")) {
     setLang(getLang() === "en" ? "zh" : "en");
     refreshLanguage();
-  } else if (btn.matches("[data-plus], [data-minus]")) {
-    const slot = btn.closest(".slot").dataset.slot;
-    setAlloc(s, slot, s.alloc[slot] + (btn.matches("[data-plus]") ? 1 : -1));
-    render();
-  } else if (btn.dataset.card) {
-    choose(s, btn.dataset.card);
-    render();
   } else if (btn.dataset.fact) {
-    openInfo(factHtml(btn.dataset.fact));
+    openInfo(factHtml(btn.dataset.fact, "", true));
   } else if (btn.matches("[data-close]")) {
     btn.closest("dialog").close();
   }
 });
 
-$("#chip-forecast").addEventListener("click", () => {
-  const fc = s.forecast[s.sol];
-  openInfo(`<h3>${FORECAST_ICONS[fc]} ${esc(t(`forecast.${fc}`))}</h3><p>${esc(t(`forecast.${fc}.detail`))}</p>${factHtml("forecast", t("night.didYouKnow"))}`);
+$("#btn-start").addEventListener("click", () => startGame(seedParam));
+$("#btn-continue").addEventListener("click", () => {
+  const g = loadSave();
+  if (!g) return;
+  s = g;
+  ui = freshUi();
+  ui.endFresh = [];
+  show("screen-game");
+  render();
 });
-$("#btn-start").addEventListener("click", startGame);
-$("#btn-again").addEventListener("click", startGame);
-$("#btn-home").addEventListener("click", () => show("screen-title"));
+$("#btn-again").addEventListener("click", () => startGame());
+$("#btn-replay").addEventListener("click", () => startGame(s.seed));
+$("#btn-home").addEventListener("click", () => { show("screen-title"); updateContinue(); });
+$("#btn-new").addEventListener("click", () => {
+  if (s && s.phase !== "end" && (s.sol > 1 || s.phase !== "briefing") && !window.confirm(t("top.confirmNew"))) return;
+  startGame();
+});
+$("#btn-help").addEventListener("click", showHelp);
 $("#btn-collection").addEventListener("click", () => {
   renderCollection();
   $("#collection").showModal();
 });
-$("#btn-end").addEventListener("click", () => {
-  const r = endSol(s);
-  if (r) showNight(r);
-});
-$("#btn-next").addEventListener("click", () => {
-  $("#night").close();
-  if (nightReport?.over) showEnd();
-  else render();
-});
-// Don't let Escape skip the night report without advancing the game.
-$("#night").addEventListener("cancel", (e) => e.preventDefault());
 
 // ---------- boot ----------
 applyStatic();
 updateCollectionCount();
+updateContinue();
 $("#btn-start").disabled = true;
 fetch("data/space_weather_events.json")
   .then((r) => r.json())

@@ -1,374 +1,443 @@
-// Pure game logic: no DOM. Used by the browser UI and by scripts/simulate.mjs.
-import { CARDS } from "./cards.js";
+// Pure game logic: no DOM. Used by the browser UI (main.js) and scripts/simulate.mjs.
+//
+// One Mars day (sol) has four phases:
+//   briefing → day (3 action points: EVA on the map, clean panels, tend greenhouse,
+//   call Earth) → night (split power) → settle (what changed + story cards)
+//
+// Six things to watch: battery, oxygen, radiation dose, food, panel cleanliness, science.
+// All text is produced as { key, params } so the UI can translate it (i18n.js).
 
-export const CONFIG = {
-  maxSol: 20,
-  start: { o2: 8, battery: 5, dose: 0, science: 0 },
-  caps: { o2: 10, battery: 10, dose: 10 },
-  slotMax: 3,
-  brokenO2Max: 2,
-  weatherPower: { sunny: 6, hazy: 4, dust: 2 },
-  weatherOdds: { sunny: 0.6, hazy: 0.3 }, // the rest starts a dust storm
-  dustStormLength: [2, 4],
-  dustCooldown: 3, // clear-ish sols guaranteed after a dust storm
-  breathing: 2,
-  restBreathing: 1,
-  heater: 1,
-  coldNightO2: 1,
-  cosmicEvery: 5,
-  stormDose: { small: 2, medium: 3, big: 4 },
-  stormCount: [4, 6],
-  firstStormSol: 3,
-  minStormGap: 2,
-  surpriseChance: 0.2, // storm with no "watch" the sol before
-  falseAlarmChance: 0.15, // "watch" with no storm
-  nightEventChance: 0.3,
-  bermMax: 2,
-  handSize: 3,
-  stars: [20, 35, 50],
-};
+import { CONFIG as C } from "./config.js";
+import { SITES, siteById } from "./sites.js";
 
-// ---------- seeded random ----------
-export function makeRng(seed) {
-  let a = seed >>> 0;
-  const next = () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-  return {
-    next,
-    int: (lo, hi) => lo + Math.floor(next() * (hi - lo + 1)),
-    pick: (arr) => arr[Math.floor(next() * arr.length)],
-    shuffle(arr) {
-      const out = [...arr];
-      for (let i = out.length - 1; i > 0; i--) {
-        const j = Math.floor(next() * (i + 1));
-        [out[i], out[j]] = [out[j], out[i]];
-      }
-      return out;
-    },
-  };
+export { CONFIG } from "./config.js";
+
+// ---------- seeded random (state lives in g.rng so saves stay reproducible) ----------
+function rand(g) {
+  let t = (g.rng = (g.rng + 0x6d2b79f5) | 0);
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
+const randInt = (g, a, b) => a + Math.floor(rand(g) * (b - a + 1));
+const chance = (g, p) => rand(g) < p;
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
-// ---------- mission setup (everything pre-rolled so forecasts can be honest) ----------
-function rollWeather(cfg, rng) {
-  const weather = [null];
-  let dustLeft = 0;
-  let cooldown = 0;
-  for (let sol = 1; sol <= cfg.maxSol; sol++) {
-    if (dustLeft > 0) {
-      weather.push({ type: "dust", start: false });
-      if (--dustLeft === 0) cooldown = cfg.dustCooldown;
-      continue;
-    }
-    const r = rng.next();
-    const dustAllowed = sol > 1 && cooldown === 0;
-    if (cooldown > 0) cooldown--;
-    if (dustAllowed && r >= cfg.weatherOdds.sunny + cfg.weatherOdds.hazy) {
-      dustLeft = rng.int(...cfg.dustStormLength) - 1;
-      if (dustLeft === 0) cooldown = cfg.dustCooldown;
-      weather.push({ type: "dust", start: true });
-    } else {
-      // during cooldown a would-be dust roll becomes haze
-      weather.push({ type: r < cfg.weatherOdds.sunny ? "sunny" : "hazy", start: false });
-    }
-  }
-  return weather;
-}
-
-function rollStorms(cfg, rng, eventPool) {
-  const count = rng.int(...cfg.stormCount);
-  const candidates = rng.shuffle(
-    Array.from({ length: cfg.maxSol - cfg.firstStormSol + 1 }, (_, i) => cfg.firstStormSol + i),
-  );
-  const sols = [];
-  for (const sol of candidates) {
-    if (sols.length >= count) break;
-    if (sols.every((s) => Math.abs(s - sol) >= cfg.minStormGap)) sols.push(sol);
-  }
-  // random real events, replayed in date order so the mission reads like a story
-  const events = rng.shuffle(eventPool).slice(0, sols.length).sort((a, b) => a.time.localeCompare(b.time));
-  const storms = {};
-  sols.sort((a, b) => a - b).forEach((sol, i) => {
-    const ev = events[i % events.length];
-    storms[sol] = { event: ev, dose: cfg.stormDose[ev.strength], surprise: rng.next() < cfg.surpriseChance };
-  });
-  return storms;
-}
-
-function rollForecasts(cfg, rng, storms) {
-  const forecast = [null];
-  for (let sol = 1; sol <= cfg.maxSol; sol++) {
-    if (storms[sol]) forecast.push("warning");
-    else if (storms[sol + 1] && !storms[sol + 1].surprise) forecast.push("watch");
-    else forecast.push(rng.next() < cfg.falseAlarmChance ? "watch" : "calm");
-  }
-  return forecast;
-}
-
-export function newGame(eventPool, seed = Date.now(), cfg = CONFIG) {
-  const rng = makeRng(seed);
-  const weather = rollWeather(cfg, rng);
-  const storms = rollStorms(cfg, rng, eventPool);
-  const forecast = rollForecasts(cfg, rng, storms);
-  const s = {
-    cfg,
+// ---------- new mission ----------
+export function newGame(pool, seed) {
+  if (seed == null || Number.isNaN(seed)) seed = Math.floor(Math.random() * 2147483647);
+  const s = C.start;
+  const g = {
     seed,
-    rng,
-    sol: 0,
-    ...cfg.start,
-    berm: 0,
-    panelsClean: false,
-    o2Broken: false,
-    earthCall: null,
-    intel: null,
-    resting: false,
-    weather,
-    storms,
-    forecast,
-    alloc: { o2: 0, shield: 0, lab: 0 },
-    hand: [],
-    chosen: null,
+    rng: seed | 0,
+    sol: 1,
+    phase: "briefing",
+    battery: s.battery,
+    oxygen: s.oxygen,
+    dose: s.dose,
+    food: s.food,
+    panel: s.panel,
+    science: 0,
+    ap: C.actionPoints,
+    weather: [],
+    dustStorm: null,
+    solarStorms: [],
+    known: {}, // sols whose weather the crew knows
+    inbox: [], // replies from Earth on their way
+    mail: [], // replies that arrived this morning
+    visits: {},
+    lastAlloc: { o2: 15, gh: true, shield: false },
+    today: null,
+    morning: null,
+    cardsSeen: {},
+    pendingTeach: [],
+    eventCards: [],
+    tonightCards: [],
+    tonightNotes: [],
     history: [],
-    stormsFaced: [],
-    factsSeen: [],
-    over: false,
-    result: null,
+    outcome: null,
   };
-  s.history.push(snapshot(s));
-  startSol(s);
-  return s;
+  SITES.forEach((site) => (g.visits[site.id] = 0));
+  genWeather(g);
+  genSolarStorms(g, pool);
+  g.lightMinutes = randInt(g, C.call.lightMinutes[0], C.call.lightMinutes[1]);
+  queueCard(g, "sol", "teach");
+  startSol(g);
+  return g;
 }
 
-const snapshot = (s) => ({ sol: s.sol, o2: s.o2, battery: s.battery, dose: s.dose, science: s.science });
-
-// ---------- morning ----------
-export function powerToday(s) {
-  const w = s.weather[s.sol].type;
-  return s.cfg.weatherPower[w] + (s.panelsClean && w !== "dust" ? 1 : 0);
-}
-
-export const slotMax = (s, slot) => (slot === "o2" && s.o2Broken ? s.cfg.brokenO2Max : s.cfg.slotMax);
-
-function startSol(s) {
-  s.sol += 1;
-  s.resting = false;
-  s.chosen = null;
-  s.alloc = { o2: 0, shield: 0, lab: 0 };
-  if (s.weather[s.sol].start) s.panelsClean = false; // dust storm coats the panels
-
-  s.intel = null;
-  if (s.earthCall && s.earthCall.arrives === s.sol) {
-    s.intel = [s.sol, s.sol + 1]
-      .filter((n) => n <= s.cfg.maxSol)
-      .map((n) => ({ sol: n, weather: s.weather[n].type, storm: s.storms[n] || null }));
-    s.earthCall = null;
+function genWeather(g) {
+  const W = C.weatherGen;
+  const N = C.totalSols;
+  const w = new Array(N + 1).fill("sunny");
+  for (let s = W.calmSols + 1; s <= N; s++) {
+    const p = s >= W.seasonStartSol ? W.hazyChanceSeason : W.hazyChanceEarly;
+    w[s] = chance(g, p) ? "hazy" : "sunny";
   }
-  drawHand(s);
+  const start = randInt(g, W.dustStormStart[0], W.dustStormStart[1]);
+  const len = randInt(g, W.dustStormLength[0], W.dustStormLength[1]);
+  const end = Math.min(N, start + len - 1);
+  for (let s = start; s <= end; s++) w[s] = "dust";
+  w[start - 1] = "hazy"; // the day before a dust storm is always hazy (a hint!)
+  g.weather = w;
+  g.dustStorm = { start, end };
 }
 
-function drawHand(s) {
-  const ids = Object.keys(CARDS).filter((id) => CARDS[id].eligible(s));
-  let hand = [];
-  if (ids.includes("repair")) hand.push("repair");
-  hand.push(...s.rng.shuffle(ids.filter((id) => id !== "repair")));
-  hand = hand.slice(0, s.cfg.handSize);
-  // Never deal a hand the player can't afford: keep at least one card with no battery cost.
-  if (hand.every((id) => cardBatteryCost(id) > s.battery)) {
-    const free = hand.findLastIndex((id) => id !== "repair");
-    hand[free >= 0 ? free : hand.length - 1] = "rest";
+// Real DONKI events drive the two storms: a "big" CME makes a strong storm,
+// small and medium ones make a moderate storm.
+function genSolarStorms(g, pool) {
+  const S = C.solarStorm;
+  const strong = pool.filter((e) => e.strength === "big");
+  const mild = pool.filter((e) => e.strength !== "big");
+  const order = chance(g, 0.5) ? ["moderate", "strong"] : ["strong", "moderate"];
+  g.solarStorms = S.windows.map((win, i) => {
+    const sol = randInt(g, win[0], win[1]);
+    const lead = randInt(g, S.warnLead[0], S.warnLead[1]);
+    const strength = order[i];
+    const src = (strength === "strong" ? strong : mild);
+    const list = src.length ? src : pool;
+    const e = list[randInt(g, 0, list.length - 1)];
+    const event = { date: e.date, speedKmS: e.speedKmS, instrument: e.instrument, link: e.link, hadParticleStorm: !!e.hadParticleStorm, size: e.strength };
+    return { sol, warnSol: Math.max(1, sol - lead), strength, event };
+  });
+}
+
+// ---------- queries ----------
+export const site = siteById;
+export const weatherKey = (g, sol) => g.weather[sol];
+export const weatherOf = (g, sol) => C.weather[g.weather[sol]];
+export const solarStormOn = (g, sol) => g.solarStorms.find((s) => s.sol === sol) || null;
+export const stormStrength = (storm) => (storm ? C.solarStorm.strengths[storm.strength] : null);
+export const incomeFor = (g, sol, panel) => Math.round((weatherOf(g, sol).solar * (panel == null ? g.panel : panel)) / 100);
+export const expectedIncome = (g) => incomeFor(g, g.sol);
+export const isKnown = (g, sol) => !!g.known[sol];
+export const activeWarnings = (g) => g.solarStorms.filter((s) => s.warnSol <= g.sol && s.sol >= g.sol);
+export const warningKnown = (g, storm) => storm.warnSol <= g.sol;
+export const o2FromPower = (p) => (p / C.oxygenGen.step) * C.oxygenGen.o2PerStep;
+export const nightCost = (alloc) =>
+  C.power.lifeSupport + alloc.o2 + (alloc.gh ? C.power.greenhouse : 0) + (alloc.shield ? C.power.shield : 0);
+export const starsFor = (science) => C.stars.filter((t) => science >= t).length;
+
+// Which knowledge/story card goes with a real storm.
+export function stormCardId(event) {
+  if (event.date.startsWith("2017-09")) return "mars2017";
+  if (event.date.startsWith("2024-05")) return "solar2024";
+  return "cme";
+}
+
+const snapshot = (g) => ({ battery: g.battery, oxygen: g.oxygen, dose: g.dose, food: g.food, science: g.science, panel: g.panel });
+
+// ---------- story cards ----------
+// "event" cards pop up the night they happen; "teach" cards queue up, one per night.
+// Card ids are keys of FACTS (facts.js). A card shows once per mission.
+function queueCard(g, id, kind) {
+  if (g.cardsSeen[id]) return;
+  if (kind === "event") {
+    if (!g.eventCards.includes(id)) g.eventCards.push(id);
+  } else if (!g.pendingTeach.includes(id)) {
+    g.pendingTeach.push(id);
   }
-  s.hand = hand;
 }
 
-// ---------- player actions ----------
-export const allocTotal = (s) => s.alloc.o2 + s.alloc.shield + s.alloc.lab;
-export const batteryDraw = (s) => Math.max(0, allocTotal(s) - powerToday(s));
-export const cardBatteryCost = (id) => (id && CARDS[id].batteryCost) || 0;
-
-export function canAdd(s, slot) {
-  if (s.alloc[slot] >= slotMax(s, slot)) return false;
-  const nextDraw = Math.max(0, allocTotal(s) + 1 - powerToday(s));
-  return nextDraw + cardBatteryCost(s.chosen) <= s.battery;
+// ---------- phase 1: briefing ----------
+function startSol(g) {
+  g.phase = "briefing";
+  g.ap = C.actionPoints;
+  g.today = {
+    evas: [], cleaned: false, tended: false, called: false,
+    income: 0, overflow: 0, panelBefore: g.panel, batterySunset: null,
+    alloc: null, nightDose: 0, dustDevil: false, log: [],
+  };
+  g.known[g.sol] = true;
+  if (g.sol + 1 <= C.totalSols) g.known[g.sol + 1] = true;
+  g.mail = g.inbox.filter((m) => m.arrives === g.sol);
+  g.inbox = g.inbox.filter((m) => m.arrives !== g.sol);
+  g.mail.forEach((m) => {
+    m.forecast.forEach((s) => (g.known[s] = true));
+    g.science += m.science;
+    queueCard(g, "weatherFromOrbit", "teach");
+  });
+  if (activeWarnings(g).some((s) => s.sol >= g.sol)) queueCard(g, "forecast", "teach");
+  g.morning = snapshot(g);
 }
 
-export function setAlloc(s, slot, n) {
-  n = Math.max(0, Math.min(n, slotMax(s, slot)));
-  const prev = s.alloc[slot];
-  s.alloc[slot] = n;
-  if (batteryDraw(s) + cardBatteryCost(s.chosen) > s.battery) {
-    s.alloc[slot] = prev;
-    return false;
-  }
-  return true;
+// ---------- phase 2: day ----------
+export function beginDay(g) {
+  if (g.phase !== "briefing") return;
+  g.phase = "day";
 }
 
-export function canChoose(s, id) {
-  return s.hand.includes(id) && batteryDraw(s) + cardBatteryCost(id) <= s.battery;
-}
+const no = (key, params = {}) => ({ key, params });
 
-export function choose(s, id) {
-  if (!canChoose(s, id)) return false;
-  s.chosen = id;
-  return true;
-}
-
-// What the player can expect by morning, ignoring storms and random events.
-// Shown in the UI so kids can see the cost of a plan before committing.
-export function previewNight(s) {
-  const card = s.chosen;
-  let o2 = Math.min(s.o2 + s.alloc.o2, s.cfg.caps.o2);
-  let battery = Math.min(s.battery + Math.max(0, powerToday(s) - allocTotal(s)) - batteryDraw(s), s.cfg.caps.battery);
-  battery -= cardBatteryCost(card);
-  if (card === "eva" || card === "clean") o2 -= 1;
-  o2 -= card === "rest" ? s.cfg.restBreathing : s.cfg.breathing;
-  let cold = false;
-  if (battery >= s.cfg.heater) battery -= s.cfg.heater;
-  else {
-    cold = true;
-    battery = 0;
-    o2 -= s.cfg.coldNightO2;
-  }
-  return { o2, battery, cold };
-}
-
-// ---------- night ----------
-function makeReport(s) {
-  const lines = [];
+export function evaCost(g, id) {
+  const st = siteById(id);
+  const tier = C.evaTiers[st.tier];
+  const storm = solarStormOn(g, g.sol);
+  const visits = g.visits[id] || 0;
+  const science = visits === 0 ? tier.science : Math.max(1, Math.round(tier.science * Math.pow(C.revisitFactor, visits)));
   return {
-    sol: s.sol,
-    lines,
-    storm: null,
-    events: [],
-    facts: [],
-    // key is an i18n key; deltaKey (optional) translates the right-hand note
-    line(icon, key, delta = "", kind = "", params = {}, deltaKey = null) {
-      lines.push({ icon, key, params, delta, deltaKey, kind });
-    },
+    ap: tier.ap, power: tier.power, oxygen: tier.oxygen,
+    dose: storm ? stormStrength(storm).evaDose : tier.dose,
+    normalDose: tier.dose, science, storm: !!storm, visits, tier: st.tier,
   };
 }
 
-const clamp = (s) => {
-  s.o2 = Math.min(s.o2, s.cfg.caps.o2);
-  s.battery = Math.min(Math.max(s.battery, 0), s.cfg.caps.battery);
-};
-
-export function endSol(s) {
-  if (s.over || !s.chosen) return null;
-  const cfg = s.cfg;
-  const r = makeReport(s);
-  const power = powerToday(s);
-
-  // 1. power
-  const draw = batteryDraw(s);
-  const spare = Math.max(0, power - allocTotal(s));
-  s.battery += spare - draw;
-  if (s.alloc.o2) r.line("🫁", "night.o2Made", `+${s.alloc.o2} 🫁`);
-  if (s.alloc.lab) r.line("🔬", "night.lab", `+${s.alloc.lab} 🔬`);
-  if (spare) r.line("🔋", "night.spare", `+${spare} 🔋`);
-  if (draw) r.line("🔋", "night.draw", `−${draw} 🔋`);
-  s.o2 += s.alloc.o2;
-  s.science += s.alloc.lab;
-  if (s.alloc.o2) r.facts.push("moxie");
-  clamp(s);
-
-  // 2. action card
-  const card = CARDS[s.chosen];
-  card.apply(s, r);
-  r.facts.push(card.fact);
-  clamp(s);
-
-  // 3. breathing
-  const breath = s.resting ? cfg.restBreathing : cfg.breathing;
-  s.o2 -= breath;
-  r.line("😮‍💨", "night.breath", `−${breath} 🫁`);
-
-  // 4. heaters
-  if (s.battery >= cfg.heater) {
-    s.battery -= cfg.heater;
-    r.line("🌡️", "night.heat", `−${cfg.heater} 🔋`);
-  } else {
-    s.battery = 0;
-    s.o2 -= cfg.coldNightO2;
-    r.line("🥶", "night.cold", `−${cfg.coldNightO2} 🫁`, "bad");
-    r.facts.unshift("coldNights");
+export function checkEva(g, id) {
+  const cost = evaCost(g, id);
+  const res = { ok: true, reason: null, cost, warnings: [] };
+  const bad = (reason) => ({ ...res, ok: false, reason });
+  if (g.phase !== "day") return bad(no("reason.notDay"));
+  if (g.ap < cost.ap) return bad(no("reason.needAp", { n: cost.ap }));
+  if (g.battery < cost.power) return bad(no("reason.noPowerEva", { need: cost.power }));
+  if (g.oxygen < cost.oxygen) return bad(no("reason.noO2Eva", { need: cost.oxygen }));
+  if (cost.storm) res.warnings.push({ level: "danger", ...no("warn.evaStorm", { dose: cost.dose, normal: cost.normalDose }) });
+  if (g.dose + cost.dose >= C.max.dose) res.warnings.push({ level: "danger", ...no("warn.evaDoseLimit") });
+  const tonight = g.battery - cost.power + expectedIncome(g);
+  if (tonight < C.power.lifeSupport) {
+    res.warnings.push({ level: "danger", ...no("warn.evaPowerShort", { tonight, need: C.power.lifeSupport }) });
+  } else if (tonight < C.power.lifeSupport + 15) {
+    res.warnings.push({ level: "warn", ...no("warn.evaPowerLow", { tonight }) });
   }
-
-  // 5. background cosmic rays
-  if (s.sol % cfg.cosmicEvery === 0) {
-    s.dose += 1;
-    r.line("✨", "night.cosmic", "+1 ☢️");
-    r.facts.unshift("thinAir", "marsRadiation");
-  }
-
-  // 6. solar storm
-  const storm = s.storms[s.sol];
-  if (storm) {
-    const blocked = Math.min(storm.dose, s.alloc.shield + s.berm);
-    const taken = storm.dose - blocked;
-    s.dose += taken;
-    r.storm = { ...storm, blocked, taken };
-    s.stormsFaced.push({ sol: s.sol, ...storm.event, blocked, taken, dose: storm.dose });
-    r.line(
-      "☀️",
-      "night.storm",
-      taken ? `+${taken} ☢️` : "0 ☢️",
-      taken ? "bad" : "good",
-      { blocked, dose: storm.dose },
-    );
-    r.stormFacts = [storm.event.date.startsWith("2017-09") ? "mars2017" : "cme", storm.surprise ? "forecast" : "radiationAddsUp"];
-  } else if (s.alloc.shield) {
-    r.line("🛡️", "night.noStorm", "");
-    r.facts.unshift("forecast");
-  }
-
-  // 7. random night event
-  if (s.rng.next() < cfg.nightEventChance) {
-    const roll = s.rng.int(1, 3);
-    if (roll === 1 && !s.panelsClean && s.sol < cfg.maxSol) {
-      s.panelsClean = true;
-      r.line("🌀", "night.dustDevil", "", "good", {}, "night.dustDevil.delta");
-      r.facts.unshift("dustDevil");
-    } else if (roll === 2 && !s.o2Broken && s.sol < cfg.maxSol) {
-      s.o2Broken = true;
-      r.line("⚙️", "night.broke", "", "bad", {}, "night.broke.delta");
-      r.facts.unshift("moxie");
-    } else if (roll === 3) {
-      s.science += 1;
-      r.line("🌋", "night.quake", "+1 🔬", "good");
-      r.facts.unshift("marsquake");
-    }
-  }
-  if (s.sol < cfg.maxSol && s.weather[s.sol + 1].start) r.facts.unshift("dustStorm");
-  if (r.stormFacts) r.facts.unshift(...r.stormFacts); // a storm night always explains the storm first
-
-  clamp(s);
-  s.dose = Math.min(s.dose, cfg.caps.dose);
-  s.history.push(snapshot(s));
-
-  // 8. win / lose
-  if (s.o2 <= 0) finish(s, "o2");
-  else if (s.dose >= cfg.caps.dose) finish(s, "dose");
-  else if (s.sol >= cfg.maxSol) finish(s, "win");
-
-  r.fact = r.facts.find((f) => !s.factsSeen.includes(f)) || r.facts[0] || "sol";
-  if (!s.factsSeen.includes(r.fact)) s.factsSeen.push(r.fact);
-  r.over = s.over;
-  r.result = s.result;
-  if (!s.over) startSol(s);
-  return r;
+  if (weatherKey(g, g.sol) === "dust") res.warnings.push({ level: "info", ...no("warn.evaDustVis") });
+  if (cost.visits > 0) res.warnings.push({ level: "info", ...no("warn.evaRevisit", { n: cost.visits }) });
+  return res;
 }
 
-function finish(s, cause) {
-  s.over = true;
-  s.o2 = Math.max(s.o2, 0);
-  const stars = cause === "win" ? s.cfg.stars.filter((t) => s.science >= t).length : 0;
-  s.result = { cause, stars, sol: s.sol, science: s.science };
+export function doEva(g, id) {
+  const chk = checkEva(g, id);
+  if (!chk.ok) return chk;
+  const c = chk.cost;
+  g.ap -= c.ap;
+  g.battery -= c.power;
+  g.oxygen -= c.oxygen;
+  g.dose += c.dose;
+  g.science += c.science;
+  g.visits[id] += 1;
+  g.today.evas.push({ id, tier: c.tier, power: c.power, oxygen: c.oxygen, dose: c.dose, science: c.science, storm: c.storm });
+  g.today.log.push(no("log.eva", { site: id, sci: c.science, power: c.power, o2: c.oxygen, dose: c.dose }));
+  queueCard(g, siteById(id).fact, "teach");
+  if (g.dose >= C.radiationCardAt) queueCard(g, "marsRadiation", "teach");
+  if (g.dose >= C.radiationCardAt2) queueCard(g, "radiationAddsUp", "teach");
+  if (g.dose >= C.max.dose) {
+    recordHistory(g);
+    fail(g, "dose");
+  }
+  return chk;
 }
 
-// Labels live in i18n.js under weather.<type> and forecast.<level>.
-export const WEATHER_ICONS = { sunny: "☀️", hazy: "🌤️", dust: "🌪️" };
-export const FORECAST_ICONS = { calm: "🟢", watch: "🟡", warning: "🔴" };
+export function checkClean(g) {
+  if (g.phase !== "day") return { ok: false, reason: no("reason.notDay") };
+  if (g.ap < C.clean.ap) return { ok: false, reason: no("reason.noAp") };
+  if (g.panel >= 100) return { ok: false, reason: no("reason.panelClean") };
+  return { ok: true, gain: incomeFor(g, g.sol, 100) - expectedIncome(g) };
+}
+export function doClean(g) {
+  const chk = checkClean(g);
+  if (!chk.ok) return chk;
+  g.ap -= C.clean.ap;
+  const before = g.panel;
+  g.panel = 100;
+  g.today.cleaned = true;
+  g.today.log.push(no("log.clean", { before, gain: chk.gain }));
+  return chk;
+}
+
+export function checkTend(g) {
+  if (g.phase !== "day") return { ok: false, reason: no("reason.notDay") };
+  if (g.today.tended) return { ok: false, reason: no("reason.tended") };
+  if (g.ap < C.tend.ap) return { ok: false, reason: no("reason.noAp") };
+  return { ok: true };
+}
+export function doTend(g) {
+  const chk = checkTend(g);
+  if (!chk.ok) return chk;
+  g.ap -= C.tend.ap;
+  g.today.tended = true;
+  g.science += C.greenhouse.tendScience;
+  g.today.log.push(no("log.tend", { sci: C.greenhouse.tendScience, food: C.greenhouse.tendFood }));
+  queueCard(g, "veggie", "teach");
+  return chk;
+}
+
+export function checkCall(g) {
+  if (g.phase !== "day") return { ok: false, reason: no("reason.notDay") };
+  if (g.today.called) return { ok: false, reason: no("reason.called") };
+  if (g.ap < C.call.ap) return { ok: false, reason: no("reason.noAp") };
+  if (g.sol >= C.totalSols) return { ok: false, reason: no("reason.lastSol") };
+  return { ok: true };
+}
+export function doCall(g) {
+  const chk = checkCall(g);
+  if (!chk.ok) return chk;
+  g.ap -= C.call.ap;
+  g.today.called = true;
+  const forecast = [];
+  for (let s = g.sol + 2; s <= Math.min(C.totalSols, g.sol + 1 + C.call.forecastDays); s++) forecast.push(s);
+  g.inbox.push({ sent: g.sol, arrives: g.sol + 1, forecast, science: C.call.science });
+  g.today.log.push(no("log.call", { min: g.lightMinutes }));
+  queueCard(g, "commDelay", "teach");
+  return chk;
+}
+
+// Sunset: the day's solar power joins the battery, panels get dusty, night begins.
+export function endDay(g) {
+  if (g.phase !== "day") return;
+  const w = weatherOf(g, g.sol);
+  const income = expectedIncome(g);
+  // Power made today is "available tonight" and can exceed the battery cap;
+  // only what is left after the night's spending is stored (up to the cap).
+  g.battery += income;
+  g.today.income = income;
+  g.today.panelBefore = g.panel;
+  g.panel = Math.max(0, g.panel - w.dust);
+  g.today.batterySunset = g.battery;
+  if (g.panel <= C.dirtyPanelCardAt) queueCard(g, "insightEnd", "teach");
+  g.phase = "night";
+  if (g.battery < C.power.lifeSupport) {
+    recordHistory(g);
+    fail(g, "power");
+  }
+}
+
+// ---------- phase 3: night ----------
+export function previewNight(g, alloc) {
+  const cost = nightCost(alloc);
+  const storm = solarStormOn(g, g.sol);
+  const ss = stormStrength(storm);
+  const o2Made = o2FromPower(alloc.o2);
+  const ghO2 = alloc.gh ? C.greenhouse.o2 : 0;
+  const oxygenRaw = g.oxygen + o2Made + ghO2 - C.oxygenUse.crewDaily;
+  const oxygen = clamp(oxygenRaw, 0, C.max.oxygen);
+  const foodGain = alloc.gh ? C.greenhouse.food + (g.today.tended ? C.greenhouse.tendFood : 0) : 0;
+  const food = g.food + foodGain - C.food.dailyUse;
+  const doseGain = ss ? (alloc.shield ? ss.shielded : ss.unshielded) : C.dose.daily;
+  const battery = Math.min(C.max.battery, g.battery - cost);
+  const overflow = Math.max(0, g.battery - cost - C.max.battery);
+  const nextSol = g.sol + 1;
+  const hasNext = nextSol <= C.totalSols;
+  const nextIncome = hasNext ? incomeFor(g, nextSol, g.panel) : null;
+
+  const w = [];
+  const add = (level, key, params = {}) => w.push({ level, key, params });
+  if (cost > g.battery) add("danger", "warn.overBudget", { cost, have: g.battery });
+  if (overflow > 0) add("info", "warn.overflow", { overflow, max: C.max.battery });
+  if (oxygenRaw < 0) add("danger", "warn.noAir");
+  else if (oxygen < 20) add("warn", "warn.lowAir", { oxygen });
+  if (oxygenRaw > C.max.oxygen) add("info", "warn.tankFull", { extra: oxygenRaw - C.max.oxygen });
+  if (food < 0) add("danger", "warn.noFood");
+  else if (food <= 2 && hasNext) add("warn", "warn.lowFood", { food });
+  if (ss && !alloc.shield) add("warn", "warn.stormNoShield", { unshielded: ss.unshielded, shielded: ss.shielded });
+  if (!ss && alloc.shield) add("info", "warn.shieldWaste");
+  if (g.dose + doseGain >= C.max.dose) add("danger", "warn.doseLimit");
+  if (hasNext && cost <= g.battery && battery + nextIncome < C.power.lifeSupport) {
+    add("danger", "warn.tomorrowShort", { weather: weatherKey(g, nextSol), income: nextIncome });
+  } else if (hasNext && weatherKey(g, nextSol) === "dust" && weatherKey(g, g.sol) !== "dust") {
+    const perDay = C.power.lifeSupport - nextIncome;
+    add("warn", "warn.stormComing", { income: nextIncome, per: perDay, need: perDay * 3 });
+  }
+  if (weatherKey(g, g.sol) === "dust" && (alloc.gh || alloc.o2 > 0) && g.oxygen >= 30) add("info", "warn.stormSaveHint");
+  return {
+    cost, battery, overflow, overBudget: cost > g.battery, o2Made, ghO2, oxygenRaw, oxygen,
+    foodGain, food, doseGain, dose: g.dose + doseGain, storm, nextSol, hasNext, nextIncome, warnings: w,
+  };
+}
+
+export function confirmNight(g, alloc) {
+  if (g.phase !== "night") return { ok: false };
+  const p = previewNight(g, alloc);
+  if (p.overBudget) return { ok: false };
+  const notes = [];
+  g.battery = p.battery;
+  g.today.overflow = p.overflow;
+  g.oxygen = p.oxygen;
+  g.food = Math.max(0, p.food);
+  g.dose += p.doseGain;
+  g.lastAlloc = { ...alloc };
+  g.today.alloc = { ...alloc };
+  g.today.nightDose = p.doseGain;
+
+  if (alloc.o2 > 0) queueCard(g, "moxie", "teach");
+  if (alloc.shield) queueCard(g, "regolith", "teach");
+  if (g.sol >= 2) queueCard(g, "coldNights", "teach");
+  if (g.dose >= C.radiationCardAt) queueCard(g, "marsRadiation", "teach");
+  if (g.dose >= C.radiationCardAt2) queueCard(g, "radiationAddsUp", "teach");
+  if (p.storm) {
+    queueCard(g, stormCardId(p.storm.event), "event");
+    notes.push(no(alloc.shield ? "note.shielded" : "note.unshielded", { dose: p.doseGain }));
+  }
+  if (weatherKey(g, g.sol) === "dust") queueCard(g, "dustStorm", "event");
+  const dirt = 100 - g.panel;
+  if (weatherKey(g, g.sol) !== "dust" && dirt >= C.dustDevil.minDirt && chance(g, C.dustDevil.chance)) {
+    g.panel = 100;
+    g.today.dustDevil = true;
+    queueCard(g, "dustDevil", "event");
+    notes.push(no("note.dustDevil"));
+  }
+
+  // Tonight's cards: every event card, or else one queued teaching card.
+  const tonight = g.eventCards.splice(0);
+  if (tonight.length === 0 && g.pendingTeach.length) tonight.push(g.pendingTeach.shift());
+  tonight.forEach((id) => (g.cardsSeen[id] = true));
+  g.tonightCards = tonight;
+  g.tonightNotes = notes;
+
+  recordHistory(g);
+  const failReason = p.oxygenRaw < 0 ? "oxygen" : p.food < 0 ? "food" : g.dose >= C.max.dose ? "dose" : null;
+  if (failReason) fail(g, failReason);
+  else if (g.sol >= C.totalSols) succeed(g);
+  else g.phase = "settle";
+  return { ok: true };
+}
+
+// ---------- phase 4 → next sol ----------
+export function nextSol(g) {
+  if (g.phase !== "settle") return;
+  g.sol += 1;
+  g.tonightCards = [];
+  g.tonightNotes = [];
+  startSol(g);
+}
+
+// ---------- ending ----------
+function fail(g, reason) {
+  g.outcome = { success: false, reason, sol: g.sol };
+  g.phase = "end";
+}
+function succeed(g) {
+  g.outcome = { success: true, stars: starsFor(g.science), sol: g.sol };
+  g.phase = "end";
+}
+
+function recordHistory(g) {
+  const t = g.today;
+  const prev = g.history.findIndex((h) => h.sol === g.sol);
+  const storm = solarStormOn(g, g.sol);
+  const entry = {
+    sol: g.sol,
+    weather: weatherKey(g, g.sol),
+    panelBefore: t.panelBefore,
+    income: t.income,
+    overflow: t.overflow,
+    batteryMorning: g.morning.battery,
+    oxygenMorning: g.morning.oxygen,
+    batterySunset: t.batterySunset,
+    battery: g.battery,
+    oxygen: g.oxygen,
+    food: g.food,
+    dose: g.dose,
+    science: g.science,
+    alloc: t.alloc,
+    evas: t.evas.slice(),
+    evaPower: t.evas.reduce((a, e) => a + e.power, 0),
+    evaOxygen: t.evas.reduce((a, e) => a + e.oxygen, 0),
+    evaDose: t.evas.reduce((a, e) => a + e.dose, 0),
+    nightDose: t.nightDose,
+    solarStorm: storm ? storm.strength : null,
+    stormEvent: storm ? storm.event : null,
+    cleaned: t.cleaned, tended: t.tended, called: t.called, dustDevil: t.dustDevil,
+  };
+  if (prev >= 0) g.history[prev] = entry;
+  else g.history.push(entry);
+}
+
+export const WEATHER_ICONS = { sunny: "☀️", hazy: "🌫️", dust: "🌪️" };

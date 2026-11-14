@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "fetch-data": "node scripts/fetch_donki.mjs",
+    "fetch-data": "node --env-file-if-exists=.env scripts/fetch_donki.mjs",
     "simulate": "node scripts/simulate.mjs"
   }
 }
