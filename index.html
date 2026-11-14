@@ -39,13 +39,43 @@
     </div>
   </section>
 
-  <!-- Game screen: one Mars day = 4 phases shown in the stepper -->
-  <section id="screen-game" class="screen">
-    <header class="topbar">
+  <!-- Game screen: the Mars map fills the screen; survival info lives in the sidebar;
+       the panels for each of the day's four phases float over the map. -->
+  <section id="screen-game" class="screen game">
+    <aside class="side" id="side">
       <div class="brand">
         <span class="brand-planet" aria-hidden="true"></span>
         <div><div class="brand-title">Sol by Sol</div><div class="brand-sub" id="sol-label"></div></div>
       </div>
+      <section class="hud" id="hud" data-i18n-aria="hud.aria"></section>
+      <section class="side-day" id="side-day" aria-live="polite"></section>
+      <section class="timeline" data-i18n-aria="cal.aria">
+        <div class="card-title" data-i18n="cal.title"></div>
+        <div class="sols" id="sols"></div>
+        <div class="sols-legend" data-i18n="cal.legend"></div>
+      </section>
+      <p class="side-credit" data-i18n="world.credit"></p>
+    </aside>
+
+    <!-- The walkable Mars surface: a real orbital photo of Jezero crater -->
+    <section class="world hidden" id="world" data-i18n-aria="world.aria">
+      <div class="world-view" id="world-view"></div>
+      <div class="world-top">
+        <span class="world-chip" id="world-ap"></span>
+        <span class="world-chip" id="world-weather"></span>
+        <span class="world-chip" id="world-loc"></span>
+      </div>
+      <div class="world-map">
+        <canvas id="minimap" width="168" height="168" data-i18n-aria="world.mapAria"></canvas>
+        <div class="world-map-cap" data-i18n="world.mapCap"></div>
+      </div>
+      <div class="world-toast" id="world-toast" aria-live="polite"></div>
+      <div class="world-prompt" id="world-prompt" aria-live="polite"></div>
+      <div class="joy" id="joy" aria-hidden="true"><i></i></div>
+      <div class="world-keys" data-i18n-html="world.keys"></div>
+    </section>
+
+    <header class="topbar">
       <ol class="stepper" id="stepper" data-i18n-aria="step.aria">
         <li><span>1</span><b data-i18n="step.briefing"></b></li>
         <li><span>2</span><b data-i18n="step.day"></b></li>
@@ -59,37 +89,7 @@
       </div>
     </header>
 
-    <div class="layout">
-      <aside class="side">
-        <section class="panel-box hud" id="hud" data-i18n-aria="hud.aria"></section>
-        <section class="panel-box timeline" data-i18n-aria="cal.aria">
-          <div class="card-title" data-i18n="cal.title"></div>
-          <div class="sols" id="sols"></div>
-          <div class="sols-legend" data-i18n="cal.legend"></div>
-        </section>
-      </aside>
-      <div class="main-col">
-        <!-- The walkable Mars surface: real Jezero crater terrain (NASA MOLA + Viking) -->
-        <section class="world hidden" id="world" data-i18n-aria="world.aria">
-          <div class="world-view" id="world-view"></div>
-          <div class="world-top">
-            <span class="world-chip" id="world-ap"></span>
-            <span class="world-chip" id="world-weather"></span>
-            <span class="world-chip" id="world-loc"></span>
-          </div>
-          <div class="world-map">
-            <canvas id="minimap" width="168" height="168" data-i18n-aria="world.mapAria"></canvas>
-            <div class="world-map-cap" data-i18n="world.mapCap"></div>
-          </div>
-          <div class="world-toast" id="world-toast" aria-live="polite"></div>
-          <div class="world-prompt" id="world-prompt" aria-live="polite"></div>
-          <div class="joy" id="joy" aria-hidden="true"><i></i></div>
-          <div class="world-keys" data-i18n-html="world.keys"></div>
-          <div class="world-credit" data-i18n="world.credit"></div>
-        </section>
-        <main class="panel-box stage" id="stage" aria-live="polite"></main>
-      </div>
-    </div>
+    <main class="panel-box stage" id="stage" aria-live="polite"></main>
   </section>
 
   <!-- End screen -->

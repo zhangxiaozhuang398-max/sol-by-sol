@@ -82,6 +82,7 @@ function render() {
   syncWorld();
   renderStage();
   if (ui.lastPhase !== phaseKey) {
+    stage.scrollTop = 0;
     if (ui.lastPhase !== null) window.scrollTo({ top: 0 });
     ui.lastPhase = phaseKey;
   }
@@ -166,6 +167,11 @@ function renderCalendar() {
 
 function renderStage() {
   if (s.phase !== "day") stage.classList.remove("compact");
+  // The floating panel is hidden while the player walks around; the sidebar's
+  // "today" box is only used then.
+  const walkingDay = s.phase === "day" && walking();
+  stage.classList.toggle("hidden", walkingDay);
+  if (!walkingDay) $("#side-day").innerHTML = "";
   if (s.phase === "briefing") renderBriefing();
   else if (s.phase === "day") renderDay();
   else if (s.phase === "night") renderNight();
@@ -385,7 +391,7 @@ function syncWorld() {
   if (!world) { el.classList.add("hidden"); return; }
   if (!s || s.phase === "end" || activeScreen() !== "screen-game") { world.stop(); return; }
   const play = s.phase === "day" && !ui.classic;
-  el.classList.toggle("hidden", s.phase === "day" && ui.classic);
+  el.classList.remove("hidden");
   el.classList.toggle("play", play);
   world.setTargets(worldTargets());
   world.setLook(s.phase, E.weatherKey(s, s.sol));
@@ -519,7 +525,8 @@ function usePrompt() {
 
 function renderDayWorld() {
   const key = E.weatherKey(s, s.sol);
-  stage.innerHTML = `
+  stage.innerHTML = "";
+  $("#side-day").innerHTML = `
     <div class="day-bar">
       <div><h2 class="day-h">${esc(t("day.titleWorld"))}</h2><span class="sub">${wIcon(key)} ${esc(wName(key))} · ${t("day.hint", { n: E.expectedIncome(s) })}</span></div>
       <div class="log"><ul>${s.today.log.length ? s.today.log.map((l) => `<li>${tr(l.key, l.params)}</li>`).join("") : `<li>${esc(t("day.logEmpty"))}</li>`}</ul></div>

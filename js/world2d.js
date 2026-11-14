@@ -202,7 +202,9 @@ export async function createWorld(opts) {
     // On tall (phone) screens the top is covered by the chips and the minimap,
     // so look a little north of the astronaut to keep the way ahead visible.
     if (st.mode === "play") { tx = st.x; tz = st.z - (H > W ? 2.2 : 0); }
-    else { tx = st.spawn.x + Math.sin(st.time * 0.1) * 1.6; tz = st.spawn.z - 5.5 + Math.cos(st.time * 0.13) * 0.5; }
+    // Not walking: drift slowly around the base, kept in the lower part of the
+    // view so the floating phase panel (top) does not hide it.
+    else { tx = st.spawn.x + 2 + Math.sin(st.time * 0.1) * 1.6; tz = st.spawn.z - 3.4 - (H / S) * 0.2 + Math.cos(st.time * 0.13) * 0.5; }
     const halfW = W / (2 * S), halfH = H / (2 * S);
     tx = halfW * 2 >= n ? n / 2 : clamp(tx, halfW, n - halfW);
     tz = halfH * 2 >= n ? n / 2 : clamp(tz, halfH, n - halfH);
@@ -332,7 +334,7 @@ export async function createWorld(opts) {
       if (t.kind !== "site" && t.kind !== "habitat") continue;
       const x = sx(t.x), y = sy(t.z);
       if (x >= 0 && x <= W && y >= 0 && y <= H) continue;
-      const cx = clamp(x, m, W - m), cy = clamp(y, m + 34 * dpr, H - m);
+      const cx = clamp(x, m, W - m), cy = clamp(y, m + 84 * dpr, H - m); // stay below the top bar and chips
       const ang = Math.atan2(y - cy, x - cx);
       const color = t.kind === "habitat" ? "#ffffff" : t.done ? DONE_COLOR : TIER_COLOR[t.tier] || TIER_COLOR[1];
       ctx.save();
