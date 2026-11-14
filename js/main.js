@@ -4,7 +4,7 @@ import { SITES, BASE, RINGS, WORLD_BASE, siteById } from "./sites.js";
 import { createWorld as createWorld2D } from "./world2d.js";
 import { FACTS } from "./facts.js";
 import { buildReport } from "./report.js";
-import { t, tr, pick, getLang, setLang, applyStatic } from "./i18n.js?v=3d3";
+import { t, tr, pick, getLang, setLang, applyStatic } from "./i18n.js?v=3d4";
 import { audio } from "./audio.js?v=3d3";
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -81,6 +81,7 @@ function saveCollection(ids) {
 // ---------- helpers ----------
 function show(id) {
   $$(".screen").forEach((el) => el.classList.toggle("active", el.id === id));
+  if (id !== "screen-game") document.exitPointerLock?.();
   if (world && id !== "screen-game") world.stop();
   window.scrollTo({ top: 0 });
 }
@@ -95,6 +96,7 @@ function factHtml(id, label = "", withLesson = false) {
     <p class="src">${esc(t("fact.source"))} <a href="${f.source.url}" target="_blank" rel="noopener">${esc(pick(f.source.label))} ↗</a></p>`;
 }
 function openInfo(html) {
+  document.exitPointerLock?.();
   $("#info-body").innerHTML = html;
   $("#info").showModal();
 }
@@ -413,7 +415,7 @@ async function ensureWorld() {
   mount.innerHTML = "";
   if (WORLD_MODE === "3d") {
     try {
-      const { createWorld } = await import("./world3d.js?v=3d4");
+      const { createWorld } = await import("./world3d.js?v=3d5");
       const w = await createWorld({
         mount, minimap: $("#minimap"), joystick: $("#joy"),
         dataDir: "data/mars", modelDir: "assets/models",
@@ -673,6 +675,7 @@ function toast(text) {
 }
 
 function endDayNow() {
+  document.exitPointerLock?.();
   if (s.ap > 0) {
     if (world) world.setEnabled(false);
     const yes = window.confirm(t("day.confirm", { n: s.ap }));
@@ -733,7 +736,7 @@ function renderDayWorld() {
     </div>`;
   $("#to-base")?.addEventListener("click", () => travelTo("base"));
   $("#site-notes")?.addEventListener("click", () => openInfo(siteFieldHtml(ui.place)));
-  $("#to-classic").onclick = () => { ui.classic = true; ui.site = null; render(); };
+  $("#to-classic").onclick = () => { document.exitPointerLock?.(); ui.classic = true; ui.site = null; render(); };
   $("#end-day").onclick = () => endDayNow();
 }
 
@@ -1010,6 +1013,24 @@ function startGame(seed) {
 function updateContinue() {
   $("#btn-continue").classList.toggle("hidden", !loadSave());
 }
+
+// With mouse look the pointer is captured; M and F keep the map and field notes
+// reachable without pressing Esc first.
+window.addEventListener("keydown", (e) => {
+  if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (!s || s.phase !== "day" || ui.classic || activeScreen() !== "screen-game") return;
+  if (!is3D() || document.querySelector("dialog[open]")) return;
+  if (e.code === "KeyM") {
+    e.preventDefault();
+    document.exitPointerLock?.();
+    ui.classic = true;
+    ui.site = null;
+    render();
+  } else if (e.code === "KeyF" && ui.place !== "base") {
+    e.preventDefault();
+    openInfo(siteFieldHtml(ui.place));
+  }
+});
 
 document.addEventListener("click", (e) => {
   const btn = e.target.closest("button");
