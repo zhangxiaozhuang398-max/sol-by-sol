@@ -4,8 +4,8 @@ import { SITES, BASE, RINGS, WORLD_BASE, siteById } from "./sites.js";
 import { createWorld as createWorld2D } from "./world2d.js";
 import { FACTS } from "./facts.js";
 import { buildReport } from "./report.js";
-import { t, tr, pick, getLang, setLang, applyStatic } from "./i18n.js?v=3d2";
-import { audio } from "./audio.js?v=3d2";
+import { t, tr, pick, getLang, setLang, applyStatic } from "./i18n.js?v=3d3";
+import { audio } from "./audio.js?v=3d3";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -413,7 +413,7 @@ async function ensureWorld() {
   mount.innerHTML = "";
   if (WORLD_MODE === "3d") {
     try {
-      const { createWorld } = await import("./world3d.js?v=3d2");
+      const { createWorld } = await import("./world3d.js?v=3d4");
       const w = await createWorld({
         mount, minimap: $("#minimap"), joystick: $("#joy"),
         dataDir: "data/mars", modelDir: "assets/models",

@@ -36,8 +36,8 @@ const N = terrain.size;
 
 const LAYER = "NES_JEZ_MID_Visible_Mosaic_HiRISE_CTX_HRSC_GCS_MARS_07-10-2018";
 const TILE = 256;
-const OUT = 1024;
-const QUALITY = 86;
+const OUT = 1536;
+const QUALITY = 90;
 const MARS_RADIUS = 3396190;
 const M_PER_DEG = (2 * Math.PI * MARS_RADIUS) / 360;
 const MARS_TONE = [1.2, 0.94, 0.72]; // butterscotch, luminance ≈ 1
@@ -130,7 +130,30 @@ function stretchOf(values) {
   return { lo: pct(0.01), hi: pct(0.99), count };
 }
 
+function sharpen(values, amount = 0.32) {
+  const out = new Float32Array(values.length);
+  for (let y = 0; y < OUT; y++) {
+    for (let x = 0; x < OUT; x++) {
+      const i = y * OUT + x;
+      const v = values[i];
+      if (v < 0) { out[i] = v; continue; }
+      let sum = 0, n = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const xx = x + dx, yy = y + dy;
+          if (xx < 0 || yy < 0 || xx >= OUT || yy >= OUT) continue;
+          const u = values[yy * OUT + xx];
+          if (u >= 0) { sum += u; n++; }
+        }
+      }
+      out[i] = Math.min(255, Math.max(0, v + (v - sum / n) * amount));
+    }
+  }
+  return out;
+}
+
 function saveJpeg(file, values, s) {
+  values = sharpen(values);
   const data = Buffer.alloc(OUT * OUT * 4, 255);
   const mid = 0.5;
   for (let i = 0; i < OUT * OUT; i++) {

@@ -421,7 +421,7 @@ export async function createWorld(opts) {
   }
   let DATA;
   try {
-    DATA = await fetch(`${dataDir}/scenes.json`).then((r) => {
+    DATA = await fetch(`${dataDir}/scenes.json?v=3d3`).then((r) => {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return r.json();
     });
@@ -491,7 +491,7 @@ export async function createWorld(opts) {
 
   // ---- ground ----
   const texLoader = new THREE.TextureLoader();
-  const loadTex = (file) => new Promise((resolve, reject) => texLoader.load(`${dataDir}/${file}`, (t) => {
+  const loadTex = (file) => new Promise((resolve, reject) => texLoader.load(`${dataDir}/${file}?v=3d3`, (t) => {
     t.colorSpace = THREE.SRGBColorSpace;
     t.anisotropy = maxAniso;
     resolve(t);
@@ -770,6 +770,21 @@ export async function createWorld(opts) {
 
   // Small, non-interactive props that make the base feel lived in. They are
   // deliberately not targets: the four stations are the only things with rules.
+  function scatterPebbles(seed, count, minR, maxR, avoid) {
+    let s = seed >>> 0;
+    const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+    for (let i = 0; i < count; i++) {
+      const a = rnd() * Math.PI * 2, r = minR + Math.sqrt(rnd()) * (maxR - minR);
+      const x = Math.cos(a) * r, z = Math.sin(a) * r;
+      if (avoid.some((o) => Math.hypot(x - o.x, z - o.z) < o.r)) continue;
+      const size = 0.08 + rnd() * 0.28;
+      const m = part(new THREE.IcosahedronGeometry(1, 0), rockMat, x, size * 0.35, z);
+      m.scale.set(size * 1.4, size * 0.8, size * 1.1);
+      m.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3);
+      decor.add(m);
+    }
+  }
+
   function addTracks(x, z, ry, length = 6) {
     const trackMat = new THREE.MeshBasicMaterial({ color: 0x3a2a20, transparent: true, opacity: 0.28, depthWrite: false });
     const g = new THREE.Group();
@@ -855,6 +870,11 @@ export async function createWorld(opts) {
       lightPools.push(sitePool);
 
       buildSiteFeature(id);
+      scatterPebbles(29, 44, 4, 28, [
+        { x: 0, z: -4, r: 3.4 },
+        { x: style.rover[0], z: style.rover[1], r: 2.4 },
+        { x: style.tent[0], z: style.tent[1], r: 2.4 },
+      ]);
       return;
     }
     const flag1 = makeFlag(0xf3b562);
@@ -910,6 +930,10 @@ export async function createWorld(opts) {
     decor.add(baseRover);
     decorSolids.push({ x: 6.8, z: 4.6, r: 1.6 });
     addTracks(6.8, 4.6, -0.5, 6);
+    scatterPebbles(17, 52, 4, 28, [
+      { x: 0, z: 0, r: 4.4 }, { x: 5.4, z: -1.2, r: 4.0 }, { x: -5.3, z: -1.2, r: 4.0 },
+      { x: 9.5, z: -1.4, r: 3.8 }, { x: 6.8, z: 4.6, r: 2.2 },
+    ]);
     loadModel("perseverance").then((m) => {
       if (token !== decorToken) return;
       decor.remove(baseRover);
