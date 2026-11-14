@@ -1,13 +1,15 @@
 // The walkable Mars surface, seen from above.
 //
 // The ground is a REAL picture of Jezero crater: NASA's MRO Context Camera (CTX)
-// mosaic, tinted with the Viking colour mosaic (see scripts/build_mars_map.mjs).
+// mosaics, tinted with the Viking colour mosaic (see scripts/build_mars_map.mjs).
+// A sharper layer covers the west half, where the base and survey sites are.
+// Real MOLA elevations (scripts/fetch_mars_terrain.mjs) give the height readout.
 // The base, the rover and the astronaut are drawings placed on top of it; they
 // are drawn much larger than life so they can be seen at this map scale.
 //
 // This module only draws and moves things. Game rules stay in game.js; the UI
 // (main.js) tells the world which targets exist and reacts when the player
-// walks up to one. It has the same API as the older 3D world (world.js).
+// walks up to one.
 
 const SPEED = 6.5; // terrain cells per second (one cell is about 463 m of real Mars)
 const TURN = 12; // how quickly the astronaut turns to face the walking direction
@@ -62,10 +64,21 @@ export async function createWorld(opts) {
     return null;
   }
   const n = M.cells;
-  const cellsPerChunk = M.chunk / M.pxPerCell;
-  // Sharp chunks load in the background; the small overview shows until they arrive.
-  const chunks = M.chunks.map((c) => ({ ...c, img: null }));
-  chunks.forEach((c) => loadImage(`${dataDir}/${c.file}`).then((img) => { c.img = img; }).catch(() => {}));
+  // Picture chunks load in the background, coarse layer first; the small
+  // overview shows until they arrive. Later layers are sharper and draw on top.
+  const layers = M.layers.map((l) => ({
+    cellsPerChunk: M.chunk / l.pxPerCell,
+    chunks: l.chunks.map((c) => ({ ...c, img: null })),
+  }));
+  (async () => {
+    for (const l of layers) {
+      await Promise.all(l.chunks.map((c) => loadImage(`${dataDir}/${c.file}`).then((img) => { c.img = img; }).catch(() => {})));
+    }
+  })();
+
+  // Real elevations (metres) for the height readout. Optional: the map works without them.
+  let heights = null;
+  fetch(`${dataDir}/jezero_terrain.json`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && d.size === n) heights = d.heights; }).catch(() => {});
 
   canvas.style.touchAction = "none";
   mount.appendChild(canvas);
@@ -186,7 +199,9 @@ export async function createWorld(opts) {
 
     // camera
     let tx, tz;
-    if (st.mode === "play") { tx = st.x; tz = st.z; }
+    // On tall (phone) screens the top is covered by the chips and the minimap,
+    // so look a little north of the astronaut to keep the way ahead visible.
+    if (st.mode === "play") { tx = st.x; tz = st.z - (H > W ? 2.2 : 0); }
     else { tx = st.spawn.x + Math.sin(st.time * 0.1) * 1.6; tz = st.spawn.z - 5.5 + Math.cos(st.time * 0.13) * 0.5; }
     const halfW = W / (2 * S), halfH = H / (2 * S);
     tx = halfW * 2 >= n ? n / 2 : clamp(tx, halfW, n - halfW);
@@ -223,12 +238,15 @@ export async function createWorld(opts) {
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
     ctx.drawImage(overview, Math.floor(sx(0)), Math.floor(sy(0)), Math.ceil(n * S), Math.ceil(n * S));
-    for (const c of chunks) {
-      if (!c.img) continue;
-      const x0 = sx(c.col * cellsPerChunk), y0 = sy(c.row * cellsPerChunk);
-      const size = cellsPerChunk * S;
-      if (x0 > W || y0 > H || x0 + size < 0 || y0 + size < 0) continue;
-      ctx.drawImage(c.img, Math.floor(x0), Math.floor(y0), Math.ceil(size) + 1, Math.ceil(size) + 1);
+    for (const l of layers) {
+      const k = (l.cellsPerChunk * S) / M.chunk; // screen pixels per picture pixel
+      for (const c of l.chunks) {
+        if (!c.img) continue;
+        const x0 = sx(c.col * l.cellsPerChunk), y0 = sy(c.row * l.cellsPerChunk);
+        const w = c.img.width * k, h = c.img.height * k;
+        if (x0 > W || y0 > H || x0 + w < 0 || y0 + h < 0) continue;
+        ctx.drawImage(c.img, Math.floor(x0), Math.floor(y0), Math.ceil(w) + 1, Math.ceil(h) + 1);
+      }
     }
   }
 
@@ -564,6 +582,17 @@ export async function createWorld(opts) {
       keys.clear();
     },
     get near() { return st.near; },
+    // Where the astronaut really is on Mars: latitude, longitude (degrees) and
+    // elevation in metres from MOLA (null until the elevation file has loaded).
+    get location() {
+      const b = M.bbox;
+      const c = clamp(Math.floor(st.x), 0, n - 1), r = clamp(Math.floor(st.z), 0, n - 1);
+      return {
+        lat: b.north - (st.z / n) * (b.north - b.south),
+        lon: b.west + (st.x / n) * (b.east - b.west),
+        elevation: heights ? heights[r * n + c] : null,
+      };
+    },
     get position() { return { x: st.x, z: st.z, heading: st.heading }; },
     // for tests and demos
     teleport(x, z, heading) {

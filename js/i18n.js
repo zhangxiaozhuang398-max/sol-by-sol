@@ -16,7 +16,7 @@ const DICT = {
     "title.how4": "<b>Real solar storms</b> from NASA data can hit your base. Watch six resources and don't run out of any.",
     "title.start": "Start Mission 🚀",
     "title.continue": "Continue mission ▶",
-    "title.badge": "<b>Real NASA data:</b> the ground is Jezero crater (MOLA elevation), the solar storms are DONKI records (2017–2024).",
+    "title.badge": "<b>Real NASA data:</b> the ground is an orbital photo of Jezero crater (MRO CTX camera), the solar storms are DONKI records (2017–2024).",
     "title.collection": "📚 Knowledge Cards",
     "title.loadError": "Couldn't load the NASA storm data. Please reload the page.",
 
@@ -123,7 +123,8 @@ const DICT = {
     "world.mapAria": "Map of Jezero crater showing you, the base and the places to explore",
     "world.mapCap": "Jezero crater · real NASA map",
     "world.keys": "<kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> or arrow keys: walk · click the ground: walk there · <kbd>E</kbd>: use",
-    "world.credit": "Real picture of Jezero crater: NASA MRO CTX camera, tinted with Viking colour. Base and astronaut are drawn larger than life.",
+    "world.credit": "Ground: real NASA MRO CTX image of Jezero crater, tinted. Base, rover and astronaut: AI-generated drawings, larger than life.",
+    "world.elev": "{m} m",
     "world.hint.walk": "🚶 Walk to a ringed survey site to explore, or to a station at the base to work.",
     "world.hint.noAp": "No action points left. Walk back to the habitat 🏠 to end the day.",
     "world.stormAlert": "☢️ Solar storm today: outside is dangerous!",
@@ -357,7 +358,7 @@ const DICT = {
     "help.title": "Survive {n} sols on Mars",
     "help.intro": "You run a Mars base with two astronauts and a rover. A Mars day is called a <b>sol</b>. It lasts about 40 minutes longer than an Earth day.",
     "help.l1": "<b>Morning report:</b> weather, solar storm warnings and letters from Earth.",
-    "help.l2": "<b>Daytime:</b> walk around Jezero crater with <b>W A S D</b> or the arrow keys (or the on-screen stick). Walk up to a beacon or a station and press <b>E</b>. You have {ap} action points to explore, clean the panels, tend the greenhouse or call Earth. Go back into the habitat to end the day.",
+    "help.l2": "<b>Daytime:</b> walk around a real picture of Jezero crater with <b>W A S D</b> or the arrow keys, or click the ground to walk there (on a phone, use the on-screen stick). Walk up to a ringed survey site or a station and press <b>E</b>. You have {ap} action points to explore, clean the panels, tend the greenhouse or call Earth. Go back into the habitat to end the day.",
     "help.l3": "<b>Night power:</b> share power between life support, oxygen, the greenhouse and the shield room.",
     "help.l4": "<b>Night report:</b> see how things changed. Real events pop up as story cards.",
     "help.end": "You lose if ⚡ power, 🫁 oxygen or 🥫 food runs out, or ☢️ dose reaches 100. Survive {n} sols to win. More science means more stars.",
@@ -367,7 +368,7 @@ const DICT = {
     "collection.locked": "Keep playing to unlock.",
     "collection.close": "Close",
 
-    "footer": 'Data: <a href="https://ccmc.gsfc.nasa.gov/tools/DONKI/" target="_blank" rel="noopener">NASA DONKI</a> real historical solar storms (not live) · Jezero crater terrain from <a href="https://pds-geosciences.wustl.edu/missions/mgs/megdr.html" target="_blank" rel="noopener">NASA MGS MOLA</a> elevation and <a href="https://trek.nasa.gov/mars/" target="_blank" rel="noopener">NASA Mars Trek</a> Viking imagery · <a href="https://osdr.nasa.gov/bio/repo/" target="_blank" rel="noopener">NASA OSDR</a> · Student project for NASA Space Apps 2026, not an official NASA product.',
+    "footer": 'Data: <a href="https://ccmc.gsfc.nasa.gov/tools/DONKI/" target="_blank" rel="noopener">NASA DONKI</a> real historical solar storms (not live) · Jezero crater image: MRO CTX and Viking mosaics from <a href="https://trek.nasa.gov/mars/" target="_blank" rel="noopener">NASA Mars Trek</a>; elevations from <a href="https://pds-geosciences.wustl.edu/missions/mgs/megdr.html" target="_blank" rel="noopener">NASA MGS MOLA</a> · Base, rover and astronaut drawings are AI-generated · <a href="https://osdr.nasa.gov/bio/repo/" target="_blank" rel="noopener">NASA OSDR</a> · Student project for NASA Space Apps 2026, not an official NASA product.',
   },
 
   zh: {
@@ -382,7 +383,7 @@ const DICT = {
     "title.how4": "<b>来自 NASA 数据的真实太阳风暴</b>可能袭击你的基地。盯紧六项资源，别让任何一项用完。",
     "title.start": "开始任务 🚀",
     "title.continue": "继续任务 ▶",
-    "title.badge": "<b>NASA 真实数据：</b>地面是杰泽罗撞击坑（MOLA 高程），太阳风暴来自 DONKI 记录（2017–2024 年）。",
+    "title.badge": "<b>NASA 真实数据：</b>地面是杰泽罗撞击坑的轨道照片（MRO CTX 相机），太阳风暴来自 DONKI 记录（2017–2024 年）。",
     "title.collection": "📚 知识卡片",
     "title.loadError": "无法加载 NASA 风暴数据，请刷新页面。",
 
@@ -485,7 +486,8 @@ const DICT = {
     "world.mapAria": "杰泽罗撞击坑地图，显示你、基地和可以探索的地点",
     "world.mapCap": "杰泽罗撞击坑 · NASA 真实地图",
     "world.keys": "<kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> 或方向键：行走 · 点击地面：走过去 · <kbd>E</kbd>：使用",
-    "world.credit": "杰泽罗撞击坑真实影像：NASA MRO CTX 相机，用海盗号彩色影像上色。基地和宇航员画得比实际大。",
+    "world.credit": "地面：NASA MRO CTX 相机拍摄的杰泽罗撞击坑真实影像（经上色）。基地、火星车和宇航员：AI 生成的绘图，比实际大。",
+    "world.elev": "{m} 米",
     "world.hint.walk": "🚶 走到带圆圈的考察点去探索，或者走到基地的设备旁去干活。",
     "world.hint.noAp": "行动点用完了。走回居住舱 🏠 结束今天。",
     "world.stormAlert": "☢️ 今天有太阳风暴：舱外很危险！",
@@ -713,7 +715,7 @@ const DICT = {
     "help.title": "在火星上撑过 {n} 个火星日",
     "help.intro": "你负责一座火星基地：两名宇航员、一辆火星车。火星上的一天叫 <b>sol</b>，比地球的一天长约 40 分钟。",
     "help.l1": "<b>早间简报：</b>看天气、太阳风暴预警和地球来信。",
-    "help.l2": "<b>白天行动：</b>用 <b>W A S D</b> 或方向键（或屏幕上的摇杆）在杰泽罗撞击坑里行走。走到信标或设备旁边按 <b>E</b>。每天有 {ap} 个行动点，可以探索、擦太阳能板、照料温室、呼叫地球。走回居住舱就结束白天。",
+    "help.l2": "<b>白天行动：</b>在杰泽罗撞击坑的真实影像上行走：用 <b>W A S D</b> 或方向键，也可以点击地面走过去（手机上用屏幕摇杆）。走到带圆圈的考察点或设备旁边按 <b>E</b>。每天有 {ap} 个行动点，可以探索、擦太阳能板、照料温室、呼叫地球。走回居住舱就结束白天。",
     "help.l3": "<b>夜间分电：</b>把电分给生命维持、制氧机、温室和护盾舱。",
     "help.l4": "<b>夜间结算：</b>看看资源怎么变了，遇到真实事件会弹出故事卡。",
     "help.end": "⚡ 断电、🫁 缺氧、🥫 断粮或 ☢️ 剂量到 100，任务就失败。撑满 {n} 天就成功，科学点越多星星越多。",
@@ -723,7 +725,7 @@ const DICT = {
     "collection.locked": "继续玩来解锁。",
     "collection.close": "关闭",
 
-    "footer": '数据：<a href="https://ccmc.gsfc.nasa.gov/tools/DONKI/" target="_blank" rel="noopener">NASA DONKI</a> 真实历史太阳风暴（非实时）· 杰泽罗撞击坑地形来自 <a href="https://pds-geosciences.wustl.edu/missions/mgs/megdr.html" target="_blank" rel="noopener">NASA MGS MOLA</a> 高程和 <a href="https://trek.nasa.gov/mars/" target="_blank" rel="noopener">NASA Mars Trek</a> 海盗号影像 · <a href="https://osdr.nasa.gov/bio/repo/" target="_blank" rel="noopener">NASA OSDR</a> · NASA Space Apps 2026 学生作品，并非 NASA 官方产品。',
+    "footer": '数据：<a href="https://ccmc.gsfc.nasa.gov/tools/DONKI/" target="_blank" rel="noopener">NASA DONKI</a> 真实历史太阳风暴（非实时）· 杰泽罗撞击坑影像：来自 <a href="https://trek.nasa.gov/mars/" target="_blank" rel="noopener">NASA Mars Trek</a> 的 MRO CTX 和海盗号镶嵌图；海拔来自 <a href="https://pds-geosciences.wustl.edu/missions/mgs/megdr.html" target="_blank" rel="noopener">NASA MGS MOLA</a> · 基地、火星车和宇航员的绘图由 AI 生成 · <a href="https://osdr.nasa.gov/bio/repo/" target="_blank" rel="noopener">NASA OSDR</a> · NASA Space Apps 2026 学生作品，并非 NASA 官方产品。',
   },
 };
 

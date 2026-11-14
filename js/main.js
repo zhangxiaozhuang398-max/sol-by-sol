@@ -342,7 +342,7 @@ function renderDayClassic() {
   };
 }
 
-// ---------- phase 2, walking: the real Mars surface (world.js) ----------
+// ---------- phase 2, walking: the real Mars surface (world2d.js) ----------
 let world = null;
 const walking = () => !!world && !ui.classic;
 
@@ -406,6 +406,15 @@ function syncWorld() {
   }
   updatePrompt();
 }
+
+// Real Mars coordinates and MOLA elevation of the spot the astronaut stands on.
+function updateLocation() {
+  if (!world || !world.location || !s || s.phase !== "day" || ui.classic || activeScreen() !== "screen-game") return;
+  const p = world.location;
+  const elev = p.elevation == null ? "" : ` · ⛰️ ${t("world.elev", { m: num(p.elevation) })}`;
+  $("#world-loc").textContent = `📍 ${p.lat.toFixed(2)}°N ${p.lon.toFixed(2)}°E${elev}`;
+}
+setInterval(updateLocation, 250);
 
 function promptButton(label, ok = true) {
   return `<button class="btn primary" id="use-btn" type="button" ${ok ? "" : "disabled"}>${esc(label)} <kbd>E</kbd></button>`;

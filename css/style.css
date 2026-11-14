@@ -476,3 +476,15 @@ details.data-table th:first-child, details.data-table td:first-child { text-alig
 /* 2D map: keep the walking hint off the base at the top of the view */
 .world-prompt.hint { top: auto; bottom: 46px; }
 @media (max-width: 640px) { .world-prompt.hint { bottom: 12px; } }
+/* the data + AI-art credit stays visible while walking (bottom right) */
+.world.play .world-credit { display: block; max-width: 44%; font-size: 0.62rem; }
+@media (max-width: 640px) { .world.play .world-credit { max-width: 60%; right: 8px; bottom: auto; top: 128px; font-size: 0.56rem; } }
+@media (max-width: 640px) {
+  .world.play .world-credit { display: none; } /* the footer and the banner still carry the credit */
+  .world-chip { font-size: 0.78rem; padding: 4px 9px; }
+}
+.world-chip { max-width: 100%; }
+@media (max-width: 640px) {
+  .world-top { max-width: calc(100% - 152px); }
+  #world-loc { white-space: normal; line-height: 1.25; border-radius: 14px; }
+}

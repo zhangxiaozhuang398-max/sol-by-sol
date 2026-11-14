@@ -26,13 +26,13 @@ export const SITES = [
 export const WORLD_BASE = {
   spawn: { x: 56.5, z: 64.1, heading: Math.PI }, // just south of the airlock, facing the base
   stations: [
-    { id: "habitat", kind: "habitat", x: 56.5, z: 62.2, r: 1.5, mx: 56.5, mz: 60.5, solid: 1.9, icon: "🏠", labelY: 3.4 },
-    { id: "panels", kind: "panels", x: 61.9, z: 61.0, r: 2.4, solid: 1.2, icon: "🔆", labelY: 2.2 },
-    { id: "greenhouse", kind: "greenhouse", x: 51.2, z: 61.0, r: 2.3, solid: 1.2, icon: "🌱", labelY: 2.4 },
-    { id: "antenna", kind: "antenna", x: 66.0, z: 60.8, r: 2.1, solid: 0.9, icon: "📡", labelY: 3.9 },
+    { id: "habitat", kind: "habitat", x: 56.5, z: 62.2, r: 1.5, mx: 56.5, mz: 60.5, solid: 1.9, icon: "🏠" },
+    { id: "panels", kind: "panels", x: 61.9, z: 61.0, r: 2.4, solid: 1.2, icon: "🔆" },
+    { id: "greenhouse", kind: "greenhouse", x: 51.2, z: 61.0, r: 2.3, solid: 1.2, icon: "🌱" },
+    { id: "antenna", kind: "antenna", x: 66.0, z: 60.8, r: 2.1, solid: 0.9, icon: "📡" },
   ],
   // Where NASA's Perseverance rover really landed (18.4447°N, 77.4508°E), February 2021.
-  landmark: { id: "perseverance", kind: "landmark", x: 37.7, z: 56.1, r: 2.4, solid: 0.9, icon: "🤖", labelY: 2.6, fact: "jezero" },
+  landmark: { id: "perseverance", kind: "landmark", x: 37.7, z: 56.1, r: 2.4, solid: 0.9, icon: "🤖", fact: "jezero" },
 };
 
 export const siteById = (id) => SITES.find((s) => s.id === id);
