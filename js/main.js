@@ -33,17 +33,16 @@ function freshUi() {
 }
 const stage = $("#stage");
 
-// Optional synthesized sound (js/audio.js). The button shows the saved choice;
-// browsers only let audio start after the first tap or key press.
+// Sound (js/audio.js) is switched on and off, and its volumes set, in Settings
+// (the gear button). The gear shows a small muted mark while sound is off.
+// Browsers only let audio start after the first tap or key press.
 function updateSoundBtn() {
-  const b = $("#btn-sound");
-  if (!b) return;
   const on = audio.isEnabled();
-  b.textContent = on ? "🔊" : "🔇";
-  b.setAttribute("aria-label", t(on ? "top.soundOn" : "top.soundOff"));
-  b.title = t(on ? "top.soundOn" : "top.soundOff");
+  $$("[data-settings]").forEach((b) => {
+    b.classList.toggle("muted", !on);
+    b.title = `${t("settings.title")} · ${t(on ? "settings.soundOn" : "settings.soundOff")}`;
+  });
 }
-$("#btn-sound")?.addEventListener("click", () => { audio.toggle(); updateSoundBtn(); syncSettings(); });
 
 // ---------- settings (the gear button): sound, volumes and the look ----------
 const LOOKS = ["jazz", "mission", "cozy", "classic"];
