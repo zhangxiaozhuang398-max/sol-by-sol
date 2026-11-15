@@ -41,46 +41,59 @@ function updateSoundBtn() {
   const on = audio.isEnabled();
   b.textContent = on ? "🔊" : "🔇";
   b.setAttribute("aria-label", t(on ? "top.soundOn" : "top.soundOff"));
-  b.title = `${t(on ? "top.soundOn" : "top.soundOff")}\n${t("mixer.hint")}`;
+  b.title = t(on ? "top.soundOn" : "top.soundOff");
 }
-// Click: sound on/off. Right-click (or press and hold on a touch screen): the volume panel.
-let holdTimer = 0, held = false;
-$("#btn-sound")?.addEventListener("click", (e) => {
-  if (held) { held = false; e.preventDefault(); return; } // that press opened the panel
-  audio.toggle();
-  updateSoundBtn();
-});
-$("#btn-sound")?.addEventListener("contextmenu", (e) => { e.preventDefault(); openMixer(); });
-$("#btn-sound")?.addEventListener("pointerdown", (e) => {
-  if (e.pointerType === "mouse") return;
-  clearTimeout(holdTimer);
-  holdTimer = setTimeout(() => { held = true; openMixer(); }, 500);
-});
-for (const ev of ["pointerup", "pointerleave", "pointercancel"]) $("#btn-sound")?.addEventListener(ev, () => clearTimeout(holdTimer));
+$("#btn-sound")?.addEventListener("click", () => { audio.toggle(); updateSoundBtn(); syncSettings(); });
 
-function openMixer() {
-  audio.init();
-  const m = $("#mixer");
-  if (!m || !audio.levels) return; // an older cached page without the panel
-  const lv = audio.levels();
-  $$("input[data-level]", m).forEach((r) => {
-    r.value = Math.round(lv[r.dataset.level] * 100);
+// ---------- settings (the gear button): sound, volumes and the look ----------
+const LOOKS = ["jazz", "mission", "cozy", "classic"];
+const THEME_KEY = "solbysol.theme";
+const currentLook = () => document.documentElement.getAttribute("data-theme") || "jazz";
+function setLook(name) {
+  if (!LOOKS.includes(name)) return;
+  const link = $("#theme-css");
+  if (link) {
+    if (name === "classic") link.disabled = true;
+    else { link.disabled = false; link.href = `css/themes/${name}.css`; }
+  }
+  document.documentElement.setAttribute("data-theme", name);
+  try { localStorage.setItem(THEME_KEY, name); } catch { /* storage blocked */ }
+  syncSettings();
+}
+function syncSettings() {
+  const d = $("#settings");
+  if (!d) return;
+  const box = $("#set-sound", d);
+  if (box) box.checked = audio.isEnabled();
+  const lv = audio.levels ? audio.levels() : null;
+  $$("input[data-level]", d).forEach((r) => {
+    if (lv) r.value = Math.round(lv[r.dataset.level] * 100);
+    r.disabled = !audio.isEnabled();
     r.nextElementSibling.textContent = r.value;
   });
-  m.classList.remove("hidden");
-  $("input[data-level]", m).focus();
+  $$(".look", d).forEach((b) => {
+    const on = b.dataset.look === currentLook();
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-checked", String(on));
+  });
 }
-const closeMixer = () => $("#mixer")?.classList.add("hidden");
-$("#mixer")?.addEventListener("input", (e) => {
+function openSettings() {
+  const d = $("#settings");
+  if (!d) return;
+  audio.init();
+  syncSettings();
+  d.showModal();
+}
+$("#settings")?.addEventListener("input", (e) => {
   const r = e.target.closest("input[data-level]");
-  if (!r) return;
-  audio.setLevel(r.dataset.level, r.value / 100);
-  r.nextElementSibling.textContent = r.value;
-  if (r.dataset.level === "effects") audio.click(); // hear how loud the effects are
+  if (r && audio.setLevel) {
+    audio.setLevel(r.dataset.level, r.value / 100);
+    r.nextElementSibling.textContent = r.value;
+    if (r.dataset.level === "effects") audio.click(); // hear how loud the effects are
+  }
 });
-$("#mixer-close")?.addEventListener("click", closeMixer);
-document.addEventListener("pointerdown", (e) => { if (!e.target.closest("#mixer, #btn-sound")) closeMixer(); });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMixer(); });
+$("#set-sound")?.addEventListener("change", (e) => { audio.setEnabled(e.target.checked); if (e.target.checked) audio.ensure(); updateSoundBtn(); syncSettings(); });
+$("#settings")?.addEventListener("click", (e) => { const b = e.target.closest(".look"); if (b) { setLook(b.dataset.look); audio.click(); } });
 document.addEventListener("pointerdown", () => { audio.init(); updateMusic(); }, { once: true });
 document.addEventListener("keydown", () => { audio.init(); updateMusic(); }, { once: true });
 
@@ -1690,6 +1703,8 @@ document.addEventListener("click", (e) => {
     openInfo(factHtml(btn.dataset.fact, "", true));
   } else if (btn.dataset.openPanel) {
     openPanel(btn.dataset.openPanel);
+  } else if (btn.matches("[data-settings]")) {
+    openSettings();
   } else if (btn.matches("[data-close]")) {
     btn.closest("dialog").close();
   }

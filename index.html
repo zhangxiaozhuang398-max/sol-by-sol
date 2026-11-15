@@ -10,14 +10,18 @@
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/layout.css">
-  <!-- The look: "jazz title card" (css/themes/jazz.css). Other looks for testing:
-       ?theme=mission, ?theme=cozy, or ?theme=classic for the plain style underneath. -->
+  <!-- The look (css/themes/*.css): "jazz" by default, or what the player picked
+       in Settings (saved in the browser), or ?theme=jazz|mission|cozy|classic. -->
   <link rel="stylesheet" href="css/themes/jazz.css" id="theme-css">
   <script>
     (function () {
-      var m = /[?&]theme=([a-z]+)/.exec(location.search), name = "jazz", link = document.getElementById("theme-css");
-      if (m && (m[1] === "mission" || m[1] === "cozy")) { name = m[1]; link.href = "css/themes/" + name + ".css"; }
-      else if (m && m[1] === "classic") { name = "classic"; link.parentNode.removeChild(link); }
+      var looks = ["jazz", "mission", "cozy", "classic"], m = /[?&]theme=([a-z]+)/.exec(location.search), name = "jazz";
+      try { name = localStorage.getItem("solbysol.theme") || name; } catch (e) { /* storage blocked */ }
+      if (m) name = m[1];
+      if (looks.indexOf(name) < 0) name = "jazz";
+      var link = document.getElementById("theme-css");
+      if (name === "classic") link.disabled = true;
+      else link.href = "css/themes/" + name + ".css";
       document.documentElement.setAttribute("data-theme", name);
     })();
   </script>
@@ -26,7 +30,7 @@
   <!-- Title screen -->
   <section id="screen-title" class="screen active">
     <div class="title-card">
-      <div class="title-top"><button class="lang-toggle" data-i18n="lang.toggle" data-i18n-aria="lang.aria">中文</button></div>
+      <div class="title-top"><button class="btn small gear-btn" type="button" data-settings data-i18n-aria="settings.title">⚙️</button><button class="lang-toggle" data-i18n="lang.toggle" data-i18n-aria="lang.aria">中文</button></div>
       <div class="title-scene" aria-hidden="true">
         <svg viewBox="0 0 400 160">
           <circle cx="330" cy="40" r="16" class="sun"/>
@@ -108,16 +112,9 @@
       <div class="top-actions">
         <button class="btn small" id="btn-help" data-i18n="top.help"></button>
         <button class="btn small" id="btn-new" data-i18n="top.new"></button>
-        <button class="btn small sound-btn" id="btn-sound" type="button" aria-haspopup="dialog">🔊</button>
+        <button class="btn small sound-btn" id="btn-sound" type="button">🔊</button>
+        <button class="btn small gear-btn" type="button" data-settings data-i18n-aria="settings.title">⚙️</button>
         <button class="lang-toggle" data-i18n="lang.toggle" data-i18n-aria="lang.aria">中文</button>
-        <!-- volume panel: right-click (or long-press) the sound button -->
-        <div class="mixer hidden" id="mixer" role="dialog" data-i18n-aria="mixer.title">
-          <div class="mixer-head"><b data-i18n="mixer.title"></b><button class="mixer-x" type="button" id="mixer-close" data-i18n-aria="dock.close">✕</button></div>
-          <label class="mixer-row"><span data-i18n="mixer.music"></span><input type="range" min="0" max="100" step="1" data-level="music"><output></output></label>
-          <label class="mixer-row"><span data-i18n="mixer.ambient"></span><input type="range" min="0" max="100" step="1" data-level="ambient"><output></output></label>
-          <label class="mixer-row"><span data-i18n="mixer.effects"></span><input type="range" min="0" max="100" step="1" data-level="effects"><output></output></label>
-          <p class="mixer-note" data-i18n="mixer.note"></p>
-        </div>
       </div>
     </header>
 
@@ -169,6 +166,29 @@
   <dialog id="info" class="sheet small">
     <div id="info-body" class="fact-card"></div>
     <button class="btn primary" data-close data-i18n="info.gotIt"></button>
+  </dialog>
+
+  <!-- Settings: sound and volumes, and the look of the game -->
+  <dialog id="settings" class="sheet small settings">
+    <h2>⚙️ <span data-i18n="settings.title"></span></h2>
+    <section class="set-group">
+      <h3 data-i18n="settings.sound"></h3>
+      <label class="set-switch"><input type="checkbox" id="set-sound"><span data-i18n="settings.soundOn"></span></label>
+      <label class="set-row"><span data-i18n="mixer.music"></span><input type="range" min="0" max="100" step="1" data-level="music"><output></output></label>
+      <label class="set-row"><span data-i18n="mixer.ambient"></span><input type="range" min="0" max="100" step="1" data-level="ambient"><output></output></label>
+      <label class="set-row"><span data-i18n="mixer.effects"></span><input type="range" min="0" max="100" step="1" data-level="effects"><output></output></label>
+      <p class="set-note" data-i18n="mixer.note"></p>
+    </section>
+    <section class="set-group">
+      <h3 data-i18n="settings.look"></h3>
+      <div class="looks" role="radiogroup" data-i18n-aria="settings.look">
+        <button type="button" class="look" data-look="jazz" role="radio"><i class="sw sw-jazz"></i><b data-i18n="look.jazz"></b><small data-i18n="look.jazz.d"></small></button>
+        <button type="button" class="look" data-look="mission" role="radio"><i class="sw sw-mission"></i><b data-i18n="look.mission"></b><small data-i18n="look.mission.d"></small></button>
+        <button type="button" class="look" data-look="cozy" role="radio"><i class="sw sw-cozy"></i><b data-i18n="look.cozy"></b><small data-i18n="look.cozy.d"></small></button>
+        <button type="button" class="look" data-look="classic" role="radio"><i class="sw sw-classic"></i><b data-i18n="look.classic"></b><small data-i18n="look.classic.d"></small></button>
+      </div>
+    </section>
+    <button class="btn primary" data-close data-i18n="settings.done"></button>
   </dialog>
 
   <!-- Collection dialog -->

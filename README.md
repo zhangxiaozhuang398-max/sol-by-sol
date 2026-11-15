@@ -96,7 +96,7 @@ Plain HTML, CSS and JavaScript (ES modules), no framework, no build step. Hosted
 
 ```
 index.html, css/style.css
-css/themes/    the look: jazz.css (1960s jazz title-card style, default); mission.css and cozy.css for testing (?theme=mission, ?theme=cozy, ?theme=classic)
+css/themes/    the looks, picked in Settings (gear button): jazz.css (1960s jazz title card, default), mission.css (mission control 1969), cozy.css (cozy outpost), or classic (no theme file)
 js/config.js   every tunable number, with the real-world fact it is anchored to
 js/game.js     pure game logic (seeded, testable): the four phases and all rules
 js/report.js   failure / success debrief built from the player's own run

@@ -4,6 +4,20 @@
 
 const DICT = {
   en: {
+    // settings window (gear button)
+    "settings.title": "Settings",
+    "settings.sound": "Sound",
+    "settings.soundOn": "Sound on",
+    "settings.look": "Look",
+    "settings.done": "Done",
+    "look.jazz": "Jazz title card",
+    "look.jazz.d": "Bold colour blocks, like a 1960s film opening",
+    "look.mission": "Mission control 1969",
+    "look.mission.d": "Printed flight-plan paper, red and black",
+    "look.cozy": "Cozy outpost",
+    "look.cozy.d": "Wooden frames and parchment, like a farm game",
+    "look.classic": "Classic",
+    "look.classic.d": "The original purple night-sky look",
     // volume panel (right-click the sound button)
     "mixer.title": "Volume",
     "mixer.music": "🎷 Music",
@@ -750,6 +764,20 @@ const DICT = {
   },
 
   zh: {
+    // settings window (gear button)
+    "settings.title": "设置",
+    "settings.sound": "声音",
+    "settings.soundOn": "打开声音",
+    "settings.look": "界面风格",
+    "settings.done": "完成",
+    "look.jazz": "爵士片头",
+    "look.jazz.d": "大色块，像 60 年代电影的片头",
+    "look.mission": "1969 任务控制",
+    "look.mission.d": "像印出来的飞行计划纸，红黑配色",
+    "look.cozy": "温馨小镇",
+    "look.cozy.d": "木框和羊皮纸，像农场游戏",
+    "look.classic": "经典",
+    "look.classic.d": "最初的紫色夜空风格",
     // volume panel (right-click the sound button)
     "mixer.title": "音量",
     "mixer.music": "🎷 音乐",
