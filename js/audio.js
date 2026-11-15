@@ -52,9 +52,71 @@ function init() {
   musicBus = ctx.createGain();
   musicBus.gain.value = 0;
   musicBus.connect(master);
+  loadMarsSounds();
   if (ctx.state === "suspended") ctx.resume().catch(() => {});
 }
 let musicBus = null;
+
+// ---------- real sounds from Mars ----------
+// Recorded by NASA's Perseverance rover (assets/audio, see README for credits):
+//   wind   SuperCam microphone, sol 1 (muffled: the mast was still folded)
+//   laser  SuperCam laser zapping the rock "Máaz", sol 12
+//   drive  the rover driving in Jezero crater, sol 16 (filtered highlights)
+// Each is scaled to the same loudness when loaded. If a file cannot be loaded,
+// the synthesized sounds above are used instead.
+const MARS_FILES = { wind: "assets/audio/mars_wind_sol1.mp3", laser: "assets/audio/mars_laser_sol12.mp3", drive: "assets/audio/mars_drive_sol16.mp3" };
+const mars = {}; // name → { buffer, norm }
+let marsWind = null; // { src, gain } once the wind recording is playing
+
+function loadMarsSounds() {
+  for (const [name, url] of Object.entries(MARS_FILES)) {
+    fetch(url)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status))))
+      .then((data) => new Promise((ok, bad) => ctx.decodeAudioData(data, ok, bad)))
+      .then((buffer) => {
+        let peak = 0.0001;
+        const ch = buffer.getChannelData(0);
+        for (let i = 0; i < ch.length; i += 7) peak = Math.max(peak, Math.abs(ch[i]));
+        mars[name] = { buffer, norm: Math.min(12, 0.6 / peak) };
+        if (name === "wind") startMarsWind();
+      })
+      .catch(() => { /* keep the synthesized sound */ });
+  }
+}
+
+function startMarsWind() {
+  const w = mars.wind;
+  const src = ctx.createBufferSource();
+  src.buffer = w.buffer;
+  src.loop = true;
+  src.loopStart = 0.5; // skip the clicks at the very start and end of the file
+  src.loopEnd = Math.max(1, w.buffer.duration - 0.5);
+  const gain = ctx.createGain();
+  gain.gain.value = 0;
+  src.connect(gain).connect(master);
+  src.start(0, 0.5);
+  marsWind = { src, gain };
+  applyWind();
+}
+
+// Play a stretch of a Mars recording: `seconds` long, from a random place, faded in and out.
+function marsClip(name, seconds, level = 1) {
+  if (!ensure() || !mars[name]) return false;
+  const m = mars[name], t = ctx.currentTime;
+  const len = Math.min(seconds, m.buffer.duration - 0.2);
+  const start = Math.random() * Math.max(0, m.buffer.duration - len - 0.2);
+  const src = ctx.createBufferSource();
+  src.buffer = m.buffer;
+  const g = ctx.createGain();
+  const peak = 0.5 * m.norm * level;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(peak, t + 0.15);
+  g.gain.setValueAtTime(peak, t + Math.max(0.2, len - 0.4));
+  g.gain.linearRampToValueAtTime(0.0001, t + len);
+  src.connect(g).connect(master);
+  src.start(t, start, len + 0.05);
+  return true;
+}
 
 function ensure() {
   if (!ctx) init();
@@ -67,8 +129,15 @@ function applyWind() {
   const [weather, phase] = pendingWind;
   const base = weather === "dust" ? 0.1 : weather === "hazy" ? 0.05 : 0.025;
   const night = phase === "night" || phase === "settle" ? 0.6 : phase === "briefing" ? 0.8 : 1;
-  windGain.gain.setTargetAtTime(base * night, ctx.currentTime, 0.8);
+  // with the real Mars wind playing, the synthesized wind only adds a little gust on dusty days
+  windGain.gain.setTargetAtTime(base * night * (marsWind ? (weather === "dust" ? 0.5 : 0.15) : 1), ctx.currentTime, 0.8);
   windFilter.frequency.setTargetAtTime(weather === "dust" ? 900 : 450, ctx.currentTime, 1);
+  if (marsWind) {
+    // loudest while walking outside, softer indoors at night; stronger in a dust storm
+    const where = phase === "day" ? 0.55 : phase === "briefing" ? 0.3 : 0.15;
+    const storm = weather === "dust" ? 1.6 : weather === "hazy" ? 1.2 : 1;
+    marsWind.gain.gain.setTargetAtTime(Math.min(1.2, where * storm * mars.wind.norm * 0.35), ctx.currentTime, 1);
+  }
 }
 
 function setWind(weather, phase) {
@@ -226,6 +295,9 @@ function found(rare = false) {
 
 export const audio = {
   init, ensure, setWind, setEnabled, toggle, click, step, chime, whoosh, alarm, drill, found,
+  // real Perseverance recordings: the SuperCam laser zapping rock, the rover driving
+  laser: (seconds) => marsClip("laser", seconds, 0.9),
+  drive: (seconds) => marsClip("drive", seconds, 0.8),
   isEnabled: () => enabled,
   // for js/music.js: the audio context (null until the first tap), its bus and the shared noise
   context: () => ctx,

@@ -103,6 +103,7 @@ js/report.js   failure / success debrief built from the player's own run
 js/sites.js    explore sites and base stations, placed on the real terrain grid
 js/world2d.js  the walkable top-down Mars surface (canvas): real ground picture, astronaut, minimap
 assets/        cartoon drawings of the base buildings, survey sites and rover (from scripts/draw_buildings.mjs and scripts/draw_sites.mjs), and the astronaut (SVG)
+assets/audio/  real sounds recorded on Mars by NASA's Perseverance rover (see Credits)
 js/facts.js    sourced story and knowledge cards (English + Chinese)
 js/i18n.js     interface text (English + Chinese)
 js/main.js     user interface (world prompts, power sliders, report, end screen)
@@ -118,8 +119,16 @@ Run locally with any static server, for example `npx serve .` or `python -m http
 
 ## Use of AI tools
 
-Code, data scripts and documentation in this repository were written with help from an AI coding assistant (Claude by Anthropic). The team chose the challenge and the game concept direction (survival management with trade-offs), the exploration-map idea and the four-phase day came from a teammate's prototype, and the team reviewed the results. The cartoon drawings of the base buildings, the six survey sites and the rover (drawn by code in `scripts/draw_buildings.mjs` and `scripts/draw_sites.mjs`) and the astronaut drawing (`assets/*.svg`) are AI-generated vector art; the game labels them as such on screen and in the footer. The ground picture is real NASA imagery, not AI-generated. The music and sound effects are synthesized live by code (js/audio.js, js/music.js): original, with no recordings, and the code was written with AI help. No AI-generated audio or video is used.
+Code, data scripts and documentation in this repository were written with help from an AI coding assistant (Claude by Anthropic). The team chose the challenge and the game concept direction (survival management with trade-offs), the exploration-map idea and the four-phase day came from a teammate's prototype, and the team reviewed the results. The cartoon drawings of the base buildings, the six survey sites and the rover (drawn by code in `scripts/draw_buildings.mjs` and `scripts/draw_sites.mjs`) and the astronaut drawing (`assets/*.svg`) are AI-generated vector art; the game labels them as such on screen and in the footer. The ground picture is real NASA imagery, not AI-generated. The music and most sound effects are synthesized live by code (js/audio.js, js/music.js): original, and the code was written with AI help. The Mars wind, laser and driving sounds are real recordings by NASA's Perseverance rover (see Credits). No AI-generated audio or video is used.
 
 ## Credits
 
 Student project for NASA Space Apps Challenge 2026 (Singapore). Not an official NASA product, and not endorsed by NASA. Data courtesy of NASA. Fonts: Baloo 2 and Nunito (Google Fonts, SIL Open Font License).
+
+Sounds from Mars (assets/audio), recorded by NASA's Perseverance rover, from NASA's [Sounds of Mars](https://science.nasa.gov/mission/mars-2020-perseverance/sounds-of-mars/) pages:
+
+- mars_wind_sol1.mp3: [First Audio Recording of Sounds on Mars](https://science.nasa.gov/resource/first-audio-recording-of-sounds-on-mars), SuperCam microphone, sol 1. Credit: NASA/JPL-Caltech/LANL/CNES/CNRS/ISAE-Supaero.
+- mars_laser_sol12.mp3: [First Acoustic Recording of Laser Shots on Mars](https://science.nasa.gov/resource/first-acoustic-recording-of-laser-shots-on-mars/), SuperCam, sol 12. Credit: NASA/JPL-Caltech/LANL/CNES/CNRS/ISAE-Supaero.
+- mars_drive_sol16.mp3: [Sounds of Perseverance Mars Rover Driving, Sol 16 (90-second highlights)](https://science.nasa.gov/resource/sounds-of-perseverance-mars-rover-driving-sol-16-90-second-highlights/). Credit: NASA/JPL-Caltech.
+
+The files are used unchanged; the game only loops, fades and sets their volume.

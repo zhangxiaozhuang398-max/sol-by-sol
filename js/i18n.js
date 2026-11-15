@@ -198,7 +198,7 @@ const DICT = {
     "world.mapAria": "Map of Jezero crater showing you, the base and the places to explore",
     "world.mapCap": "Jezero crater · click to enlarge",
     "world.keys": "<kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> or arrow keys: walk · click the ground: walk there · <kbd>E</kbd>: use",
-    "world.credit": "Ground: real NASA MRO CTX image of Jezero crater, tinted. Base, rover, astronaut and survey sites: AI-generated drawings, larger than life.",
+    "world.credit": "Ground: real NASA MRO CTX image of Jezero crater, tinted. Base, rover, astronaut and survey sites: AI-generated drawings, larger than life. Sounds of wind, laser and driving: recorded on Mars by NASA's Perseverance rover.",
     "world.elev": "{m} m",
     "world.hint.walk": "🚶 Follow the gold arrows to today's orders, or walk to any survey site (blinking light) or station.",
     "world.hint.noAp": "No action points left. Walk back to the habitat 🏠 to end the day.",
@@ -739,7 +739,7 @@ const DICT = {
     "collection.locked": "Keep playing to unlock.",
     "collection.close": "Close",
 
-    "footer": 'Data: <a href="https://ccmc.gsfc.nasa.gov/tools/DONKI/" target="_blank" rel="noopener">NASA DONKI</a> real historical solar storms (not live) · Jezero crater image: MRO CTX and Viking mosaics from <a href="https://trek.nasa.gov/mars/" target="_blank" rel="noopener">NASA Mars Trek</a>; elevations from <a href="https://pds-geosciences.wustl.edu/missions/mgs/megdr.html" target="_blank" rel="noopener">NASA MGS MOLA</a> · Base, rover, astronaut and survey-site drawings are AI-generated · <a href="https://osdr.nasa.gov/bio/repo/" target="_blank" rel="noopener">NASA OSDR</a> · Student project for NASA Space Apps 2026, not an official NASA product.',
+    "footer": 'Mars sounds: <a href="https://science.nasa.gov/mission/mars-2020-perseverance/sounds-of-mars/" target="_blank" rel="noopener">NASA Perseverance</a> (NASA/JPL-Caltech/LANL/CNES/CNRS/ISAE-Supaero) · Data: <a href="https://ccmc.gsfc.nasa.gov/tools/DONKI/" target="_blank" rel="noopener">NASA DONKI</a> real historical solar storms (not live) · Jezero crater image: MRO CTX and Viking mosaics from <a href="https://trek.nasa.gov/mars/" target="_blank" rel="noopener">NASA Mars Trek</a>; elevations from <a href="https://pds-geosciences.wustl.edu/missions/mgs/megdr.html" target="_blank" rel="noopener">NASA MGS MOLA</a> · Base, rover, astronaut and survey-site drawings are AI-generated · <a href="https://osdr.nasa.gov/bio/repo/" target="_blank" rel="noopener">NASA OSDR</a> · Student project for NASA Space Apps 2026, not an official NASA product.',
   },
 
   zh: {
@@ -932,7 +932,7 @@ const DICT = {
     "world.mapAria": "杰泽罗撞击坑地图，显示你、基地和可以探索的地点",
     "world.mapCap": "杰泽罗撞击坑 · 点击放大",
     "world.keys": "<kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> 或方向键：行走 · 点击地面：走过去 · <kbd>E</kbd>：使用",
-    "world.credit": "地面：NASA MRO CTX 相机拍摄的杰泽罗撞击坑真实影像（经上色）。基地、火星车、宇航员和考察点：AI 生成的绘图，比实际大。",
+    "world.credit": "地面：NASA MRO CTX 相机拍摄的杰泽罗撞击坑真实影像（经上色）。基地、火星车、宇航员和考察点：AI 生成的绘图，比实际大。风声、激光声和行驶声：NASA 毅力号在火星上录制的真实声音。",
     "world.elev": "{m} 米",
     "world.hint.walk": "🚶 跟着金色箭头去完成今日任务，也可以走到任意考察点（闪烁的信号灯）或设备旁。",
     "world.hint.noAp": "行动点用完了。走回居住舱 🏠 结束今天。",
@@ -1467,7 +1467,7 @@ const DICT = {
     "collection.locked": "继续玩来解锁。",
     "collection.close": "关闭",
 
-    "footer": '数据：<a href="https://ccmc.gsfc.nasa.gov/tools/DONKI/" target="_blank" rel="noopener">NASA DONKI</a> 真实历史太阳风暴（非实时）· 杰泽罗撞击坑影像：来自 <a href="https://trek.nasa.gov/mars/" target="_blank" rel="noopener">NASA Mars Trek</a> 的 MRO CTX 和海盗号镶嵌图；海拔来自 <a href="https://pds-geosciences.wustl.edu/missions/mgs/megdr.html" target="_blank" rel="noopener">NASA MGS MOLA</a> · 基地、火星车、宇航员和考察点的绘图由 AI 生成 · <a href="https://osdr.nasa.gov/bio/repo/" target="_blank" rel="noopener">NASA OSDR</a> · NASA Space Apps 2026 学生作品，并非 NASA 官方产品。',
+    "footer": '火星声音：<a href="https://science.nasa.gov/mission/mars-2020-perseverance/sounds-of-mars/" target="_blank" rel="noopener">NASA 毅力号</a>（NASA/JPL-Caltech/LANL/CNES/CNRS/ISAE-Supaero）· 数据：<a href="https://ccmc.gsfc.nasa.gov/tools/DONKI/" target="_blank" rel="noopener">NASA DONKI</a> 真实历史太阳风暴（非实时）· 杰泽罗撞击坑影像：来自 <a href="https://trek.nasa.gov/mars/" target="_blank" rel="noopener">NASA Mars Trek</a> 的 MRO CTX 和海盗号镶嵌图；海拔来自 <a href="https://pds-geosciences.wustl.edu/missions/mgs/megdr.html" target="_blank" rel="noopener">NASA MGS MOLA</a> · 基地、火星车、宇航员和考察点的绘图由 AI 生成 · <a href="https://osdr.nasa.gov/bio/repo/" target="_blank" rel="noopener">NASA OSDR</a> · NASA Space Apps 2026 学生作品，并非 NASA 官方产品。',
   },
 };
 

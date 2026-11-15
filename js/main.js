@@ -929,7 +929,11 @@ async function usePrompt(skipRepair = false) {
     const el = $("#world-prompt");
     el.className = "world-prompt hint busy";
     el.textContent = t(`world.busy.${job}`);
-    if (job === "sample" && !calmMotion.matches) audio.drill(JOB_MS.sample / 1000);
+    if (job === "sample" && !calmMotion.matches) {
+      // the real sound of Perseverance's laser zapping rock on Mars (the synthesized drill if it did not load)
+      if (!audio.laser(JOB_MS.sample / 1000)) audio.drill(JOB_MS.sample / 1000);
+      if ((siteById(id).needs || []).includes("rover")) audio.drive(3.5); // a whole-day trip in the rover
+    }
     try {
       await world.playAction(job, id, calmMotion.matches ? 0 : JOB_MS[job]);
     } finally {
@@ -1419,6 +1423,7 @@ function buildTech(id) {
   const r = E.doBuild(s, id);
   if (!r.ok) return;
   audio.chime();
+  if (id === "rover") audio.drive(4); // the new rover's first drive: the real sound of Perseverance driving
   toast(t("world.toast.build", { tech: t(`techname.${id}`) }));
   render();
 }
