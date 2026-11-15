@@ -170,13 +170,16 @@ export function reserveNeeded(s) {
     worst = Math.max(worst, need);
   }
   const floor = !stormSeen && s.sol >= C.weatherGen.seasonStartSol - 2 ? 60 : 25;
-  return s.sol >= N ? 0 : Math.max(floor, worst + 5);
+  // solar storms Earth has warned about in the next few sols: keep power for the shield
+  const shieldSave = E.activeWarnings(s).filter((x) => x.sol > s.sol && x.sol <= s.sol + 3).length * E.shieldCost(s);
+  return s.sol >= N ? 0 : Math.max(floor, worst + 5) + shieldSave;
 }
 
 // Tries every setting and keeps the safest one. It only suggests: the player
-// still confirms, and can change anything.
+// still confirms, and can change anything. Like Pip, it only uses what the crew
+// knows (tonight's storm is known by now: the base alarm rings at dusk).
 export function suggestAlloc(s) {
-  const storm = E.solarStormOn(s, s.sol);
+  const storm = E.knownStormOn(s, s.sol);
   const reserve = reserveNeeded(s);
   let best = null;
   for (let o2 = 0; o2 <= C.oxygenGen.maxPower; o2 += C.oxygenGen.step) {
