@@ -41,10 +41,8 @@ const SITE_STYLE = {
 };
 
 const MODELS = {
-  astronaut: { file: "astronaut.glb", height: 1.9, rot: 0 },
   habitat: { file: "habitat_1.glb", length: 9.5, rot: 0 },
   dish: { file: "dish_dish.glb", height: 7.2, rot: 0 },
-  sev: { file: "sev.glb", length: 5.4, rot: 0, lazy: true },
   perseverance: { file: "perseverance.glb", length: 3.1, rot: 0, lazy: true },
 };
 
