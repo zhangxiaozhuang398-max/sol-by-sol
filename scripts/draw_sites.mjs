@@ -1,4 +1,4 @@
-// Draws the six survey sites and the Perseverance landmark rover in the same
+// Draws the eleven survey sites and the Perseverance landmark rover in the same
 // cartoon style as the base buildings (scripts/draw_buildings.mjs): seen at an
 // angle from the south, dark outline, bright flat colours, one shade colour.
 // The drawings are original, made with code (AI-generated).
@@ -67,6 +67,119 @@ function sampleTubes(x, y) {
       <rect x="-3.5" y="-11" width="7" height="22" rx="3.5" fill="#f4efe6" ${S2}/><rect x="-3.5" y="-11" width="7" height="6" rx="2" fill="#e07a3f" ${S2}/></g>`;
   }
   return t;
+}
+
+// an X-ray probe on a tripod, tilted at the rock (like the PIXL and APXS instruments on rovers)
+function xrayProbe(x, y) {
+  return `${shadow(x + 10, y + 6, 18, 5)}
+    ${line(`M${x - 12} ${y + 8} L${x} ${y - 22} L${x + 12} ${y + 8} M${x} ${y - 22} L${x + 2} ${y + 9}`)}
+    <g transform="rotate(-28 ${x} ${y - 28})"><rect x="${x - 18}" y="${y - 34}" width="26" height="12" rx="5" fill="#f4efe6" ${S2}/>
+    <rect x="${x - 22}" y="${y - 32}" width="6" height="8" rx="2" fill="#5d6874" ${S2}/></g>
+    <circle cx="${x + 4}" cy="${y - 30}" r="2.2" fill="#ff5a4f"/>`;
+}
+// a small helicopter like Ingenuity, which flew in Jezero crater: four legs, two rotors, a solar panel on top
+function helicopter(x, y) {
+  return `${shadow(x + 10, y + 4, 22, 5)}
+    ${line(`M${x - 6} ${y - 14} L${x - 14} ${y + 2} M${x + 6} ${y - 14} L${x + 14} ${y + 2} M${x - 3} ${y - 14} L${x - 6} ${y + 4} M${x + 3} ${y - 14} L${x + 7} ${y + 4}`, 2)}
+    <rect x="${x - 8}" y="${y - 24}" width="16" height="12" rx="2" fill="#f4efe6" ${S2}/>
+    <rect x="${x - 8}" y="${y - 24}" width="16" height="4" fill="#d8cfc0"/>
+    ${line(`M${x} ${y - 24} V${y - 48}`, 2.5)}
+    <ellipse cx="${x}" cy="${y - 36}" rx="30" ry="3" fill="#5d6874" ${S2}/>
+    <ellipse cx="${x}" cy="${y - 44}" rx="30" ry="3" fill="#7d8894" ${S2} transform="rotate(12 ${x} ${y - 44})"/>
+    <rect x="${x - 9}" y="${y - 54}" width="18" height="6" rx="1.5" fill="#3a6fd0" ${S2}/>`;
+}
+// a pressurised crew rover, for the all-day expeditions (facing west)
+function crewRover(x, y) {
+  const wheel = (cx) => `<circle cx="${cx}" cy="${y}" r="7" fill="#3b3633" ${S2}/><circle cx="${cx}" cy="${y}" r="2.6" fill="#a9b4bf"/>`;
+  return `${shadow(x + 8, y + 6, 34, 6)}
+    <path d="M${x - 30} ${y - 6} L${x - 26} ${y - 26} Q${x - 22} ${y - 34} ${x - 10} ${y - 34} L${x + 22} ${y - 34} Q${x + 30} ${y - 34} ${x + 30} ${y - 24} L${x + 30} ${y - 6} Z" fill="#f4efe6" ${S}/>
+    <path d="M${x + 14} ${y - 34} L${x + 22} ${y - 34} Q${x + 30} ${y - 34} ${x + 30} ${y - 24} L${x + 30} ${y - 6} L${x + 14} ${y - 6} Z" fill="rgba(70,35,15,0.2)"/>
+    <path d="M${x - 26} ${y - 26} Q${x - 22} ${y - 33} ${x - 12} ${y - 33} L${x - 8} ${y - 33} L${x - 8} ${y - 20} L${x - 27} ${y - 20} Z" fill="#4fd1c5" ${S2}/>
+    <rect x="${x - 30}" y="${y - 12}" width="60" height="5" fill="#e07a3f"/>
+    ${wheel(x - 20)}${wheel(x)}${wheel(x + 20)}`;
+}
+
+// ---------- the five sites further out (stage 2 and 3 of the mission) ----------
+// An iron meteorite: a dark, shiny lump with "thumbprint" dents melted in by the fall through the air.
+function meteorite() {
+  const dimples = [[118, 112, 10, 6], [150, 100, 8, 5], [168, 124, 11, 6], [132, 136, 9, 5], [186, 108, 7, 4]]
+    .map(([x, y, rx, ry]) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="#2b2826"/><ellipse cx="${x - rx * 0.2}" cy="${y - ry * 0.3}" rx="${rx * 0.5}" ry="${ry * 0.35}" fill="#4a4441"/>`).join("");
+  return svg(`${patch(150, 100)}
+    <ellipse cx="160" cy="150" rx="110" ry="44" fill="#d08a5e" opacity="0.4"/>
+    <ellipse cx="160" cy="150" rx="88" ry="30" fill="none" stroke="#a8603a" stroke-width="5" opacity="0.6"/>
+    ${shadow(170, 158, 76, 18, 0.32)}
+    <path d="M86 150 C80 112 104 84 146 80 C190 76 226 96 230 126 C234 150 214 162 170 164 C130 166 92 166 86 150 Z" fill="#4a4441" ${S}/>
+    <path d="M196 92 C222 104 234 128 226 148 C216 160 196 162 180 162 C206 150 214 120 196 92 Z" fill="#2b2826"/>
+    ${dimples}
+    ${line("M104 106 C116 90 138 84 158 86", 4, "#c9d1d8")}
+    ${line("M112 122 Q122 112 136 110", 2.5, "#a9b4bf")}
+    <ellipse cx="60" cy="176" rx="7" ry="4" fill="#bfae9c" ${S2}/><ellipse cx="262" cy="150" rx="6" ry="4" fill="#bfae9c" ${S2}/>
+    ${xrayProbe(210, 186)}`);
+}
+
+// Old lava on the crater floor: dark slabs split by cracks, with a round patch a rover has ground smooth to look inside.
+function lava() {
+  const slabs = ["M40 120 L96 104 L120 132 L70 152 Z", "M96 104 L156 92 L170 120 L120 132 Z", "M156 92 L220 90 L236 116 L170 120 Z",
+    "M220 90 L276 102 L284 132 L236 116 Z", "M70 152 L120 132 L134 168 L84 182 Z", "M120 132 L170 120 L186 154 L134 168 Z",
+    "M170 120 L236 116 L244 150 L186 154 Z", "M236 116 L284 132 L280 164 L244 150 Z"];
+  const cols = ["#6e5a4e", "#7d675a", "#5f4d43", "#86705f"];
+  return svg(`${patch(155, 100)}
+    ${shadow(166, 150, 130, 40, 0.25)}
+    ${slabs.map((d, i) => `<path d="${d}" fill="${cols[i % 4]}" ${S}/>`).join("")}
+    ${line("M104 112 L118 124 M188 100 L196 112 M150 140 L160 150 M250 128 L262 138", 1.6)}
+    ${line("M50 122 L94 108 M100 106 L150 96 M160 94 L214 92", 2.5, "#a99383")}
+    <ellipse cx="152" cy="140" rx="14" ry="8" fill="#b9a69a" ${S2}/><ellipse cx="149" cy="138" rx="6" ry="3" fill="#d8cabf"/>
+    ${coreDrill(210, 186)}`);
+}
+
+// The fan in the north: a second river spread its sand here in lobes, one over another.
+function northfan() {
+  const lobes = [[0.95, "#f0cfa8"], [0.8, "#e6bb90"], [0.64, "#dca97c"], [0.48, "#cf9a6c"]];
+  const lobe = (r) => `M70 40 L${70 + r * 230} ${40 + r * 50} Q${70 + r * 210} ${40 + r * 190} ${70 + r * 40} ${40 + r * 190} Z`;
+  const ch = "M70 40 C120 70 170 90 230 110 M70 40 C100 90 120 140 150 190 M100 60 C150 110 170 130 200 160";
+  return svg(`${patch(150, 100)}
+    ${shadow(150, 150, 130, 70, 0.22)}
+    ${lobes.map(([r, c]) => `<path d="${lobe(r)}" fill="${c}" ${S}/>`).join("")}
+    ${line("M40 10 C52 22 60 30 70 40", 14, "#a8653f")}${line("M40 10 C52 22 60 30 70 40", 3)}
+    ${line(ch, 3, "#b47a58")}${line(ch, 1.2, "#f6dcbf")}
+    ${helicopter(210, 186)}`);
+}
+
+// The outlet valley in the east: where the lake overflowed and cut through the crater rim,
+// leaving teardrop-shaped islands pointing downstream.
+function outlet() {
+  const blob = "M20 130 C20 52 90 20 165 20 C250 20 305 60 305 130 C305 205 245 244 160 244 C80 244 20 210 20 130 Z";
+  const top = "M0 96 C60 104 110 92 160 104 C210 116 260 100 320 108";
+  const bottom = "M0 164 C60 172 110 158 160 170 C210 182 260 166 320 176";
+  const island = (x, y, w, h) => `<path d="M${x} ${y} C${x + w * 0.3} ${y - h} ${x + w} ${y - h * 0.6} ${x + w} ${y} C${x + w} ${y + h * 0.6} ${x + w * 0.3} ${y + h} ${x} ${y} Z" fill="#d99a6c" ${S2}/>`;
+  return svg(`
+    <defs><clipPath id="oblob"><path d="${blob}"/></clipPath></defs>
+    ${shadow(170, 140, 150, 112, 0.25)}
+    <g clip-path="url(#oblob)">
+      <rect x="0" y="0" width="320" height="260" fill="#e2a577"/>
+      <path d="${top} L320 176 C260 166 210 182 160 170 C110 158 60 172 0 164 Z" fill="#9c5b3a"/>
+      <path d="${top} L320 118 C260 110 210 126 160 114 C110 102 60 114 0 106 Z" fill="#4e2a1c"/>
+      ${island(70, 136, 60, 12)}${island(170, 140, 70, 14)}
+      ${line(top, 3)}${line(bottom, 3)}
+      ${line("M30 150 Q60 144 90 150 M200 156 Q240 150 280 158", 1.6, "#f3c79f")}
+    </g>
+    <path d="${blob}" fill="none" ${S}/>
+    ${crewRover(210, 186)}`);
+}
+
+// A big, deep crater on the east side: steps in its walls and boulders on its floor.
+function eastcrater() {
+  return svg(`${patch(155, 105)}
+    ${shadow(162, 132, 136, 66, 0.22)}
+    <ellipse cx="150" cy="122" rx="134" ry="64" fill="#dca07a" ${S}/>
+    <ellipse cx="150" cy="118" rx="112" ry="50" fill="#a8653f" ${S}/>
+    <ellipse cx="152" cy="124" rx="86" ry="36" fill="#8f5034" ${S}/>
+    <ellipse cx="154" cy="130" rx="56" ry="20" fill="#6e3d28" ${S}/>
+    <path d="M38 118 A112 50 0 0 1 120 70 Q80 92 60 120 Z" fill="rgba(60,25,10,0.3)"/>
+    ${line("M24 116 A134 64 0 0 1 112 60", 3.5, "#f2c39c")}
+    <ellipse cx="150" cy="132" rx="8" ry="5" fill="#bfae9c" ${S2}/><ellipse cx="170" cy="128" rx="6" ry="4" fill="#bfae9c" ${S2}/>
+    <ellipse cx="34" cy="176" rx="9" ry="6" fill="#bfae9c" ${S2}/><ellipse cx="282" cy="166" rx="8" ry="5" fill="#bfae9c" ${S2}/>
+    ${crewRover(210, 186)}`);
 }
 
 // ---------- the six survey sites ----------
@@ -210,7 +323,10 @@ function rover() {
     ${wheel(52, 130, 14)}${wheel(98, 132, 14)}${wheel(144, 130, 14)}`, 200, 170);
 }
 
-const files = { site_dune: dune, site_crater: crater, site_cliff: cliff, site_riverbed: riverbed, site_canyon: canyon, site_delta: delta, rover };
+const files = {
+  site_dune: dune, site_crater: crater, site_cliff: cliff, site_riverbed: riverbed, site_canyon: canyon, site_delta: delta,
+  site_meteorite: meteorite, site_lava: lava, site_northfan: northfan, site_outlet: outlet, site_eastcrater: eastcrater, rover,
+};
 for (const [name, draw] of Object.entries(files)) {
   const out = draw().replace(/\s*\n\s*/g, "\n");
   writeFileSync(new URL(`../assets/${name}.svg`, import.meta.url), out + "\n");

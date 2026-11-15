@@ -35,15 +35,23 @@ const SPRITES = {
   site_riverbed: { file: "site_riverbed.svg", size: 4.6, crisp: true },
   site_canyon: { file: "site_canyon.svg", size: 4.6, crisp: true },
   site_delta: { file: "site_delta.svg", size: 4.6, crisp: true },
+  site_meteorite: { file: "site_meteorite.svg", size: 4.6, crisp: true },
+  site_lava: { file: "site_lava.svg", size: 4.6, crisp: true },
+  site_northfan: { file: "site_northfan.svg", size: 4.6, crisp: true },
+  site_outlet: { file: "site_outlet.svg", size: 4.6, crisp: true },
+  site_eastcrater: { file: "site_eastcrater.svg", size: 4.6, crisp: true },
 };
 // Where the instrument stands in each site drawing, in cells from the drawing's centre.
 // The "not explored yet" light and the "explored" flag are placed there.
 const SITE_GEAR = {
   dune: [0.72, 0.8], crater: [0.72, 0.8], cliff: [0.75, 0.86], riverbed: [0.83, 0.96], canyon: [0.72, 0.83], delta: [1.03, 1.35],
+  meteorite: [0.72, 0.8], lava: [0.72, 0.8], northfan: [0.72, 0.8], outlet: [0.72, 0.8], eastcrater: [0.72, 0.8],
 };
 const SITE_LABEL_DZ = 1.72; // name label, below the drawing
 
-const TIER_COLOR = ["#f3b562", "#f3b562", "#ff8a55", "#ff5d73"];
+const TIER_COLOR = ["#f3b562", "#f3b562", "#ff8a55", "#ff5d73", "#c58cff"]; // by tier; 4 = expeditions
+const LOCK_COLOR = "#9a8f86"; // places the crew lacks the equipment for
+const OVERVIEW_LABEL = { rim: "below", plain: "right" }; // where a region name sits on the big map (default: above)
 const DONE_COLOR = "#7ad67a";
 const GOAL_COLOR = "#ffd36b"; // today's task places
 const SUIT = "#e9dfd2", SUIT_SHADE = "#b9a593", SUIT_EDGE = "rgba(61,46,36,0.5)", GLOVE = "#5a514a", BOOT = "#4a423c";
@@ -118,6 +126,7 @@ export async function createWorld(opts) {
   };
   let targets = [];
   let focus = new Set(); // ids of today's task places: drawn with gold markers
+  let zones = []; // the crater's named regions (setZones)
   let insetR = 0; // CSS pixels on the right covered by the open side panel
   let solids = [];
   let dpr = 1, W = 1, H = 1, S = 40; // S = device pixels per terrain cell
@@ -226,7 +235,21 @@ export async function createWorld(opts) {
         // standing buildings have an oval footprint (squashed north–south like their drawing)
         const k = s.k || 1, dx = nx - s.x, dz = (nz - s.z) / k;
         const d = Math.hypot(dx, dz);
-        if (d < s.r && d > 0.0001) { nx = s.x + (dx / d) * s.r; nz = s.z + (dz / d) * s.r * k; if (st.dest) st.dest = null; }
+        if (d < s.r && d > 0.0001) {
+          nx = s.x + (dx / d) * s.r;
+          nz = s.z + (dz / d) * s.r * k;
+          if (st.dest) {
+            const destIn = Math.hypot(st.dest.x - s.x, (st.dest.z - s.z) / k) < s.r + 0.2;
+            if (destIn) st.dest = null; // walking to this building: its wall is "there"
+            else { // walking past it: slide round the side that leads towards the spot
+              const tx = -dz / d, tz = dx / d;
+              const sign = tx * (st.dest.x - nx) + tz * (st.dest.z - nz) >= 0 ? 1 : -1;
+              const stepLen = Math.max(st.speed, SPEED * 0.6) * dt;
+              nx += tx * sign * stepLen;
+              nz += tz * sign * stepLen * k;
+            }
+          }
+        }
       }
       st.x = nx;
       st.z = nz;
@@ -489,7 +512,14 @@ export async function createWorld(opts) {
       ctx.arc(x, y, r, 0, Math.PI * 2);
       ctx.fill();
     }
-    if (baked[kind]) drawSprite(kind, t.x, t.z);
+    if (!baked[kind]) return;
+    if (t.locked) { // an area Mission Control has not opened yet: faded, as if seen from far away
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      ctx.filter = "grayscale(0.8)";
+      drawSprite(kind, t.x, t.z);
+      ctx.restore();
+    } else drawSprite(kind, t.x, t.z);
   }
 
   // Beside the instrument: a blinking lamp while the site is unexplored (its
@@ -523,6 +553,24 @@ export async function createWorld(opts) {
       ctx.lineWidth = 1.2 * dpr;
       ctx.strokeStyle = "rgba(20,60,35,0.6)";
       ctx.stroke();
+      return;
+    }
+    if (t.locked) { // instead of the blinking lamp: a badge with the tool this terrain needs
+      ctx.save();
+      const r = 0.24 * S;
+      ctx.beginPath();
+      ctx.arc(x, y - 0.1 * S, r, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(40,32,28,0.88)";
+      ctx.fill();
+      ctx.lineWidth = 2.2 * dpr;
+      ctx.strokeStyle = LOCK_COLOR;
+      ctx.stroke();
+      ctx.font = `${Math.round(r * 1.15)}px ${FONT}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#fff";
+      ctx.fillText(t.lockIcon || "🔒", x, y - 0.08 * S);
+      ctx.restore();
       return;
     }
     const color = TIER_COLOR[t.tier] || TIER_COLOR[1];
@@ -743,6 +791,29 @@ export async function createWorld(opts) {
         ctx.globalAlpha = 0.5 + 0.4 * Math.sin(T * 6 + i);
         dot(left + rnd(i + 90) * w, py, 0.04 * S);
       }
+    } else if (a.kind === "repair") {
+      // a wrench turns in front of the part and sparks fly
+      const ang = Math.sin(T * 10) * 0.6;
+      ctx.save();
+      ctx.translate(x, y - 0.3 * S);
+      ctx.rotate(ang);
+      ctx.strokeStyle = "#5d6874";
+      ctx.lineWidth = 0.09 * S;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0.45 * S, 0);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0.5 * S, 0, 0.1 * S, 0.8, Math.PI * 2 - 0.8);
+      ctx.stroke();
+      ctx.restore();
+      ctx.fillStyle = "#ffd36b";
+      for (let i = 0; i < 12; i++) {
+        const ph = (T / 0.5 + rnd(i + 40)) % 1, a2 = rnd(i + 3) * Math.PI * 2;
+        ctx.globalAlpha = 1 - ph;
+        dot(x + Math.cos(a2) * ph * 0.7 * S, y - 0.3 * S + Math.sin(a2) * ph * 0.5 * S - ph * 0.2 * S, 0.04 * S);
+      }
+      ctx.globalAlpha = 1;
     } else if (a.kind === "call") {
       // radio rings spread from the dish and a signal sets off for Earth
       ctx.strokeStyle = "#7fe3da";
@@ -841,10 +912,70 @@ export async function createWorld(opts) {
   // dust streaks for dust-storm sols (screen space)
   const streaks = Array.from({ length: 70 }, () => ({ x: Math.random(), y: Math.random(), v: 0.25 + Math.random() * 0.4, l: 0.03 + Math.random() * 0.05 }));
 
+  // A faint aurora over the night sky when a solar storm hits. In March 2024
+  // Perseverance saw a real one: a pale green glow, the first aurora ever
+  // photographed from the ground of another planet.
+  function drawAurora() {
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    for (let b = 0; b < 3; b++) {
+      const g = ctx.createLinearGradient(0, 0, 0, H * 0.55);
+      g.addColorStop(0, "rgba(80,255,170,0)");
+      g.addColorStop(0.35 + b * 0.08, `rgba(80,255,170,${0.12 - b * 0.03})`);
+      g.addColorStop(1, "rgba(80,255,170,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      for (let i = 0; i <= 24; i++) {
+        const px = (i / 24) * W;
+        const py = H * (0.18 + 0.08 * b) + Math.sin(i * 0.6 + st.time * (0.5 + b * 0.2) + b) * H * 0.05;
+        ctx.lineTo(px, py);
+      }
+      ctx.lineTo(W, 0);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // Region names written large and faint on the ground, so each part of the
+  // crater feels like its own place.
+  function drawZoneNames() {
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = `800 ${Math.round(0.7 * S)}px ${FONT}`;
+    ctx.lineWidth = 5 * dpr;
+    ctx.strokeStyle = "rgba(40,18,8,0.35)";
+    ctx.fillStyle = "rgba(255,240,220,0.42)";
+    for (const zn of zones) {
+      const x = sx(zn.x), y = sy(zn.z - zn.rz + 0.9);
+      if (x < -W || x > 2 * W || y < -H || y > 2 * H) continue;
+      ctx.strokeText(zn.label, x, y);
+      ctx.fillText(zn.label, x, y);
+    }
+    ctx.restore();
+  }
+
   function drawAtmosphere(night) {
-    if (st.weather === "hazy") {
-      ctx.fillStyle = "rgba(214,160,110,0.2)";
+    if (st.weather === "hazy") { // a dusty sky: the light goes grey and flat, and dust drifts past
+      ctx.fillStyle = "rgba(150,132,118,0.4)";
       ctx.fillRect(0, 0, W, H);
+      const sky = ctx.createLinearGradient(0, 0, 0, H * 0.7);
+      sky.addColorStop(0, "rgba(214,186,156,0.45)");
+      sky.addColorStop(1, "rgba(214,186,156,0)");
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, W, H);
+      for (let i = 0; i < 4; i++) { // big soft clouds of dust, drifting slowly
+        const x = (((i * 0.31 + st.time * 0.012) % 1.4) - 0.2) * W;
+        const y = (0.2 + 0.2 * i) * H;
+        const r = (0.28 + 0.05 * i) * W;
+        const puff = ctx.createRadialGradient(x, y, 0, x, y, r);
+        puff.addColorStop(0, "rgba(222,196,168,0.28)");
+        puff.addColorStop(1, "rgba(222,196,168,0)");
+        ctx.fillStyle = puff;
+        ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
+      }
     } else if (st.weather === "dust") {
       ctx.fillStyle = "rgba(170,105,60,0.5)";
       ctx.fillRect(0, 0, W, H);
@@ -878,6 +1009,7 @@ export async function createWorld(opts) {
         ctx.fillRect(x - r, y - r, r * 2, r * 2);
       }
       ctx.globalCompositeOperation = "source-over";
+      if (st.storm) drawAurora();
     }
     // soft vignette
     const v = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.45, W / 2, H / 2, Math.max(W, H) * 0.75);
@@ -893,6 +1025,7 @@ export async function createWorld(opts) {
     bake();
     drawGround();
     drawGroundWear();
+    drawZoneNames();
 
     for (const t of targets) if (t.kind === "site") drawSite(t);
     drawFootprints();
@@ -982,7 +1115,7 @@ export async function createWorld(opts) {
       if (t.kind === "site") {
         c.beginPath();
         c.arc(x, y, 5, 0, Math.PI * 2);
-        c.fillStyle = t.done ? DONE_COLOR : "#f3b562";
+        c.fillStyle = t.locked ? LOCK_COLOR : t.done ? DONE_COLOR : TIER_COLOR[t.tier] || "#f3b562";
         c.fill();
         c.lineWidth = 2;
         c.strokeStyle = "#1b1530";
@@ -1092,9 +1225,107 @@ export async function createWorld(opts) {
         onNear(null);
       }
     },
-    setLook(phase, weather) {
+    // `storm`: a solar storm the crew knows about today (an aurora at night)
+    setLook(phase, weather, storm = false) {
       st.phase = phase;
       st.weather = weather;
+      st.storm = !!storm;
+    },
+    // The crater's regions: [{ x, z, rx, rz, label }] in terrain cells.
+    setZones(list) { zones = list || []; },
+    // The big map (opened from the minimap): the whole crater with its regions
+    // and every place on it. Returns where each place was drawn (canvas
+    // pixels) so the page can tell which one was clicked.
+    drawOverview(cv) {
+      const c = cv.getContext("2d");
+      const size = cv.width, k = size / n;
+      c.imageSmoothingEnabled = true;
+      c.drawImage(overview, 0, 0, size, size);
+      // the sharper pictures where they have loaded
+      for (const l of layers) {
+        const kk = (l.cellsPerChunk * k) / M.chunk;
+        for (const ch of l.chunks) if (ch.img) c.drawImage(ch.img, ch.col * l.cellsPerChunk * k, ch.row * l.cellsPerChunk * k, ch.img.width * kk + 1, ch.img.height * kk + 1);
+      }
+      c.fillStyle = "rgba(25,12,6,0.22)";
+      c.fillRect(0, 0, size, size);
+      c.textAlign = "center";
+      c.textBaseline = "middle";
+      for (const zn of zones) {
+        c.beginPath();
+        c.ellipse(zn.x * k, zn.z * k, zn.rx * k, zn.rz * k, 0, 0, Math.PI * 2);
+        c.fillStyle = "rgba(255,230,190,0.07)";
+        c.fill();
+        c.setLineDash([8, 6]);
+        c.lineWidth = 2;
+        c.strokeStyle = "rgba(255,230,190,0.65)";
+        c.stroke();
+        c.setLineDash([]);
+      }
+      const marks = [];
+      const R = size / 46;
+      for (const t of targets) {
+        if (t.kind !== "site" && t.kind !== "habitat" && t.kind !== "landmark") continue;
+        const x = (t.mx ?? t.x) * k, y = (t.mz ?? t.z) * k;
+        const color = t.kind === "habitat" ? "#ffffff" : t.kind === "landmark" ? "#4fd1c5"
+          : t.locked ? LOCK_COLOR : t.done ? DONE_COLOR : TIER_COLOR[t.tier] || TIER_COLOR[1];
+        if (focus.has(t.id)) {
+          c.beginPath();
+          c.arc(x, y, R * 1.55, 0, Math.PI * 2);
+          c.lineWidth = 4;
+          c.strokeStyle = GOAL_COLOR;
+          c.stroke();
+        }
+        c.beginPath();
+        c.arc(x, y, R, 0, Math.PI * 2);
+        c.fillStyle = "rgba(27,21,48,0.92)";
+        c.fill();
+        c.lineWidth = 3.5;
+        c.strokeStyle = color;
+        c.stroke();
+        c.font = `${Math.round(R * 1.15)}px ${FONT}`;
+        c.fillStyle = "#fff";
+        c.fillText(t.kind === "site" && t.locked ? t.lockIcon || "🔒" : t.icon || "📍", x, y + 1);
+        const text = plainLabel(t);
+        c.font = `800 ${Math.round(size / 62)}px ${FONT}`;
+        const tw = c.measureText(text).width;
+        c.fillStyle = "rgba(27,21,48,0.85)";
+        c.beginPath();
+        c.roundRect(x - tw / 2 - 6, y + R + 3, tw + 12, size / 62 + 8, 8);
+        c.fill();
+        c.fillStyle = t.locked ? "#cfc6bd" : "#fbf4ea";
+        c.fillText(text, x, y + R + 3 + (size / 62 + 8) / 2);
+        marks.push({ id: t.id, x, y, r: R * 1.6 });
+      }
+      // region names last, so no marker hides them; a few sit beside their
+      // region instead of above it, where the markers are crowded
+      c.font = `800 ${Math.round(size / 38)}px ${FONT}`;
+      c.lineWidth = 5;
+      c.strokeStyle = "rgba(30,14,6,0.85)";
+      c.fillStyle = "#fff0dc";
+      for (const zn of zones) {
+        const side = OVERVIEW_LABEL[zn.id] || "above";
+        let lx = zn.x * k, ly = (zn.z - zn.rz) * k - size / 70;
+        c.textAlign = "center";
+        if (side === "below") ly = (zn.z + zn.rz) * k + size / 60;
+        if (side === "right") { lx = (zn.x + zn.rx) * k + size / 90; ly = zn.z * k; c.textAlign = "left"; }
+        c.strokeText(zn.label, lx, ly);
+        c.fillText(zn.label, lx, ly);
+      }
+      c.textAlign = "center";
+      // the astronaut
+      c.save();
+      c.translate(st.x * k, st.z * k);
+      c.rotate(-st.heading);
+      c.beginPath();
+      c.moveTo(0, 14); c.lineTo(9, -9); c.lineTo(0, -4); c.lineTo(-9, -9);
+      c.closePath();
+      c.fillStyle = "#ff5d73";
+      c.strokeStyle = "#fff";
+      c.lineWidth = 2.5;
+      c.fill();
+      c.stroke();
+      c.restore();
+      return marks;
     },
     setEnabled(v) {
       st.enabled = v;

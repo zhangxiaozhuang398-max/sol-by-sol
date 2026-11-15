@@ -141,6 +141,23 @@
   </section>
 
   <!-- Fact / help dialog -->
+  <!-- "Are you sure?" inside the game: some browsers (and embedded views) block window.confirm -->
+  <dialog id="ask" class="sheet small ask">
+    <p id="ask-text"></p>
+    <div class="ask-btns">
+      <button class="btn" id="ask-no" type="button" data-i18n="ask.no"></button>
+      <button class="btn primary" id="ask-yes" type="button" data-i18n="ask.yes"></button>
+    </div>
+  </dialog>
+
+  <!-- The big map: the whole crater, its regions and every place (click the minimap) -->
+  <dialog id="bigmap" class="sheet bigmap">
+    <div class="gpanel-head"><h3 data-i18n="bigmap.title"></h3><button class="gpanel-x" type="button" data-close data-i18n-aria="dock.close">✕</button></div>
+    <canvas id="bigmap-canvas" width="960" height="960" data-i18n-aria="world.mapAria"></canvas>
+    <div id="bigmap-info" class="bigmap-info"></div>
+    <p class="bigmap-legend" data-i18n="bigmap.legend"></p>
+  </dialog>
+
   <dialog id="info" class="sheet small">
     <div id="info-body" class="fact-card"></div>
     <button class="btn primary" data-close data-i18n="info.gotIt"></button>

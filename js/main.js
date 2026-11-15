@@ -1,6 +1,6 @@
 import * as E from "./game.js";
 import { CONFIG as C } from "./config.js";
-import { SITES, BASE, RINGS, WORLD_BASE, siteById } from "./sites.js";
+import { SITES, BASE, RINGS, WORLD_BASE, PART_STATION, ZONES, siteKm, siteById } from "./sites.js";
 import { createWorld } from "./world2d.js";
 import { FACTS, SITE_STORIES, TECH_INFO } from "./facts.js";
 import { buildReport } from "./report.js";
@@ -100,7 +100,10 @@ function openInfo(html, wide = false) {
 // The card shown after collecting at a survey site: what went into the sample
 // tube, what it tells us, why it matters for future explorers, and the real
 // missions behind it. `fresh` is the first visit; later it reads as field notes.
-const SAMPLE_COLOR = { dune: "#c9774f", crater: "#a58a76", cliff: "#d8b294", riverbed: "#8a6c5a", canyon: "#7a5240", delta: "#e0b898" };
+const SAMPLE_COLOR = {
+  dune: "#c9774f", crater: "#a58a76", cliff: "#d8b294", riverbed: "#8a6c5a", canyon: "#7a5240", delta: "#e0b898",
+  meteorite: "#6b6560", lava: "#5f4d43", northfan: "#f0cfa8", outlet: "#9c5b3a", eastcrater: "#8f5034",
+};
 function storyHtml(id, fresh) {
   const st = siteById(id), story = SITE_STORIES[id];
   if (!st || !story) return "";
@@ -411,38 +414,94 @@ function realStormLine(storm) {
   return t("brief.space.real", { date: esc(storm.event.date), speed: num(storm.event.speedKmS) });
 }
 
+// The Earth report that arrived this morning: everything the base cannot see
+// for itself. Each part says plainly when there is nothing to report.
+function mailHtml(m) {
+  const fc = m.forecast.length
+    ? m.forecast.map((n) => `<span class="mail-day">${n} ${wIcon(E.weatherKey(s, n))} ${esc(wName(E.weatherKey(s, n)))}</span>`).join("")
+    : `<span class="mail-day">${esc(t("mail.none"))}</span>`;
+  const sun = m.storms.length
+    ? m.storms.map((n) => { const x = E.solarStormOn(s, n); return `<b class="bad">${tr("mail.sun.storm", { sol: n, sstrength: x.strength })}</b>`; }).join(" ")
+    : esc(t("mail.sun.clear", { from: s.sol, to: m.sunUntil }));
+  const parts = m.faults.length
+    ? m.faults.map((f) => `<b class="bad">${esc(t(f.broken ? "mail.part.broken" : "mail.part.wearing", { part: t(`part.${f.kind}`), sol: f.fail }))}</b>`).join(" ")
+    : esc(t("mail.part.ok"));
+  const req = m.request
+    ? `<div class="mail-row req"><span>🎯</span><div><b>${esc(t("mail.req.title"))}</b> ${esc(tr("mail.req", { site: m.request.site, until: m.request.until, n: m.request.bonus }))}</div></div>`
+    : "";
+  return `<div class="mail">
+    <h4>${t("mail.title", { sent: m.sent })}</h4>
+    <div class="mail-row"><span>🛰️</span><div><b>${esc(t("mail.wx"))}</b><div class="mail-days">${fc}</div></div></div>
+    <div class="mail-row"><span>☀️</span><div><b>${esc(t("mail.sun"))}</b> ${sun}</div></div>
+    <div class="mail-row"><span>🔧</span><div><b>${esc(t("mail.parts"))}</b> ${parts}</div></div>
+    ${req}
+    <div class="mail-sci">${t("mail.sci", { sci: m.science })}</div>
+  </div>`;
+}
+
+// Space weather, as far as the crew knows: a known storm, Earth's all-clear,
+// or nothing at all (with the base's own unreliable hint, if there is one).
+function spaceCardHtml(hunch) {
+  const today = E.knownStormOn(s, s.sol);
+  const upcoming = E.activeWarnings(s).filter((x) => x.sol > s.sol);
+  const label = `<div class="label">${esc(t("brief.space"))}</div>`;
+  if (today) {
+    const ss = E.stormStrength(today);
+    return `<div class="brief-card danger">${label}<div class="big">☢️</div><div class="name">${esc(t("brief.space.today"))}</div>
+      <div class="detail">${tr("brief.space.today.detail", { sstrength: today.strength, evaDose: ss.evaDose, shielded: ss.shielded, unshielded: ss.unshielded })}<br>${realStormLine(today)}</div></div>`;
+  }
+  if (upcoming.length) {
+    const u = upcoming[0];
+    return `<div class="brief-card warn">${label}<div class="big">⚠️</div><div class="name">${esc(t("brief.space.warn"))}</div>
+      <div class="detail">${tr("brief.space.warn.detail", { sol: u.sol, sstrength: u.strength })}<br>${realStormLine(u)}</div></div>`;
+  }
+  if (E.spaceStatus(s, s.sol) === "clear") {
+    return `<div class="brief-card">${label}<div class="big">🌞</div><div class="name">${esc(t("brief.space.calm"))}</div>
+      <div class="detail">${esc(t("brief.space.clearUntil", { n: s.sunUntil }))}</div></div>`;
+  }
+  return `<div class="brief-card unknown${hunch.static ? " warn" : ""}">${label}<div class="big">${hunch.static ? "📻" : "❔"}</div>
+    <div class="name">${esc(t("brief.space.unknown"))}</div>
+    <div class="detail">${esc(t(hunch.static ? "brief.space.static" : "brief.space.unknown.detail"))}</div></div>`;
+}
+
+// Which stage of the mission we are in, and its three goals.
+function stageHtml(compact = false) {
+  const st = E.stageOf(s);
+  const goals = st.goals.map((id) => {
+    const done = E.goalDone(s, id), pr = E.goalProgress(s, id);
+    return `<li class="${done ? "done" : ""}"><span class="tk" aria-hidden="true">${done ? "✓" : "○"}</span>
+      <span>${esc(t(`goal.${id}`, { n: C.goals.stormBattery }))}</span>${pr && !done ? `<span class="p">${pr[0]}/${pr[1]}</span>` : done ? `<span class="p">+${C.goals.reward} 🔬</span>` : ""}</li>`;
+  }).join("");
+  const fresh = s.sol === st.from && s.phase === "briefing" && st.id > 1;
+  return `<div class="stage-box s${st.id}${compact ? " compact" : ""}">
+    <div class="stage-top"><span class="stage-no">${esc(t("stage.no", { n: st.id, total: C.stages.length }))}</span>
+      <b>${esc(t(`stage.${st.id}.name`))}</b><span class="stage-sols">${esc(t("stage.sols", { a: st.from, b: st.to }))}</span></div>
+    ${compact ? "" : `<p class="stage-why">${esc(t(`stage.${st.id}.why`))}</p>`}
+    ${fresh ? `<p class="stage-new">🗺️ ${esc(t(`stage.${st.id}.opens`))}</p>` : ""}
+    <ul class="stage-goals">${goals}</ul></div>`;
+}
+
 function renderBriefing() {
   const key = E.weatherKey(s, s.sol);
   const inc = E.maxPowerFor(s, s.sol); // the panels have not been checked yet this morning
   const hasTomorrow = s.sol < N;
-  const tKey = hasTomorrow ? E.weatherKey(s, s.sol + 1) : null;
-  const stormToday = E.solarStormOn(s, s.sol);
-  const upcoming = E.activeWarnings(s).filter((x) => x.sol > s.sol);
-
-  let space;
-  if (stormToday) {
-    const ss = E.stormStrength(stormToday);
-    space = `<div class="brief-card danger"><div class="label">${esc(t("brief.space"))}</div><div class="big">☢️</div>
-      <div class="name">${esc(t("brief.space.today"))}</div>
-      <div class="detail">${tr("brief.space.today.detail", { sstrength: stormToday.strength, evaDose: ss.evaDose, shielded: ss.shielded, unshielded: ss.unshielded })}<br>${realStormLine(stormToday)}</div></div>`;
-  } else if (upcoming.length) {
-    const u = upcoming[0];
-    space = `<div class="brief-card warn"><div class="label">${esc(t("brief.space"))}</div><div class="big">⚠️</div>
-      <div class="name">${esc(t("brief.space.warn"))}</div>
-      <div class="detail">${tr("brief.space.warn.detail", { sol: u.sol, sstrength: u.strength })}<br>${realStormLine(u)}</div></div>`;
-  } else {
-    space = `<div class="brief-card"><div class="label">${esc(t("brief.space"))}</div><div class="big">🌞</div>
-      <div class="name">${esc(t("brief.space.calm"))}</div><div class="detail">${esc(t("brief.space.calm.detail"))}</div></div>`;
-  }
-
-  const mail = s.mail.map((m) => `<div class="mail">
-    <h4>${t("mail.title", { sent: m.sent })}</h4>
-    <div>${t("mail.body", { sci: m.science })}</div>
-    <div class="mail-days">${m.forecast.map((n) => `<span class="mail-day">${n} ${wIcon(E.weatherKey(s, n))} ${esc(wName(E.weatherKey(s, n)))}</span>`).join("") || `<span class="mail-day">${esc(t("mail.none"))}</span>`}</div>
-  </div>`).join("");
+  const tKnown = hasTomorrow && E.isKnown(s, s.sol + 1);
+  const tKey = tKnown ? E.weatherKey(s, s.sol + 1) : null;
+  const hunch = E.hunches(s);
+  const space = spaceCardHtml(hunch);
+  const tomorrowCard = !hasTomorrow
+    ? `<div class="big">🏁</div><div class="name">${esc(t("brief.lastDay"))}</div><div class="detail">${esc(t("brief.lastDay.detail"))}</div>`
+    : tKnown
+      ? `<div class="big">${wIcon(tKey)}</div><div class="name">${esc(wName(tKey))}</div><div class="detail">${t("brief.tomorrow.income2", { n: E.maxPowerFor(s, s.sol + 1) })}</div>`
+      : `<div class="big">❔</div><div class="name">${esc(t("brief.tomorrow.unknown"))}</div><div class="detail">${esc(t("brief.tomorrow.unknown.detail"))}</div>`;
+  const mail = s.mail.map(mailHtml).join("");
 
   const alerts = [];
   const add = (level, k, p = {}) => alerts.push({ level, key: k, params: p });
+  for (const kind of s.today.broke || []) add("danger", `brief.broke.${kind}`, { ap: C.faults.brokenAp });
+  for (const f of E.knownFaults(s)) if (!f.broken) add("warn", "brief.fault", { part: t(`part.${f.kind}`), sol: f.fail, ap: C.faults.repairAp });
+  if (hunch.odd) add("info", "brief.odd");
+  if (s.request) add("info", "brief.request", { site: s.request.site, until: s.request.until, n: s.request.bonus });
   if (s.sol === C.weatherGen.seasonStartSol) add("warn", "brief.alert.season");
   if (key === "dust") add("danger", "brief.alert.dust", { income: inc });
   if (tKey === "dust" && key !== "dust") add("warn", "brief.alert.tomorrowDust");
@@ -450,18 +509,21 @@ function renderBriefing() {
   const short = nightsLeft() - s.food;
   if (short > 0 && short >= nightsLeft() - 2) add("warn", "brief.alert.food", { food: s.food, nights: nightsLeft() });
   if (s.dose >= 70) add("warn", "brief.alert.dose", { dose: s.dose });
+  if (key === "hazy") add("info", "brief.alert.haze", { n: E.maxPowerFor(s, s.sol) });
+  const ready = E.buildable(s);
+  if (ready.length === 1) add("info", "brief.blueprint", { tech: ready[0].id, ap: ready[0].ap, power: ready[0].power });
+  else if (ready.length > 1) add("info", "brief.blueprints", { n: ready.length, list: ready.map((k) => t(`techname.${k.id}`)).join(t("fmt.sep")) });
   // technologies unlocked overnight by research Earth sent back with its reply
   const lastSci = s.history.length ? s.history[s.history.length - 1].science : 0;
   const newTech = E.techsBetween(lastSci, s.science);
 
   stage.innerHTML = `
     <div class="stage-head"><h2>${esc(t("brief.title"))}</h2><span class="sub">${esc(t("brief.sub"))}</span></div>
+    ${stageHtml(s.sol !== E.stageOf(s).from)}
     <div class="brief-grid">
       <div class="brief-card${key === "dust" ? " danger" : ""}"><div class="label">${esc(t("brief.today"))}</div><div class="big">${wIcon(key)}</div>
         <div class="name">${esc(wName(key))}</div><div class="detail">${t("brief.income2", { n: E.maxPowerFor(s, s.sol) })}</div></div>
-      <div class="brief-card${tKey === "dust" ? " warn" : ""}"><div class="label">${esc(t("brief.tomorrow"))}</div>
-        ${hasTomorrow ? `<div class="big">${wIcon(tKey)}</div><div class="name">${esc(wName(tKey))}</div><div class="detail">${t("brief.tomorrow.income2", { n: E.maxPowerFor(s, s.sol + 1) })}</div>`
-          : `<div class="big">🏁</div><div class="name">${esc(t("brief.lastDay"))}</div><div class="detail">${esc(t("brief.lastDay.detail"))}</div>`}</div>
+      <div class="brief-card${tKey === "dust" ? " warn" : !tKnown && hasTomorrow ? " unknown" : ""}"><div class="label">${esc(t("brief.tomorrow"))}</div>${tomorrowCard}</div>
       ${space}
     </div>
     ${mail}
@@ -549,7 +611,9 @@ function renderDayClassic() {
           ${actionButton("do-inspect", "🔍", "act.inspect.name", t("act.inspect.desc"), E.checkInspect(s))}
           ${actionButton("do-clean", "🧽", "act.clean.name", s.today.inspected ? t("act.clean.desc", { panel: s.panel, gain: clean.gain || 0 }) : t("act.clean.descUnknown"), clean)}
           ${actionButton("do-tend", "🌱", "act.tend.name", t("act.tend.desc", { sci: C.greenhouse.tendScience, food: C.greenhouse.tendFood }), E.checkTend(s))}
-          ${actionButton("do-call", "📡", "act.call.name", t("act.call.desc", { min: s.lightMinutes, days: C.call.forecastDays, sci: C.call.science }), E.checkCall(s))}
+          ${actionButton("do-call", "📡", "act.call.name", t("act.call.desc", { min: s.lightMinutes, days: C.call.weatherDays, sci: C.call.science }), E.checkCall(s))}
+          ${E.knownFaults(s).map((f) => actionButton(`do-repair-${f.kind}`, "🔧", `part.${f.kind}`, t("world.repair.go", { n: f.broken ? C.faults.brokenAp : C.faults.repairAp }), E.checkRepair(s, f.kind))).join("")}
+          ${E.buildable(s).map((k) => actionButton(`do-build-${k.id}`, TECH_INFO[k.id].icon, `techname.${k.id}`, t("tech.cost", { ap: k.ap, power: k.power }), E.checkBuild(s, k.id))).join("")}
         </div>
         <div class="log"><h4>${esc(t("day.log"))}</h4>
           <ul>${s.today.log.length ? s.today.log.map((l) => `<li>${tr(l.key, l.params)}</li>`).join("") : `<li>${esc(t("day.logEmpty"))}</li>`}</ul>
@@ -579,12 +643,9 @@ function renderDayClassic() {
   $("#do-clean").onclick = () => { E.doClean(s); render(); };
   $("#do-tend").onclick = () => { E.doTend(s); render(); };
   $("#do-call").onclick = () => { E.doCall(s); render(); };
-  $("#go-night").onclick = () => {
-    if (s.ap > 0 && !window.confirm(t("day.confirm", { n: s.ap }))) return;
-    E.endDay(s);
-    ui.alloc = null;
-    render();
-  };
+  for (const f of E.knownFaults(s)) $(`#do-repair-${f.kind}`).onclick = () => { E.doRepair(s, f.kind); render(); };
+  for (const k of E.buildable(s)) $(`#do-build-${k.id}`).onclick = () => buildTech(k.id);
+  $("#go-night").onclick = () => endDayNow();
 }
 
 // ---------- phase 2, walking: the real Mars surface (world2d.js) ----------
@@ -611,12 +672,23 @@ async function ensureWorld() {
 
 function worldTargets() {
   const doneToday = { panels: s.today.cleaned, greenhouse: s.today.tended, antenna: s.today.called };
-  const list = SITES.map((x) => ({
-    id: x.id, kind: "site", x: x.wx, z: x.wz, r: 2.2, tier: x.tier, icon: x.icon, done: s.visits[x.id] > 0,
-    label: `${x.icon} ${t(`site.${x.id}.name`)}${s.visits[x.id] ? " ✓" : ""}`,
-  }));
+  const list = SITES.map((x) => {
+    const missing = E.missingGear(s, x.id);
+    const locked = missing.length > 0;
+    const asked = s.request && s.request.site === x.id;
+    const gear = missing.map((k) => TECH_INFO[k].icon).join("");
+    return {
+      id: x.id, kind: "site", x: x.wx, z: x.wz, r: 2.2, tier: x.tier, icon: x.icon, done: s.visits[x.id] > 0, locked, asked,
+      lockIcon: locked ? TECH_INFO[missing[0]].icon : null, zone: x.zone,
+      label: `${locked ? `🔒${gear}` : asked ? "🎯" : x.icon} ${t(`site.${x.id}.name`)}${s.visits[x.id] ? " ✓" : ""}`,
+    };
+  });
+  // a station with a part that needs fixing gets a warning sign
+  const hurt = {};
+  for (const f of E.knownFaults(s)) hurt[PART_STATION[f.kind]] = f.broken ? "broken" : "wearing";
   for (const st of WORLD_BASE.stations) {
-    list.push({ ...st, done: !!doneToday[st.id], label: `${st.icon} ${t(`world.station.${st.id}`)}${doneToday[st.id] ? " ✓" : ""}` });
+    const mark = hurt[st.id] === "broken" ? " 💥" : hurt[st.id] ? " ⚠️" : doneToday[st.id] ? " ✓" : "";
+    list.push({ ...st, done: !!doneToday[st.id] && !hurt[st.id], hurt: hurt[st.id] || null, label: `${st.icon} ${t(`world.station.${st.id}`)}${mark}` });
   }
   const lm = WORLD_BASE.landmark;
   list.push({ ...lm, label: `${lm.icon} ${t("world.station.perseverance")}` });
@@ -635,8 +707,9 @@ function syncWorld() {
   $("#screen-game").classList.toggle("playing", play);
   world.setTargets(worldTargets());
   world.setFocus(play ? focusTargets() : []);
-  world.setLook(s.phase, E.weatherKey(s, s.sol));
-  el.classList.toggle("storm-alert", play && !!E.solarStormOn(s, s.sol)); // red, pulsing edges on a solar-storm day
+  world.setLook(s.phase, E.weatherKey(s, s.sol), !!E.knownStormOn(s, s.sol));
+  world.setZones(ZONES.map((z) => ({ ...z, label: t(`zone.${z.id}`) })));
+  el.classList.toggle("storm-alert", play && !!E.knownStormOn(s, s.sol)); // red, pulsing edges on a known solar-storm day
   audio.setWind(E.weatherKey(s, s.sol), s.phase);
   if (play && ui.worldDay !== s.sol) {
     world.respawn();
@@ -648,10 +721,12 @@ function syncWorld() {
     const pips = Array.from({ length: C.actionPoints }, (_, i) => `<span class="pip${i < s.ap ? "" : " used"}"></span>`).join("");
     $("#world-ap").innerHTML = `${esc(t("day.ap"))} ${pips}`;
     const key = E.weatherKey(s, s.sol);
-    const storm = E.solarStormOn(s, s.sol);
+    const storm = E.knownStormOn(s, s.sol);
+    const sun = E.spaceStatus(s, s.sol);
     const chip = $("#world-weather");
     chip.classList.toggle("alert", !!storm);
-    chip.textContent = storm ? t("world.stormAlert") : `${wIcon(key)} ${wName(key)}`;
+    const fx = key === "sunny" ? "" : ` (${t(`world.wx.${key}`)})`; // what the weather does to the panels
+    chip.textContent = storm ? t("world.stormAlert") : `${wIcon(key)} ${wName(key)}${fx} · ${t(sun === "clear" ? "world.sunClear" : "world.sunUnknown")}`;
   }
   updatePrompt();
 }
@@ -683,16 +758,37 @@ function updatePrompt() {
   }
   const lock = (chk) => (chk.ok ? "" : `<span class="lock">🚫 ${tr(chk.reason.key, chk.reason.params)}</span>`);
   const st = siteById(id);
+  const fault = E.knownFaults(s).find((f) => PART_STATION[f.kind] === id);
   let html = "";
-  if (st) {
+  if (fault) { // a part here needs fixing: that comes first (E), the station's usual job is the second button
+    const chk = E.checkRepair(s, fault.kind);
+    const other = { panels: s.today.inspected ? "world.panels.go" : "world.panels.inspect", greenhouse: "world.greenhouse.go", antenna: "world.antenna.go", habitat: "world.habitat.go" }[id];
+    html = `<h4>🔧 ${esc(t(`part.${fault.kind}`))} <span class="chip bad">${esc(t(fault.broken ? "fault.broken" : "fault.wearing", { sol: fault.fail }))}</span></h4>
+      <p>${esc(t(fault.broken ? `fault.${fault.kind}.broken` : `fault.${fault.kind}.wearing`))}</p>
+      <div class="site-go">${promptButton(t("world.repair.go", { n: chk.ap }), chk.ok)}${lock(chk)}
+        ${other && !(id === "antenna" && fault.broken) ? `<button class="btn small" id="alt-btn" type="button">${esc(t(other))}</button>` : ""}</div>`;
+  } else if (st) {
     const chk = E.checkEva(s, id);
     const c = chk.cost;
-    html = `<h4>${st.icon} ${esc(t(`site.${id}.name`))} <span class="chip">${esc(t(`tier.${st.tier}`))} · ${esc(t("day.apCost", { n: c.ap }))}</span></h4>
+    const missing = E.missingGear(s, id);
+    const locked = missing.length > 0;
+    const asked = s.request && s.request.site === id;
+    // why this place is hard to reach: the tools its terrain needs, and how far it is
+    const gearNote = missing.map((k) => {
+      const x = E.techById(k);
+      const state = E.blueprintReady(s, k) ? t("gear.state.ready", { ap: x.ap, power: x.power }) : t("gear.state.research", { n: x.at - s.science });
+      return `<p class="locked-note">${TECH_INFO[k].icon} <b>${esc(t("gear.needs", { tech: t(`techname.${k}`) }))}</b> ${esc(t(`gear.why.${k}`))}<br><small>${esc(state)}</small></p>`;
+    }).join("");
+    html = `<h4>${st.icon} ${esc(t(`site.${id}.name`))} <span class="chip">${esc(t(`tier.${st.tier}`))} · ${esc(t("day.apCost", { n: c.ap }))}</span>
+        ${asked ? `<span class="chip good">🎯 ${esc(t("world.site.asked", { n: s.request.bonus }))}</span>` : ""}</h4>
+      <p class="site-where">📍 ${esc(t(`zone.${st.zone}`))} · ${esc(t("site.km", { n: siteKm(st) }))} · ${esc(t(`trip.why.${st.tier}`))}</p>
       <p>${esc(t(`site.${id}.desc`))}</p>
+      ${locked ? gearNote : `
+      ${st.tier >= 4 ? `<p class="expedition-note">🚙 ${esc(t("world.site.expedition"))}</p>` : ""}
       <div class="chips"><span class="chip">⚡ −${c.power}</span><span class="chip">🫁 −${c.oxygen}</span>
-        <span class="chip${c.storm ? " bad" : ""}">☢️ +${c.dose}</span><span class="chip">🔬 +${c.science}</span></div>
-      ${alertHtml(chk.warnings)}
-      <div class="site-go">${promptButton(t("world.site.go"), chk.ok)}${lock(chk)}
+        <span class="chip${c.storm ? " bad" : ""}">☢️ +${c.dose}${!c.storm && E.spaceStatus(s, s.sol) === "unknown" ? "?" : ""}</span><span class="chip">🔬 +${c.science + c.bonus}</span></div>
+      ${alertHtml(chk.warnings)}`}
+      <div class="site-go">${locked ? "" : promptButton(t("world.site.go"), chk.ok)}${locked ? "" : lock(chk)}
         ${s.visits[id] > 0 ? `<button class="btn small" id="notes-btn" type="button">${esc(t("story.notesBtn"))}</button>` : ""}</div>`;
   } else if (id === "panels") {
     if (!s.today.inspected) { // first the free daily check: until then nobody knows how dusty they are
@@ -711,9 +807,7 @@ function updatePrompt() {
     html = `<h4>🌱 ${esc(t("act.tend.name"))}</h4><p>${t("act.tend.desc", { sci: C.greenhouse.tendScience, food: C.greenhouse.tendFood })}</p>
       <div class="site-go">${promptButton(t("world.greenhouse.go"), chk.ok)}${lock(chk)}</div>`;
   } else if (id === "antenna") {
-    const chk = E.checkCall(s);
-    html = `<h4>📡 ${esc(t("act.call.name"))}</h4><p>${t("act.call.desc", { min: s.lightMinutes, days: C.call.forecastDays, sci: C.call.science })}</p>
-      <div class="site-go">${promptButton(t("world.antenna.go"), chk.ok)}${lock(chk)}</div>`;
+    html = callCardHtml(lock);
   } else if (id === "habitat") {
     html = `<h4>${esc(t("world.habitat.title"))}</h4><p>${esc(t("world.habitat.desc", { n: sunsetPower() }))}</p>
       ${s.ap > 0 ? alertHtml([{ level: "warn", key: "world.habitat.apLeft", params: { n: s.ap } }]) : ""}
@@ -725,8 +819,29 @@ function updatePrompt() {
   el.innerHTML = html;
   const btn = $("#use-btn");
   if (btn) btn.onclick = () => usePrompt();
+  const alt = $("#alt-btn");
+  if (alt) alt.onclick = () => usePrompt(true);
   const notes = $("#notes-btn");
   if (notes) notes.onclick = () => openInfo(storyHtml(id, false), true);
+}
+
+// Calling Earth: what tomorrow's report will cover, laid out next to what the
+// crew already knows, so the player can judge whether it is worth an action point.
+function callCardHtml(lock) {
+  const chk = E.checkCall(s);
+  const A = s.sol + 1;
+  const wxTo = Math.min(N, A + C.call.weatherDays), sunTo = Math.min(N, A + C.call.sunDays);
+  const knownWx = E.weatherKnownUntil(s);
+  const row = (icon, key, p, now) => `<li><span>${icon}</span><div>${esc(t(key, p))}<small>${esc(now)}</small></div></li>`;
+  return `<h4>📡 ${esc(t("act.call.name"))} <span class="chip">${esc(t("day.apCost", { n: C.call.ap }))}</span></h4>
+    <p>${esc(t("call.intro", { min: s.lightMinutes }))}</p>
+    <ul class="call-list">
+      ${row("🛰️", "call.wx", { a: A + 1 > N ? N : A + 1, b: wxTo }, t("call.now.wx", { n: knownWx }))}
+      ${row("☀️", "call.sun", { a: A, b: sunTo }, s.sunUntil >= s.sol ? t("call.now.sun", { n: s.sunUntil }) : t("call.now.sunNone"))}
+      ${row("🔧", "call.parts", {}, s.lastTelemetry ? t("call.now.parts", { n: s.lastTelemetry }) : t("call.now.partsNone"))}
+    </ul>
+    <p class="call-note">${esc(t("call.note"))}</p>
+    <div class="site-go">${promptButton(t("world.antenna.go"), chk.ok)}${lock(chk)}</div>`;
 }
 
 function toast(text) {
@@ -737,12 +852,33 @@ function toast(text) {
   el.classList.add("show");
 }
 
-function endDayNow() {
+// An in-game "Are you sure?" box. window.confirm is not used because some
+// browsers and embedded views block it (it then silently answers "no", and the
+// day could never end). Resolves true or false.
+function askYesNo(text) {
+  const dlg = $("#ask");
+  $("#ask-text").textContent = text;
+  return new Promise((resolve) => {
+    const done = (v) => {
+      dlg.removeEventListener("close", onClose);
+      if (dlg.open) dlg.close();
+      resolve(v);
+    };
+    const onClose = () => done(false); // Esc
+    dlg.addEventListener("close", onClose);
+    $("#ask-yes").onclick = () => done(true);
+    $("#ask-no").onclick = () => done(false);
+    dlg.showModal();
+    $("#ask-yes").focus();
+  });
+}
+
+async function endDayNow() {
   if (s.ap > 0) {
     if (world) world.setEnabled(false);
-    const yes = window.confirm(t("day.confirm", { n: s.ap }));
+    const yes = await askYesNo(t("day.confirm", { n: s.ap }));
     if (world) world.setEnabled(true);
-    if (!yes) return;
+    if (!yes || s.phase !== "day") return;
   }
   E.endDay(s);
   ui.alloc = null;
@@ -753,17 +889,22 @@ function endDayNow() {
 // plays a short animation on the map (drilling, brushing, watering, calling
 // Earth); its result is applied when the animation ends.
 let working = false;
-const JOB_MS = { sample: 1900, inspect: 1200, clean: 1500, tend: 1600, call: 1700 };
+const JOB_MS = { sample: 1900, inspect: 1200, clean: 1500, tend: 1600, call: 1700, repair: 1600 };
 const STATION_JOB = { greenhouse: "tend", antenna: "call" };
-const JOB_CHECK = { sample: (id) => E.checkEva(s, id), inspect: () => E.checkInspect(s), clean: () => E.checkClean(s), tend: () => E.checkTend(s), call: () => E.checkCall(s) };
+const JOB_CHECK = {
+  sample: (id) => E.checkEva(s, id), inspect: () => E.checkInspect(s), clean: () => E.checkClean(s),
+  tend: () => E.checkTend(s), call: () => E.checkCall(s), repair: (id, part) => E.checkRepair(s, part),
+};
 
-async function usePrompt() {
+// `skipRepair`: the second button on a station that needs fixing (do the usual job instead).
+async function usePrompt(skipRepair = false) {
   if (working || !world || !s || s.phase !== "day" || ui.classic) return;
   const id = world.near;
   if (!id) return;
-  const job = siteById(id) ? "sample" : id === "panels" ? (s.today.inspected ? "clean" : "inspect") : STATION_JOB[id];
+  const fault = skipRepair ? null : E.knownFaults(s).find((f) => PART_STATION[f.kind] === id);
+  const job = fault ? "repair" : siteById(id) ? "sample" : id === "panels" ? (s.today.inspected ? "clean" : "inspect") : STATION_JOB[id];
   if (job) {
-    const chk = JOB_CHECK[job](id);
+    const chk = JOB_CHECK[job](id, fault && fault.kind);
     if (!chk.ok) return; // nothing to animate: the card already says why
     const mission = s;
     working = true;
@@ -781,11 +922,20 @@ async function usePrompt() {
       return;
     }
   }
-  if (siteById(id)) {
+  if (job === "repair") {
+    const r = E.doRepair(s, fault.kind);
+    if (!r.ok) return;
+    toast(t("world.toast.repair", { part: t(`part.${fault.kind}`) }));
+  } else if (siteById(id)) {
     const r = E.doEva(s, id);
     if (!r.ok) { updatePrompt(); return; }
     const rock = collectRock(id);
-    toast(`${rockLine(rock)}   +${r.cost.science} 🔬  −${r.cost.power} ⚡  −${r.cost.oxygen} 🫁  +${r.cost.dose} ☢️`);
+    if (r.surprise) { // a solar storm nobody warned about: the suit dosimeter goes off
+      alarmOnce();
+      toast(t("world.toast.surprise", { dose: r.cost.dose }));
+    } else {
+      toast(`${rockLine(rock)}   +${r.cost.science + r.cost.bonus} 🔬  −${r.cost.power} ⚡  −${r.cost.oxygen} 🫁  +${r.cost.dose} ☢️`);
+    }
     render();
     if (r.cost.visits === 0 && s.phase === "day") openInfo(storyHtml(id, true), true); // first sample from this site
     return;
@@ -801,7 +951,14 @@ async function usePrompt() {
     if (!E.doTend(s).ok) return;
     toast(t("world.toast.tend", { sci: C.greenhouse.tendScience }));
   } else if (id === "antenna") {
-    if (!E.doCall(s).ok) return;
+    const r = E.doCall(s);
+    if (r.blackout) { // a solar storm is blocking the radio: only static
+      alarmOnce();
+      toast(t("world.toast.blackout"));
+      render();
+      return;
+    }
+    if (!r.ok) return;
     toast(t("world.toast.call"));
   } else if (id === "habitat") {
     endDayNow();
@@ -875,9 +1032,9 @@ function renderNight() {
         <span class="cost" id="o2-cost"></span>
         <div class="ctrl"><input type="range" id="o2-range" min="0" max="${C.oxygenGen.maxPower}" step="${C.oxygenGen.step}" value="${ui.alloc.o2}" aria-label="${esc(t("night.o2.aria"))}"></div></div>
       <div class="arow"><span class="ic" aria-hidden="true">🌱</span>
-        <div><div class="t">${esc(t("night.gh.name"))}</div><div class="d">${t("night.gh.desc", { o2: C.greenhouse.o2, food: C.greenhouse.food + (tend ? C.greenhouse.tendFood : 0) })}${tend ? esc(t("night.gh.tended")) : ""}</div></div>
+        <div><div class="t">${esc(t("night.gh.name"))}</div><div class="d">${E.ghOk(s) ? `${t("night.gh.desc", { o2: C.greenhouse.o2, food: C.greenhouse.food + (tend ? C.greenhouse.tendFood : 0) })}${esc(t(tend ? "night.gh.tended" : "night.gh.untended"))}` : `<b class="bad">${esc(t("night.gh.broken"))}</b>`}</div></div>
         <span class="cost">${C.power.greenhouse} ⚡</span>
-        <div class="ctrl"><label class="switch"><input type="checkbox" id="gh-toggle" ${ui.alloc.gh ? "checked" : ""}><span class="track"></span><span class="state" id="gh-state"></span></label></div></div>
+        <div class="ctrl"><label class="switch"><input type="checkbox" id="gh-toggle" ${ui.alloc.gh && E.ghOk(s) ? "checked" : ""} ${E.ghOk(s) ? "" : "disabled"}><span class="track"></span><span class="state" id="gh-state"></span></label></div></div>
       <div class="arow${ss ? " highlight" : ""}"><span class="ic" aria-hidden="true">🛡️</span>
         <div><div class="t">${esc(t("night.sh.name"))}</div><div class="d">${ss ? t("night.sh.storm", { shielded: ss.shielded, unshielded: ss.unshielded }) : esc(t("night.sh.calm"))}</div></div>
         <span class="cost">${E.shieldCost(s)} ⚡</span>
@@ -935,7 +1092,9 @@ function updateNight() {
   $("#alloc-bar").innerHTML = segs.filter((x) => x[1] > 0).map(([cls, v, label]) =>
     `<div class="seg ${cls}" style="flex:0 0 calc(${(v / basis) * 100}% - 2px)" title="${esc(label)} ${v}">${v / basis > 0.09 ? `${esc(label)} ${v}` : v / basis > 0.04 ? v : ""}</div>`).join("");
 
-  const tomorrow = p.hasNext ? t("night.tomorrow", { icon: wIcon(E.weatherKey(s, p.nextSol)), weather: wName(E.weatherKey(s, p.nextSol)), income: p.nextIncome }) : t("night.lastNight");
+  const tomorrow = !p.hasNext ? t("night.lastNight")
+    : p.nextKnown ? t("night.tomorrow", { icon: wIcon(E.weatherKey(s, p.nextSol)), weather: wName(E.weatherKey(s, p.nextSol)), income: p.nextIncome })
+    : t("night.tomorrowUnknown");
   const cells = [
     ["⚡", "hud.battery", p.battery, p.overBudget ? t("proj.battery.over") : p.overflow ? t("proj.battery.dw", { cost: p.cost, waste: p.overflow }) : t("proj.battery.d", { cost: p.cost }), "var(--blue)"],
     ["🫁", "hud.oxygen", p.oxygen, t("proj.oxygen.d", { delta: sign(p.o2Made + p.ghO2 - C.oxygenUse.crewDaily), breath: C.oxygenUse.crewDaily }), "var(--teal)"],
@@ -979,8 +1138,14 @@ function renderSettle() {
   const newTech = E.techsBetween(m.science, s.science);
   const storm = E.solarStormOn(s, s.sol);
   const w = (k, n) => (n ? t(k, { n }) : "");
+  const EV_ICON = { wind: "💨", cold: "🥶", quake: "🫨", meteor: "🌠" };
+  // what happened in the night comes first: it changes tomorrow
+  const nightBox = s.tonightNotes.length ? `<div class="night-box${h.nightEvent ? ` ev-${h.nightEvent}` : ""}">
+      <span class="nb-icon" aria-hidden="true">${EV_ICON[h.nightEvent] || (storm ? "🌌" : h.dustDevil ? "🌀" : "🌙")}</span>
+      <div><h3>${esc(t("settle.night"))}</h3>${s.tonightNotes.map((n) => `<p>${tr(n.key, n.params)}</p>`).join("")}</div></div>` : "";
   stage.innerHTML = `
     <div class="stage-head"><h2>${esc(t("settle.title"))}</h2><span class="sub">${esc(t("settle.sub", { n: s.sol }))}</span></div>
+    ${nightBox}
     <div class="changes">
       ${change("⚡", "hud.battery", m.battery, s.battery, [w("why.income", h.income), w("why.eva", h.evaPower), w("why.night", E.nightCost(a, s)), w("why.overflow", h.overflow)], "var(--blue)")}
       ${change("🫁", "hud.oxygen", m.oxygen, s.oxygen, [w("why.breath", C.oxygenUse.crewDaily), w("why.suit", h.evaOxygen), w("why.o2made", o2Made), a.gh ? w("why.gh", C.greenhouse.o2) : ""], "var(--teal)")}
@@ -997,7 +1162,7 @@ function renderSettle() {
       <div><h3>${esc(t("research.title"))}</h3>${researchHtml()}</div>
     </div>
     ${newTech.map(techCardHtml).join("")}
-    ${s.tonightNotes.length ? `<div class="notes">${s.tonightNotes.map((n) => `<div class="note">${tr(n.key, n.params)}</div>`).join("")}</div>` : ""}
+    ${h.alarm ? alertHtml([{ level: "danger", key: h.evas.some((e) => e.storm) ? "settle.surprise" : "settle.alarm" }]) : ""}
     ${storm ? stormBoxHtml(storm) : ""}
     ${s.tonightCards.map((id) => `<div class="fact-card story">${factHtml(id, t("settle.story"), true)}</div>`).join("")}
     <div class="stage-foot">
@@ -1065,7 +1230,8 @@ function renderEnd() {
     ["stat.sols", `${st.sols} / ${N}`], ["stat.science", st.science], ["stat.evas", st.evas],
     ["stat.sites", `${st.sitesVisited} / ${SITES.length}`], ["stat.clean", st.cleanings], ["stat.calls", st.calls],
     ["stat.gh", st.ghNights], ["stat.dose", st.maxDose],
-    ["stat.tasks", s.tasksDone || 0], ["stat.tech", `${E.unlockedTechs(s).length} / ${C.tech.length}`],
+    ["stat.tasks", s.tasksDone || 0], ["stat.tech", `${E.builtCount(s)} / ${C.tech.length}`],
+    ["stat.goals", `${Object.keys(s.goals || {}).length} / ${C.stages.reduce((a, x) => a + x.goals.length, 0)}`], ["stat.repairs", s.repairs || 0], ["stat.requests", s.requestsDone || 0],
   ].map(([k, v]) => `<div class="stat"><div class="k">${esc(t(k))}</div><div class="v">${v}</div></div>`).join("");
 
   const faced = s.history.filter((h) => h.solarStorm);
@@ -1096,9 +1262,9 @@ function showEnd() {
 }
 
 // ---------- right-hand panels: mission + research, technology line, calendar ----------
-const TASK_ICON = { inspect: "🔍", sample: "🧪", anySample: "🧪", shelter: "🛡️", tend: "🌱", call: "📡" };
+const TASK_ICON = { inspect: "🔍", sample: "🧪", anySample: "🧪", shelter: "🛡️", tend: "🌱", call: "📡", repair: "🔧", build: "🛠️" };
 const TASK_PLACE = { inspect: "panels", tend: "greenhouse", call: "antenna" }; // where each order is done on the map
-const taskPlace = (k) => (k.kind === "sample" ? k.site : TASK_PLACE[k.kind] || null);
+const taskPlace = (k) => (k.kind === "sample" ? k.site : k.kind === "repair" ? PART_STATION[k.part] : TASK_PLACE[k.kind] || null);
 const starOf = (at) => (at === C.stars[2] ? "⭐⭐⭐" : at === C.stars[1] ? "⭐⭐" : "");
 
 // done / failed / todo. `final`: the day is over, so anything not done is missed.
@@ -1113,8 +1279,9 @@ function taskHtml(k, i, opts = {}) {
   const place = taskPlace(k);
   const go = opts.go && st === "todo" && place;
   const mark = st === "done" ? "✓" : st === "failed" ? "✕" : TASK_ICON[k.kind];
-  const name = k.kind === "shelter" ? t(`task.shelter.${k.why}`) : tr(`task.${k.kind}`, { site: k.site });
-  const sub = k.kind === "shelter" ? t(`task.shelter.${k.why}.d`) : t(`task.${k.kind}.d`, { n: C.call.forecastDays });
+  const part = k.part ? t(`part.${k.part}`) : "";
+  const name = k.kind === "shelter" ? t(`task.shelter.${k.why}`) : tr(`task.${k.kind}`, { site: k.site, part, tech: k.tech });
+  const sub = k.kind === "shelter" ? t(`task.shelter.${k.why}.d`) : t(`task.${k.kind}.d`, { part });
   const reward = k.reward ? `<span class="rw">+${k.reward} 🔬</span>` : `<span class="rw free">${esc(t("task.free"))}</span>`;
   return `<li class="task ${st}${go ? " go" : ""}${opts.fresh && opts.fresh.has(i) ? " just-done" : ""}"${go ? ` data-go="${place}" tabindex="0" role="button" title="${esc(t("tasks.guide"))}"` : ""}>
     <span class="tk" aria-hidden="true">${mark}</span><span class="tt">${esc(name)}<span class="td">${esc(sub)}</span></span>${reward}</li>`;
@@ -1142,45 +1309,74 @@ function goalHtml() {
   </div>`;
 }
 
-// Research points on a bar, with the five technologies as steps along it.
+// Research points on a bar, with each blueprint as a step along it and the
+// ⭐⭐ / ⭐⭐⭐ marks above. A built item gets a tick.
 function researchHtml(withLink = true) {
   const max = C.stars[2];
+  const pos = (n) => Math.min(100, (n / max) * 100);
   const steps = C.tech.map((k) => {
     const info = TECH_INFO[k.id];
-    const star = starOf(k.at);
-    return `<span class="step${s.science >= k.at ? " on" : ""}" style="left:${Math.min(100, (k.at / max) * 100)}%" title="${esc(pick(info.name))}">${info.icon}<b>${k.at}</b>${star ? `<i>${star}</i>` : ""}</span>`;
+    const cls = E.techOn(s, k.id) ? " on built" : s.science >= k.at ? " on" : "";
+    return `<span class="step${cls}" style="left:${pos(k.at)}%" title="${esc(pick(info.name))}">${info.icon}<b>${k.at}</b></span>`;
   }).join("");
+  const stars = [1, 2].map((i) => `<span class="star-mark" style="left:${pos(C.stars[i])}%">${"⭐".repeat(i + 1)}</span>`).join("");
   const nx = E.nextTech(s);
+  const ready = E.buildable(s);
   return `<div class="research-line"><span class="big">${s.science}</span><span>${esc(t("research.pts"))}</span></div>
-    <div class="research-bar" role="img" aria-label="${esc(t("research.aria", { n: s.science, max }))}"><div class="fill" style="width:${Math.min(100, (s.science / max) * 100)}%"></div>${steps}</div>
-    <div class="research-next">${nx ? t("research.next", { name: esc(pick(TECH_INFO[nx.id].name)), n: nx.at - s.science }) : esc(t("research.all"))}
+    <div class="research-bar" role="img" aria-label="${esc(t("research.aria", { n: s.science, max }))}"><div class="fill" style="width:${pos(s.science)}%"></div>${steps}${stars}</div>
+    ${ready.length ? `<div class="research-ready">🔧 ${t("research.ready", { names: ready.map((k) => `<b>${esc(t(`techname.${k.id}`))}</b>`).join(esc(t("fmt.sep"))) })}</div>` : ""}
+    <div class="research-next">${nx ? t("research.next", { name: esc(t(`techname.${nx.id}`)), n: nx.at - s.science }) : esc(t("research.all"))}
       ${withLink ? ` <button class="linkish" type="button" data-open-panel="tech">${esc(t("research.open"))}</button>` : ""}</div>`;
 }
+
+// Which survey sites a tool opens (for the tech panel and cards).
+const opensSites = (id) => SITES.filter((x) => (x.needs || []).includes(id));
 
 function techSource(info) {
   return `<p class="src">${esc(t("fact.source"))} <a href="${info.source.url}" target="_blank" rel="noopener">${esc(pick(info.source.label))} ↗</a></p>`;
 }
 
-// Shown in the morning report or night report the day a technology unlocks.
+// Shown in the morning report or night report the day a blueprint unlocks.
 function techCardHtml(k) {
   const info = TECH_INFO[k.id];
-  return `<div class="tech-card"><div class="label">${esc(t("tech.newLabel"))}${starOf(k.at) ? ` · ${starOf(k.at)}` : ""}</div>
+  const opens = opensSites(k.id);
+  return `<div class="tech-card"><div class="label">${esc(t("tech.newLabel"))}</div>
     <h3>${info.icon} ${esc(pick(info.name))}</h3>
     <p><b>${esc(t("tech.effect"))}</b> ${esc(pick(info.effect))}</p>
+    ${opens.length ? `<p class="tech-opens">🗺️ ${esc(t("tech.opens", { sites: opens.map((x) => t(`site.${x.id}.name`)).join(t("fmt.sep")) }))}</p>` : ""}
+    <p class="tech-cost">🔧 ${esc(t("tech.cost", { ap: k.ap, power: k.power }))}</p>
     <p>${esc(pick(info.story))}</p>${techSource(info)}</div>`;
 }
 
+// One blueprint in the tech panel: locked (not enough research), ready to
+// build (with the Build button during the day), or built.
 function techItemHtml(k, nx) {
   const info = TECH_INFO[k.id];
-  const on = s.science >= k.at, next = !!nx && nx.id === k.id;
-  const star = starOf(k.at);
-  return `<article class="tech ${on ? "on" : next ? "next" : "locked"}">
+  const built = E.techOn(s, k.id), ready = !built && s.science >= k.at, next = !!nx && nx.id === k.id;
+  const chk = E.checkBuild(s, k.id);
+  const opens = opensSites(k.id);
+  const status = built ? t("tech.built") : ready ? t("tech.ready") : t("tech.at", { n: k.at });
+  return `<article class="tech ${built ? "on" : ready ? "ready" : next ? "next" : "locked"}">
     <div class="ti" aria-hidden="true">${info.icon}</div>
-    <div><h5>${esc(pick(info.name))}<span class="at">${esc(on ? t("tech.on") : t("tech.at", { n: k.at }))}${star ? ` ${star}` : ""}</span></h5>
+    <div><h5>${esc(pick(info.name))}<span class="at">${esc(status)}</span></h5>
       <p class="eff"><b>${esc(t("tech.effect"))}</b> ${esc(pick(info.effect))}</p>
+      ${opens.length ? `<p class="tech-opens">🗺️ ${esc(t("tech.opens", { sites: opens.map((x) => t(`site.${x.id}.name`)).join(t("fmt.sep")) }))}</p>` : ""}
       ${next ? `<div class="prog" aria-hidden="true"><i style="width:${Math.min(100, (s.science / k.at) * 100)}%"></i></div>` : ""}
+      ${built ? "" : `<div class="tech-build"><span>🔧 ${esc(t("tech.cost", { ap: k.ap, power: k.power }))}</span>
+        ${ready ? `<button class="btn small primary" type="button" data-build="${k.id}" ${chk.ok ? "" : "disabled"}>${esc(t("tech.buildBtn"))}</button>
+          ${chk.ok ? "" : `<small class="lock">${tr(chk.reason.key, chk.reason.params)}</small>`}` : ""}</div>`}
       <details><summary>${esc(t("tech.story"))}</summary><p>${esc(pick(info.story))}</p>${techSource(info)}</details></div>
   </article>`;
+}
+
+// Build a blueprint (from the tech panel, or the classic map's buttons).
+function buildTech(id) {
+  if (!s || s.phase !== "day") return;
+  const r = E.doBuild(s, id);
+  if (!r.ok) return;
+  audio.chime();
+  toast(t("world.toast.build", { tech: t(`techname.${id}`) }));
+  render();
 }
 
 const panelHead = (key) => `<div class="gpanel-head"><h3>${esc(t(key))}</h3><button class="gpanel-x" type="button" data-panel-close aria-label="${esc(t("dock.close"))}">✕</button></div>`;
@@ -1200,6 +1396,8 @@ function renderTasksPanel() {
   const top = el.scrollTop;
   el.innerHTML = `${panelHead("tasks.title")}
     ${goalHtml()}
+    ${stageHtml(true)}
+    ${knowsHtml()}
     ${rocksHtml()}
     <h4>${esc(t("tasks.today", { n: s.sol }))}</h4>
     <ul class="task-list">${tasks.map((k, i) => taskHtml(k, i, { go: walkingDay, fresh, final })).join("")}</ul>
@@ -1227,7 +1425,9 @@ function renderPanels() {
   if (!s) return;
   const tasks = (s.today && s.today.tasks) || [];
   $("#dock-tasks").textContent = tasks.length ? `${tasks.filter((k) => k.done).length}/${tasks.length}` : "";
-  $("#dock-tech").textContent = `${s.science}`;
+  const ready = E.buildable(s).length;
+  $("#dock-tech").textContent = ready && s.phase !== "end" ? `🔧${ready}` : `${s.science}`; // blueprints waiting to be built
+  $('.dock-btn[data-panel="tech"]').classList.toggle("has-ready", !!ready && s.phase !== "end");
   $("#dock-cal").textContent = "";
   $$(".dock-btn").forEach((b) => {
     b.classList.toggle("on", b.dataset.panel === ui.panel);
@@ -1253,7 +1453,7 @@ function noticeTech() {
   if (!gained.length) return;
   replay($('.dock-btn[data-panel="tech"]'), "ping");
   if (s.phase === "day" && walking()) {
-    const name = pick(TECH_INFO[gained[gained.length - 1].id].name);
+    const name = t(`techname.${gained[gained.length - 1].id}`);
     setTimeout(() => toast(t("tech.toast", { name })), 1700); // after the job's own toast
   }
 }
@@ -1262,8 +1462,24 @@ function noticeTech() {
 // habitat once there is nothing left to do.
 function focusTargets() {
   const ids = (s.today.tasks || []).filter((k) => taskState(k) === "todo").map(taskPlace).filter(Boolean);
+  for (const f of E.knownFaults(s)) ids.push(PART_STATION[f.kind]); // anything that needs fixing
+  if (s.request && E.reachable(s, s.request.site)) ids.push(s.request.site); // Earth's request
   if (!ids.length || s.ap === 0) ids.push("habitat");
-  return ids;
+  return [...new Set(ids)];
+}
+
+// "What we know": how far ahead the crew can see. This is what the player
+// weighs when deciding whether calling Earth is worth an action point.
+function knowsHtml() {
+  const sun = E.spaceStatus(s, s.sol);
+  const wxTo = E.weatherKnownUntil(s);
+  const faults = E.knownFaults(s);
+  const line = (cls, icon, text) => `<li class="${cls}"><span aria-hidden="true">${icon}</span>${esc(text)}</li>`;
+  return `<div class="knows"><h4>${esc(t("knows.title"))}</h4><ul>
+    ${line(sun === "storm" ? "bad" : sun === "clear" ? "ok" : "unk", "☀️", sun === "storm" ? t("knows.sun.storm") : sun === "clear" ? t("knows.sun.clear", { n: s.sunUntil }) : t("knows.sun.unknown"))}
+    ${line(wxTo > s.sol ? "ok" : "unk", "🛰️", wxTo > s.sol ? t("knows.wx", { n: wxTo }) : t("knows.wx.none"))}
+    ${line(faults.length ? "bad" : s.lastTelemetry ? "ok" : "unk", "🔧", faults.length ? t("knows.parts.bad", { n: faults.length }) : s.lastTelemetry ? t("knows.parts.ok", { n: s.lastTelemetry }) : t("knows.parts.none"))}
+  </ul><p class="knows-tip">📡 ${esc(t("knows.tip"))}</p></div>`;
 }
 
 // "Show the way": the astronaut walks to the place of a task.
@@ -1277,6 +1493,8 @@ function guideTo(id) {
 }
 
 $("#rcol").addEventListener("click", (e) => {
+  const bld = e.target.closest("[data-build]");
+  if (bld) { buildTech(bld.dataset.build); return; }
   const dock = e.target.closest(".dock-btn");
   if (dock) { openPanel(ui.panel === dock.dataset.panel ? null : dock.dataset.panel); return; }
   if (e.target.closest("[data-panel-close]")) { openPanel(null); return; }
@@ -1285,6 +1503,41 @@ $("#rcol").addEventListener("click", (e) => {
   if (e.target.closest("#to-classic")) { ui.classic = true; ui.site = null; render(); return; }
   if (e.target.closest("#end-day")) endDayNow();
 });
+// ---------- the big map (click the minimap) ----------
+function openBigMap() {
+  if (!world || !s) return;
+  ui.mapSel = null;
+  $("#bigmap").showModal();
+  drawBigMap();
+}
+function drawBigMap() {
+  ui.mapMarks = world.drawOverview($("#bigmap-canvas"));
+  const x = ui.mapSel ? siteById(ui.mapSel) : null;
+  const info = $("#bigmap-info");
+  if (!x) { info.textContent = t("bigmap.hint"); return; }
+  const missing = E.missingGear(s, x.id);
+  const tier = C.evaTiers[x.tier];
+  const canGo = s.phase === "day" && walking() && !missing.length;
+  info.innerHTML = `<b>${x.icon} ${esc(t(`site.${x.id}.name`))}</b> · ${esc(t(`zone.${x.zone}`))} · ${esc(t("site.km", { n: siteKm(x) }))} · ${esc(t("day.apCost", { n: tier.ap }))}
+    ${s.visits[x.id] ? ` · ✓ ${esc(t("bigmap.sampled"))}` : ""}
+    <div>${missing.length ? missing.map((k) => `${TECH_INFO[k].icon} ${esc(t("gear.needs", { tech: t(`techname.${k}`) }))}`).join(" · ") : esc(t(`trip.why.${x.tier}`))}</div>
+    ${canGo ? `<button class="btn small primary" type="button" id="bigmap-go">${esc(t("tasks.guide"))}</button>` : ""}`;
+  const go = $("#bigmap-go");
+  if (go) go.onclick = () => { $("#bigmap").close(); guideTo(x.id); };
+}
+$(".world-map").addEventListener("click", openBigMap);
+$("#bigmap-canvas").addEventListener("click", (e) => {
+  const cv = e.currentTarget, b = cv.getBoundingClientRect();
+  const px = (e.clientX - b.left) * (cv.width / b.width), py = (e.clientY - b.top) * (cv.height / b.height);
+  let best = null, bestD = Infinity;
+  for (const m of ui.mapMarks || []) {
+    const d = Math.hypot(m.x - px, m.y - py);
+    if (d < m.r && d < bestD) { best = m; bestD = d; }
+  }
+  ui.mapSel = best && siteById(best.id) ? best.id : null;
+  drawBigMap();
+});
+
 $("#rcol").addEventListener("keydown", (e) => {
   const go = e.target.closest("[data-go]");
   if (go && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); guideTo(go.dataset.go); }
@@ -1363,8 +1616,8 @@ $("#btn-continue").addEventListener("click", () => {
 $("#btn-again").addEventListener("click", () => startGame());
 $("#btn-replay").addEventListener("click", () => startGame(s.seed));
 $("#btn-home").addEventListener("click", () => { show("screen-title"); updateContinue(); });
-$("#btn-new").addEventListener("click", () => {
-  if (s && s.phase !== "end" && (s.sol > 1 || s.phase !== "briefing") && !window.confirm(t("top.confirmNew"))) return;
+$("#btn-new").addEventListener("click", async () => {
+  if (s && s.phase !== "end" && (s.sol > 1 || s.phase !== "briefing") && !(await askYesNo(t("top.confirmNew")))) return;
   startGame();
 });
 $("#btn-help").addEventListener("click", showHelp);

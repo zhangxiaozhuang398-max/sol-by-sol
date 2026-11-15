@@ -1,0 +1,145 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Sol by Sol balance check</title>
+<!-- Plays many missions with simple bot players and prints how often each wins.
+     Open http://localhost:8000/scripts/balance.html?games=300 from the local server.
+     (Same idea as simulate.mjs, for machines without Node.) -->
+<pre id="out">running…</pre>
+<script type="module">
+import * as E from "../js/game.js";
+import { CONFIG as C } from "../js/config.js";
+import { SITES } from "../js/sites.js";
+import { suggestAlloc } from "../js/kid.js";
+
+const pool = (await (await fetch("../data/space_weather_events.json")).json()).events;
+const games = +new URLSearchParams(location.search).get("games") || 300;
+const N = C.totalSols;
+
+// Night plan. "careful" players weigh everything (the same search as Pip's
+// suggestion); the others use Pip for the first three sols, as in the game,
+// then a fixed habit.
+function night(g, careful) {
+  if (careful || g.sol <= 3) return suggestAlloc(g);
+  // the habit of a child who has learned the basics: greenhouse only when it was
+  // tended, less oxygen-making when the tank is fine, and keep 35 in the battery
+  const a = { o2: g.oxygen >= 70 ? 5 : 15, gh: g.today.tended, shield: !!E.solarStormOn(g, g.sol) };
+  while (E.nightCost(a, g) > g.battery - 35) {
+    if (a.gh && g.food > 4) a.gh = false; else if (a.o2 > 5 && g.oxygen >= 40) a.o2 -= 5; else if (a.gh) a.gh = false; else if (a.o2 > 0 && g.oxygen >= 25) a.o2 -= 5; else break;
+  }
+  while (E.nightCost(a, g) > g.battery) {
+    if (a.shield) a.shield = false; else if (a.gh) a.gh = false; else if (a.o2 > 0) a.o2 -= 5; else break;
+  }
+  return a;
+}
+const repairAll = (g) => { for (const f of E.knownFaults(g)) if (E.checkRepair(g, f.kind).ok) E.doRepair(g, f.kind); };
+// Build ready blueprints (tools first) while at least `minBattery` power is left.
+const TOOL_ORDER = ["drill", "rope", "heli", "rover", "dustShield", "moxie2", "shelter", "fission"];
+function buildSome(g, minBattery, max = 1) {
+  let n = 0;
+  for (const id of TOOL_ORDER) {
+    if (n >= max) break;
+    const c = E.checkBuild(g, id);
+    if (c.ok && g.battery - c.power >= minBattery && g.ap > c.ap) { E.doBuild(g, id); n++; }
+  }
+}
+const routine = (g) => {
+  if (E.checkInspect(g).ok) E.inspectPanels(g);
+  if (g.panel < 88 && E.checkClean(g).ok) E.doClean(g);
+};
+// Sample the best unvisited site that leaves at least `minBattery` power.
+function sample(g, maxTier, minBattery) {
+  const order = SITES.filter((x) => x.tier <= maxTier && !g.visits[x.id] && E.reachable(g, x.id)).sort((a, b) => b.tier - a.tier);
+  for (const x of order) {
+    const c = E.checkEva(g, x.id);
+    if (c.ok && g.battery - c.cost.power >= minBattery && !c.warnings.some((w) => w.level === "danger")) { E.doEva(g, x.id); return true; }
+  }
+  return false;
+}
+
+const bots = {
+  // does nothing all day
+  idle: { careful: true, day() {} },
+  // follows the daily orders, never calls Earth
+  orders: {
+    careful: false,
+    day(g) {
+      routine(g); repairAll(g);
+      for (const k of g.today.tasks) {
+        if (k.kind === "sample" && E.checkEva(g, k.site).ok) E.doEva(g, k.site);
+        if (k.kind === "tend" && E.checkTend(g).ok) E.doTend(g);
+        if (k.kind === "build" && E.checkBuild(g, k.tech).ok) E.doBuild(g, k.tech);
+      }
+    },
+  },
+  // follows the daily orders and lets Pip plan every night
+  ordersPip: {
+    careful: true,
+    day(g) { bots.orders.day(g); },
+  },
+  // follows the daily orders, and calls Earth when the base gives a hint or nobody watches the Sun
+  ordersCall: {
+    careful: true,
+    day(g) {
+      const h = E.hunches(g);
+      const blind = E.spaceStatus(g, g.sol + 1) === "unknown";
+      bots.orders.day(g);
+      if (blind && (h.static || h.odd || g.sol % 3 === 0) && E.checkCall(g).ok) E.doCall(g);
+    },
+  },
+  // calls Earth on a hunch and before it goes far, repairs, explores when power allows
+  planner: {
+    careful: true,
+    day(g) {
+      routine(g); repairAll(g);
+      const h = E.hunches(g);
+      const blind = E.spaceStatus(g, g.sol + 1) === "unknown" || E.weatherKnownUntil(g) <= g.sol;
+      if (blind && (h.static || h.odd || g.sol % 2 === 0 || g.sol >= 9) && E.checkCall(g).ok) E.doCall(g);
+      const stormy = E.knownStormOn(g, g.sol) || E.weatherKey(g, g.sol) === "dust";
+      const season = g.sol >= 9;
+      if (!stormy && E.spaceStatus(g, g.sol) !== "unknown") {
+        const maxTier = 4;
+        if (!season) buildSome(g, 50);
+        if (g.ap >= 3 && g.battery >= 75 && !season) sample(g, maxTier, 45);
+        while (g.ap > 0 && sample(g, Math.min(3, maxTier), season ? 70 : 40)) { /* keep going */ }
+      } else if (!stormy) {
+        sample(g, 2, 45); // nobody is watching the Sun: only a short trip
+      }
+      if (g.ap > 0 && E.checkTend(g).ok && g.food < N - g.sol + 3) E.doTend(g);
+    },
+  },
+  // explores as much as possible and never calls Earth
+  reckless: {
+    careful: false,
+    day(g) {
+      routine(g);
+      buildSome(g, 30, 2);
+      while (g.ap > 0 && sample(g, 4, 30)) { /* keep going */ }
+      if (g.ap > 0 && E.checkTend(g).ok) E.doTend(g);
+    },
+  },
+};
+
+const lines = [`start ${JSON.stringify(C.start)}  solar ${C.weather.sunny.solar}/${C.weather.hazy.solar}/${C.weather.dust.solar}  games ${games}`, ""];
+for (const [name, bot] of Object.entries(bots)) {
+  let wins = 0, dose = 0, tubes = 0, goals = 0;
+  const lost = {}, sci = [], stars = [0, 0, 0, 0];
+  for (let seed = 1; seed <= games; seed++) {
+    const g = E.newGame(pool, seed);
+    let guard = 0;
+    while (g.phase !== "end" && guard++ < 200) {
+      if (g.phase === "briefing") E.beginDay(g);
+      else if (g.phase === "day") { bot.day(g); if (g.phase === "day") E.endDay(g); }
+      else if (g.phase === "night") { if (!E.confirmNight(g, night(g, bot.careful)).ok) E.confirmNight(g, { o2: 0, gh: false, shield: false }); }
+      else if (g.phase === "settle") E.nextSol(g);
+    }
+    if (g.outcome.success) { wins++; sci.push(g.science); dose += g.dose; tubes += E.tubeCount(g); goals += Object.keys(g.goals).length; stars[g.outcome.stars]++; }
+    else lost[g.outcome.reason] = (lost[g.outcome.reason] || 0) + 1;
+  }
+  sci.sort((a, b) => a - b);
+  const avg = (x) => (wins ? (x / wins).toFixed(1) : "-");
+  const q = (p) => sci[Math.floor(sci.length * p)] ?? "-";
+  lines.push(`${name.padEnd(9)} win ${String(Math.round((wins / games) * 100)).padStart(3)}%  science ${q(0.1)}/${q(0.5)}/${q(0.9)} (10%/median/90%)  stars 1/2/3: ${stars.slice(1).join("/")}  tubes ${avg(tubes)}  goals ${avg(goals)}  dose ${avg(dose)}  lost ${JSON.stringify(lost)}`);
+}
+document.querySelector("#out").textContent = lines.join("\n");
+window.balanceDone = true;
+</script>

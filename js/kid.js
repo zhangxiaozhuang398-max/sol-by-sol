@@ -31,6 +31,13 @@ export const SHORT = {
   gale: { en: "Round pebbles mean water once flowed here, long ago.", zh: "圆圆的鹅卵石，说明很久以前这里有水流过。" },
   jezero: { en: "Jezero crater was once a lake. Perseverance is looking for signs of ancient life.", zh: "杰泽罗撞击坑曾经是个湖，毅力号在找远古生命的痕迹。" },
   eva: { en: "Going outside finds the best science, but uses air and brings more radiation.", zh: "出舱能找到最好的发现，但要用氧气，辐射也更多。" },
+  dsn: { en: "Three giant dish stations on Earth talk to every spacecraft far from home.", zh: "地球上有三处巨型天线站，负责和所有远方的航天器通话。" },
+  blackout: { en: "On a solar-storm day the radio only hisses: ask Earth before the storm comes.", zh: "太阳风暴当天，收音机里只有沙沙声：要在风暴来之前问地球。" },
+  aurora: { en: "In 2024 Perseverance saw a green aurora in the Mars night sky!", zh: "2024 年，毅力号在火星夜空里看到了绿色的极光！" },
+  meteorite: { en: "Rovers on Mars have found iron meteorites: metal rocks that fell from space!", zh: "火星车在火星上发现过铁陨石：从太空掉下来的金属石头！" },
+  igneous: { en: "Surprise! The floor of Jezero crater is made of rock that was once hot lava.", zh: "没想到吧！杰泽罗撞击坑的地面，是曾经滚烫的熔岩变成的。" },
+  openLake: { en: "Rivers flowed into the Jezero lake, and one valley let the water flow out.", zh: "有河流流进杰泽罗湖，也有一条河谷让湖水流出去。" },
+  craterAges: { en: "Count the craters: the more there are, the older the ground is.", zh: "数一数撞击坑：坑越多，这片地面就越古老。" },
 };
 
 // ---------- rocks found when sampling (just for fun; no effect on the rules) ----------
@@ -43,6 +50,11 @@ export const ROCKS = {
   riverbed: { icon: "⚪", en: "a round river pebble", zh: "被水磨圆的鹅卵石" },
   canyon: { icon: "🌑", en: "dark volcanic basalt", zh: "黑色的火山玄武岩" },
   delta: { icon: "🟫", en: "lake-bottom mudstone", zh: "湖底的泥岩" },
+  meteorite: { icon: "☄️", en: "a chip of iron meteorite", zh: "一小块铁陨石" },
+  lava: { icon: "⬛", en: "dark rock that cooled from lava", zh: "熔岩冷却成的深色岩石" },
+  northfan: { icon: "🟤", en: "pale river-laid sandstone", zh: "河流铺下的浅色砂岩" },
+  outlet: { icon: "🪨", en: "water-carved bedrock", zh: "被水流冲刷过的基岩" },
+  eastcrater: { icon: "🌑", en: "deep rock thrown out by a big impact", zh: "大撞击抛出来的深层岩石" },
   olivine: { icon: "💚", en: "olivine-rich rock with green crystals", zh: "含绿色橄榄石晶体的岩石", rare: true },
   carbonate: { icon: "💎", en: "carbonate rock that formed in water", zh: "在水里形成的碳酸盐岩", rare: true },
 };
@@ -69,21 +81,29 @@ export function guideLine(s, ctx = {}) {
   const say = (key, mood = "happy", params = {}) => ({ key, mood, params });
   if (!s) return say("guide.hello");
   const sol = s.sol;
-  const storm = E.solarStormOn(s, sol);
+  const storm = E.knownStormOn(s, sol); // only what the crew knows
   const upcoming = E.activeWarnings(s).filter((x) => x.sol > sol);
   const w = E.weatherKey(s, sol);
-  const tw = sol < C.totalSols ? E.weatherKey(s, sol + 1) : null;
+  const tw = sol < C.totalSols && E.isKnown(s, sol + 1) ? E.weatherKey(s, sol + 1) : null;
+  const hunch = E.hunches(s);
+  const fault = E.knownFaults(s)[0];
   const nights = C.totalSols - sol + (s.phase === "settle" ? 0 : 1);
 
   if (s.phase === "briefing") {
     if (storm) return say("guide.brief.stormToday", "alarm");
     if (w === "dust") return say("guide.brief.dustToday", "worry");
+    if (s.today.broke && s.today.broke.length) return say("guide.brief.broke", "alarm");
+    if (fault) return say("guide.brief.fault", "worry");
     if (upcoming.length) return say("guide.brief.stormSoon", "worry", { n: upcoming[0].sol - sol });
     if (tw === "dust") return say("guide.brief.dustTomorrow", "worry");
     if (s.oxygen < 30) return say("guide.brief.lowO2", "worry");
     if (s.food < Math.min(nights, 4)) return say("guide.brief.lowFood", "worry");
     if (s.dose >= 70) return say("guide.brief.highDose", "worry");
     if (sol === 1) return say("guide.brief.first", "happy");
+    if (E.buildable(s).length) return say("guide.brief.build", "happy");
+    if (hunch.static) return say("guide.brief.static", "think");
+    if (hunch.odd) return say("guide.brief.odd", "think");
+    if (sol >= 3 && E.spaceStatus(s, sol) === "unknown" && !E.isKnown(s, sol + 1)) return say("guide.brief.blind", "think");
     if (sol === C.totalSols) return say("guide.brief.last", "happy");
     return say(w === "sunny" ? "guide.brief.sunny" : "guide.brief.hazy", "happy");
   }
@@ -95,8 +115,12 @@ export function guideLine(s, ctx = {}) {
     if (s.ap <= 0) return say("guide.day.noAp", "think");
     if (storm) return say("guide.day.stormOutside", "alarm");
     if (sol === 1 && !s.today.log.length) return say("guide.day.first", "happy");
+    if (s.today.alarm) return say("guide.day.alarm", "alarm");
+    if (s.today.blackout) return say("guide.day.blackout", "alarm");
+    if (fault) return say("guide.day.fault", "worry");
     if (!s.today.inspected) return say("guide.day.inspect", "think");
     if (s.panel <= 80 && !s.today.cleaned) return say("guide.day.dirty", "think");
+    if (E.buildable(s).some((k) => E.checkBuild(s, k.id).ok) && sol > 1) return say("guide.day.build", "happy");
     if (todo) return say("guide.day.tasks", "happy", { n: todo });
     if (!s.today.tended && s.food < nights) return say("guide.day.tend", "think");
     return say("guide.day.explore", "happy");
@@ -119,6 +143,7 @@ export function guideLine(s, ctx = {}) {
     const h = s.history[s.history.length - 1];
     if (h && h.solarStorm) return h.alloc && h.alloc.shield ? say("guide.settle.shielded", "happy") : say("guide.settle.unshielded", "worry");
     if (h && h.dustDevil) return say("guide.settle.devil", "happy");
+    if (h && h.nightEvent) return say(`guide.settle.${h.nightEvent}`, h.nightEvent === "meteor" ? "happy" : "worry");
     if (s.tonightCards.length) return say("guide.settle.story", "happy");
     if (sol + 1 === C.totalSols) return say("guide.settle.lastNext", "happy");
     return say("guide.settle.night", "happy");
@@ -167,10 +192,11 @@ export function suggestAlloc(s) {
         if (!storm && shield) score -= 300;
         for (const w of p.warnings) score -= w.level === "danger" ? 150 : w.level === "warn" ? 40 : 0;
         score += Math.min(p.oxygen, 75) * 1.2; // keep the tank from slowly emptying
+        if (p.oxygen < 45) score -= (45 - p.oxygen) * 4; // and never let it run low
         score -= p.overflow * 0.5; // power that would be thrown away is better spent
         score += Math.min(p.battery, C.max.battery) * 1.0; // keep power for tomorrow (scripts/suggest-check.mjs)
         if (p.battery < reserve) score -= (reserve - p.battery) * 8; // dark days ahead: save up
-        if (gh) score += s.food <= C.totalSols - s.sol + 1 ? 25 : 6; // food for later, if it is needed
+        if (p.foodGain > 0) score += s.food <= C.totalSols - s.sol + 1 ? 25 : 6; // food for later, if it is needed (only a tended greenhouse gives any)
         if (best === null || score > best.score) best = { score, a };
       }
     }

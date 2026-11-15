@@ -240,6 +240,80 @@ export const FACTS = {
     lesson: { en: "Farther sites give more science but cost more power, oxygen and radiation.", zh: "越远的地方科学收获越多，但也更费电、费氧气、剂量更高。" },
     source: OSDR,
   },
+
+  // ---- talking to Earth ----
+  dsn: {
+    icon: "📡",
+    title: { en: "The Deep Space Network", zh: "深空网络" },
+    text: {
+      en: "NASA talks to faraway spacecraft through three giant dish stations: in California, Spain and Australia. They are spread around the world so that one of them can always see Mars as the Earth turns.",
+      zh: "NASA 靠三处巨型天线站和远方的航天器通话：分别在美国加州、西班牙和澳大利亚。它们分布在地球的不同位置，所以地球转动时，总有一处能“看见”火星。",
+    },
+    lesson: {
+      en: "Earth sees what the base cannot: the Sun, the weather from orbit and worn-out parts in your data. But each call costs an action point.",
+      zh: "地球能看到基地看不到的东西：太阳、轨道上看到的天气、你数据里快坏的零件。但每次呼叫都要花一个行动点。",
+    },
+    source: { label: { en: "NASA Deep Space Network", zh: "NASA 深空网络" }, url: "https://www.nasa.gov/communicating-with-missions/dsn/" },
+  },
+
+  blackout: {
+    icon: "📻",
+    title: { en: "Radio Blackout", zh: "无线电中断" },
+    text: {
+      en: "When a solar storm hits, its fast particles fill the air high above Mars and can block radio signals. That is why the crew has to ask Earth before the storm arrives, not on the day itself.",
+      zh: "太阳风暴来的时候，高速粒子会充满火星高空，挡住无线电信号。所以宇航员必须在风暴到来之前问地球，而不是等到风暴当天。",
+    },
+    lesson: { en: "Call Earth a day or two ahead: on the storm day itself, the radio only hisses.", zh: "提前一两天呼叫地球：风暴当天，收音机里只有沙沙声。" },
+    source: MARS,
+  },
+  aurora: {
+    icon: "🌌",
+    title: { en: "A Green Aurora on Mars", zh: "火星上的绿色极光" },
+    text: {
+      en: "On 18 March 2024, after a solar storm, Perseverance photographed a faint green glow in the night sky: the first aurora ever seen from the surface of another planet. Mars has no global magnetic field, so its aurora can spread across the whole sky.",
+      zh: "2024 年 3 月 18 日，一场太阳风暴过后，毅力号拍到夜空里有一层淡淡的绿光：这是人类第一次从另一颗行星的地面上看到极光。火星没有全球磁场，所以它的极光能铺满整个天空。",
+    },
+    source: { label: { en: "NASA JPL: First visible-light auroras at Mars", zh: "NASA JPL：首次在火星观测到可见光极光" }, url: "https://www.jpl.nasa.gov/news/nasa-observes-first-visible-light-auroras-at-mars/" },
+  },
+
+  // ---- the new places on the map ----
+  meteorite: {
+    icon: "☄️",
+    title: { en: "Meteorites on Mars", zh: "火星上的陨石" },
+    text: {
+      en: "In 2005 the Opportunity rover found a basketball-sized lump of iron and nickel: the first meteorite ever found on another planet. Curiosity has found several more since.",
+      zh: "2005 年，机遇号火星车发现了一块篮球大小的铁镍块：这是人类第一次在另一颗行星上发现陨石。后来好奇号又发现了好几块。",
+    },
+    source: MARS,
+  },
+  igneous: {
+    icon: "🌋",
+    title: { en: "A Lake Floor Made of Lava", zh: "湖底竟是熔岩" },
+    text: {
+      en: "Scientists expected the floor of Jezero crater to be lake mud. Perseverance found something else: rocks that formed from hot, melted rock. Rocks like these keep a clock inside them, so in a lab they can tell exactly how old they are.",
+      zh: "科学家原以为杰泽罗撞击坑的地面是湖底的泥。毅力号却发现，这里的岩石是滚烫的熔岩冷却形成的。这种岩石里藏着一只“时钟”，放进实验室就能测出它的准确年龄。",
+    },
+    source: PERSEVERANCE,
+  },
+  openLake: {
+    icon: "🌊",
+    title: { en: "A Lake With a Way Out", zh: "有出口的湖" },
+    text: {
+      en: "Two rivers flowed into the Jezero lake, from the west and from the north, and each left a fan of sand where it entered. On the east side, a valley shows where the full lake spilled over the crater rim.",
+      zh: "曾有两条河从西边和北边流进杰泽罗湖，每条河在入口处都留下了一片扇形的沙。在东边，有一条河谷记录着湖水满了以后漫过撞击坑边缘流出去的地方。",
+    },
+    lesson: { en: "Far sites need a whole day: go when the battery is full and Earth says the Sun is quiet.", zh: "远征要用一整天：电池满了、地球说太阳很平静的时候再去。" },
+    source: MRO,
+  },
+  craterAges: {
+    icon: "🌑",
+    title: { en: "Counting Craters", zh: "数撞击坑" },
+    text: {
+      en: "Space rocks have hit Mars all through its history. So ground with many craters is old, and ground with few craters is young. Scientists date whole regions this way, using pictures from orbit.",
+      zh: "太空岩石在火星的整个历史里一直在撞击它。所以撞击坑多的地面很古老，坑少的地面比较年轻。科学家就用轨道器拍的照片这样给整片地区“算年龄”。",
+    },
+    source: MRO,
+  },
 };
 
 // ---- field discoveries: shown the first time the crew collects a sample at a survey site ----
@@ -342,6 +416,88 @@ export const SITE_STORIES = {
     },
     source: PERSEVERANCE,
   },
+
+  // ---- the five places further out ----
+  meteorite: {
+    sample: { en: "A chip of shiny metal, filed off the edge of the meteorite.", zh: "从陨石边上锉下来的一小片闪亮金属。" },
+    science: {
+      en: "Iron meteorites are pieces of the metal core of a small world that broke apart long ago. How rusty the outside is tells how much water has been around since it landed.",
+      zh: "铁陨石是一颗很久以前碎掉的小天体的金属内核碎片。它表面锈了多少，能告诉我们它落地以后周围出现过多少水。",
+    },
+    future: {
+      en: "Metal lying on the surface could one day be a building material for explorers, without carrying it all the way from Earth.",
+      zh: "躺在地面上的金属，将来也许能成为探险者的建筑材料，不用千里迢迢从地球运来。",
+    },
+    history: {
+      en: "In January 2005 Opportunity found \"Heat Shield Rock\", an iron meteorite lying next to the rover's own discarded heat shield. It was the first meteorite ever found on another planet.",
+      zh: "2005 年 1 月，机遇号在自己丢下的隔热罩旁边发现了一块铁陨石，取名“隔热罩石”。这是人类第一次在另一颗行星上找到陨石。",
+    },
+    source: MARS,
+  },
+  lava: {
+    sample: { en: "A core of dark rock, from under a patch the drill first ground smooth.", zh: "一段深色岩芯，钻之前先把表面磨平了一小块。" },
+    science: {
+      en: "This rock cooled from lava. Rocks like it contain tiny radioactive clocks, so a lab on Earth could measure exactly when it formed and give the whole crater a date.",
+      zh: "这块岩石是熔岩冷却形成的。这种岩石里有微小的放射性“时钟”，地球上的实验室能精确测出它形成的时间，给整个撞击坑定出年代。",
+    },
+    future: {
+      en: "Knowing the exact age of Mars rocks helps fix the timeline of the whole Solar System, including when Mars lost its water.",
+      zh: "知道了火星岩石的准确年龄，就能校准整个太阳系的时间线，包括火星是什么时候失去水的。",
+    },
+    history: {
+      en: "In 2021 Perseverance ground small round patches into the crater floor to look under the dust. To everyone's surprise, the rocks named Máaz and Séítah turned out to be volcanic, not lake mud.",
+      zh: "2021 年，毅力号在撞击坑地面上磨出一个个小圆块，看看灰尘下面是什么。出乎所有人意料，叫做“马兹”和“塞伊塔”的岩石原来是火山岩，而不是湖泥。",
+    },
+    source: PERSEVERANCE,
+  },
+  northfan: {
+    sample: { en: "Pale, layered sand that a second river brought from the north.", zh: "第二条河从北边带来的浅色层状沙子。" },
+    science: {
+      en: "Jezero had two rivers flowing in. Sand from the north came from different hills than sand from the west, so comparing them shows what rocks lay far beyond the crater.",
+      zh: "杰泽罗有两条河流入。北边的沙和西边的沙来自不同的山丘，比一比，就知道撞击坑外很远的地方有什么岩石。",
+    },
+    future: {
+      en: "Flying scouts can look ahead for rovers and astronauts, finding safe paths and the most interesting rocks before anyone drives there.",
+      zh: "会飞的侦察兵可以替火星车和宇航员先探路，在出发前找到安全的路线和最值得研究的岩石。",
+    },
+    history: {
+      en: "The little helicopter Ingenuity rode to Jezero under Perseverance. In April 2021 it made the first powered flight on another planet, and it went on to fly 72 times before a damaged rotor ended its mission in January 2024.",
+      zh: "小直升机“机智号”挂在毅力号肚子下面来到杰泽罗。2021 年 4 月，它完成了人类在另一颗行星上的第一次动力飞行，后来一共飞了 72 次，直到 2024 年 1 月旋翼损坏才结束任务。",
+    },
+    source: PERSEVERANCE,
+  },
+  outlet: {
+    sample: { en: "Bedrock from the valley floor, scoured smooth by water that rushed out of the lake.", zh: "河谷底部的基岩，被冲出湖的水流磨得光溜溜的。" },
+    science: {
+      en: "The teardrop-shaped islands point downstream, like stones in a stream. They show which way the water ran: out of the lake, over the crater rim.",
+      zh: "这些泪滴形的小岛都指向下游，就像小溪里的石头。它们说明了水往哪儿流：从湖里出来，越过撞击坑的边缘。",
+    },
+    future: {
+      en: "Long trips like this one will need pressurized rovers, where astronauts can drive for days without spacesuits. Japan's space agency and Toyota are designing one for the Moon.",
+      zh: "这样的长途旅行需要加压火星车，宇航员不穿宇航服也能连续开好几天。日本宇宙航空研究开发机构正在和丰田公司一起为月球设计这样的车。",
+    },
+    history: {
+      en: "Scientists studying pictures from orbit in 2005 noticed that Jezero had valleys coming in and a valley going out. That made it an \"open lake\" that once overflowed, one reason it was chosen for Perseverance.",
+      zh: "2005 年，科学家研究轨道照片时发现，杰泽罗既有流进来的河谷，也有流出去的河谷。这说明它是一个曾经满溢出去的“开放湖”，这也是毅力号选择这里的原因之一。",
+    },
+    source: MRO,
+  },
+  eastcrater: {
+    sample: { en: "Rock that a big impact threw up from deep under the crater floor.", zh: "一次大撞击从坑底深处抛上来的岩石。" },
+    science: {
+      en: "A big impact digs deep. The rocks it throws out come from far below the surface, so one trip here samples layers no drill could reach.",
+      zh: "大撞击挖得很深。它抛出来的岩石来自地表下很深的地方，所以来这里一趟，就能采到任何钻头都够不着的地层。",
+    },
+    future: {
+      en: "The insides of deep craters are sheltered from wind, and some hold ice in their shadows. Future explorers will look for places like this to camp and to find water.",
+      zh: "深坑里面能挡风，有些坑的阴影里还藏着冰。将来的探险者会找这样的地方扎营、找水。",
+    },
+    history: {
+      en: "Mars orbiters have photographed almost the whole planet. By counting the craters in those pictures, scientists made a timeline of Mars without ever landing at most of the places they dated.",
+      zh: "火星轨道器几乎拍遍了整颗星球。科学家数照片里的撞击坑，就给火星排出了一条时间线，而他们测年的大多数地方，从来没有探测器降落过。",
+    },
+    source: MRO,
+  },
 };
 
 // ---- the technology line: research unlocks these (thresholds in config.tech) ----
@@ -393,6 +549,49 @@ export const TECH_INFO = {
     },
     source: KILOPOWER,
   },
+
+  // ---- tools: the terrain needs them (sites.js `needs`) ----
+  drill: {
+    icon: "🔩",
+    name: { en: "Hard-rock drill bit", zh: "硬岩钻头" },
+    effect: { en: "A tougher bit that can grind and core hard volcanic rock. Opens the Lava Floor.", zh: "更结实的钻头，能打磨、钻取坚硬的火山岩。可以去熔岩地面了。" },
+    story: {
+      en: "Rocks can be tricky. In August 2021 Perseverance drilled its first sample, but the rock was so crumbly that it fell apart into powder and the tube came up empty. Engineers tested look-alike rocks on Earth, picked a harder target, and got the first core a month later.",
+      zh: "岩石可不好对付。2021 年 8 月，毅力号钻第一份样本时，那块岩石太松了，一钻就碎成粉末，样本管空空如也。工程师在地球上找来相似的岩石反复测试，换了一块更硬的目标，一个月后终于取到了第一段岩芯。",
+    },
+    source: { label: { en: "NASA: Assessing Perseverance's first sample attempt", zh: "NASA：分析毅力号的第一次采样" }, url: "https://science.nasa.gov/blog/assessing-perseverances-first-sample-attempt/" },
+  },
+  rope: {
+    icon: "🪢",
+    name: { en: "Rope and winch", zh: "绳索与绞盘" },
+    effect: { en: "Lets the crew climb cliffs and go down steep crater walls safely. Opens the Layered Cliff, the Canyon Rim and (with the rover) the Deep East Crater.", zh: "让宇航员能安全地攀上岩壁、下到陡峭的坑壁。可以去层状岩壁、峡谷边缘，有了火星车还能去东部深坑。" },
+    story: {
+      en: "The most interesting rock layers are often on walls too steep to drive down. NASA's JPL built Axel, a two-wheeled robot that rappels down cliffs on a tether, like a climber on a rope. In 2020 a two-part version called DuAxel was tested in California's Mojave Desert.",
+      zh: "最有意思的岩层，常常长在车开不下去的陡壁上。NASA 喷气推进实验室造了一台叫 Axel 的两轮机器人，它能像攀岩者那样拴着缆绳从崖壁上滑降。2020 年，它的“双体版” DuAxel 在美国加州的莫哈韦沙漠做了测试。",
+    },
+    source: { label: { en: "NASA JPL: This transforming rover can explore the toughest terrain", zh: "NASA JPL：能探索最难地形的变形火星车" }, url: "https://www.jpl.nasa.gov/news/this-transforming-rover-can-explore-the-toughest-terrain/" },
+  },
+  heli: {
+    icon: "🚁",
+    name: { en: "Scout helicopter", zh: "侦察直升机" },
+    effect: { en: "Flies ahead to find a safe way up the steep delta front. Opens the Ancient Lake Delta and the North Fan.", zh: "先飞过去，在陡峭的三角洲前缘找到一条安全的路。可以去古湖三角洲和北部扇形沙地了。" },
+    story: {
+      en: "Ingenuity rode to Mars under Perseverance and made the first powered flight on another planet in April 2021. It was only meant to fly five times, but it flew 72, scouting routes and interesting places ahead of the rover.",
+      zh: "“机智号”挂在毅力号下面来到火星，2021 年 4 月完成了人类在另一颗行星上的第一次动力飞行。它原本只打算飞 5 次，最后飞了 72 次，一直在火星车前面侦察路线、寻找有意思的地方。",
+    },
+    source: { label: { en: "NASA Ingenuity Mars Helicopter", zh: "NASA 机智号火星直升机" }, url: "https://science.nasa.gov/mission/mars-2020-perseverance/ingenuity-mars-helicopter/" },
+  },
+  rover: {
+    icon: "🚙",
+    name: { en: "Pressurised rover", zh: "加压火星车" },
+    effect: { en: "A rover with air inside, so the crew can drive all day without spacesuits. Opens the expeditions to the east side.", zh: "车里有空气，宇航员不用穿宇航服也能开一整天。可以远征东边了。" },
+    story: {
+      en: "A spacesuit only carries air for a few hours, so far trips need a vehicle you can live in. In October 2022 NASA and Japan's space agency tested a pressurised rover in the Arizona desert: crews of two lived, worked and drove in it for three days at a time.",
+      zh: "一套宇航服里的空气只够用几个小时，所以远行需要一辆能住人的车。2022 年 10 月，NASA 和日本宇宙航空研究开发机构在美国亚利桑那州的沙漠里测试了一辆加压火星车：每次两名宇航员在车里生活、工作、驾驶，一住就是三天。",
+    },
+    source: { label: { en: "NASA: Practising rover operations in a simulated lunar environment", zh: "NASA：在模拟月面环境中练习驾驶火星车" }, url: "https://www.nasa.gov/humans-in-space/nasa-practices-rover-operations-in-simulated-lunar-environment/" },
+  },
+
   sampleReturn: {
     icon: "🚀",
     name: { en: "Samples ready to fly home", zh: "样本返航就绪" },
