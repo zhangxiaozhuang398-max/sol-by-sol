@@ -1,89 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320">
-  <!-- Mars habitat seen from orbit: a dome banked with regolith, two side modules, an airlock tunnel to the south.
-       Made to sit on the CTX photo: the sun is in the west (left) like in the photo, so shadows fall to the east;
-       surfaces are dusty off-white with no drawn outlines. -->
-  <defs>
-    <filter id="blur" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
-    <filter id="haze" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="3"/></filter>
-    <radialGradient id="apron">
-      <stop offset="0" stop-color="#5b3523" stop-opacity="0.5"/><stop offset="0.55" stop-color="#6e4530" stop-opacity="0.28"/><stop offset="1" stop-color="#7c5038" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="dome" cx="34%" cy="42%" r="74%">
-      <stop offset="0" stop-color="#f6eee3"/><stop offset="0.4" stop-color="#e1d3c3"/><stop offset="0.8" stop-color="#b39d8a"/><stop offset="1" stop-color="#8a7462"/>
-    </radialGradient>
-    <radialGradient id="dust">
-      <stop offset="0.5" stop-color="#b9774f" stop-opacity="0"/><stop offset="1" stop-color="#b9774f" stop-opacity="0.5"/>
-    </radialGradient>
-    <linearGradient id="tubeEW" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#9a8472"/><stop offset="0.36" stop-color="#eadfd2"/><stop offset="0.6" stop-color="#d8c9ba"/><stop offset="1" stop-color="#84705f"/>
-    </linearGradient>
-    <linearGradient id="tubeNS" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#bba795"/><stop offset="0.34" stop-color="#ece1d4"/><stop offset="0.64" stop-color="#cdbdac"/><stop offset="1" stop-color="#7d6a5a"/>
-    </linearGradient>
-    <linearGradient id="eastShade" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0.35" stop-color="#2a140b" stop-opacity="0"/><stop offset="1" stop-color="#2a140b" stop-opacity="0.3"/>
-    </linearGradient>
-    <linearGradient id="dustLow" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0.45" stop-color="#b9774f" stop-opacity="0"/><stop offset="1" stop-color="#b9774f" stop-opacity="0.42"/>
-    </linearGradient>
-    <radialGradient id="glass" cx="35%" cy="35%" r="75%">
-      <stop offset="0" stop-color="#5f8d8f"/><stop offset="0.5" stop-color="#27474d"/><stop offset="1" stop-color="#10232a"/>
-    </radialGradient>
-  </defs>
-
-  <!-- trampled, darker soil around the base -->
-  <ellipse cx="160" cy="166" rx="158" ry="150" fill="url(#apron)"/>
-
-  <!-- shadows, cast east; the dome is tallest so its shadow is longest -->
-  <g filter="url(#blur)" fill="#2a140b">
-    <circle cx="188" cy="149" r="80" opacity="0.48"/>
-    <rect x="52" y="118" width="244" height="56" rx="28" opacity="0.42"/>
-    <rect x="150" y="201" width="44" height="92" rx="12" opacity="0.42"/>
-  </g>
-
-  <!-- regolith banked up against the dome -->
-  <circle cx="160" cy="140" r="93" fill="#96654a" opacity="0.5" filter="url(#haze)"/>
-  <circle cx="157" cy="139" r="85" fill="#a37153" opacity="0.5" filter="url(#haze)"/>
-
-  <!-- side modules -->
-  <rect x="38" y="112" width="244" height="56" rx="28" fill="url(#tubeEW)"/>
-  <g stroke="#6d5a4b" stroke-width="1.5" opacity="0.38">
-    <line x1="66" y1="114" x2="66" y2="166"/><line x1="90" y1="112" x2="90" y2="168"/>
-    <line x1="230" y1="112" x2="230" y2="168"/><line x1="254" y1="114" x2="254" y2="166"/>
-  </g>
-  <rect x="38" y="112" width="244" height="56" rx="28" fill="url(#dustLow)"/>
-  <rect x="38" y="112" width="244" height="56" rx="28" fill="url(#eastShade)"/>
-  <circle cx="54" cy="140" r="8" fill="url(#glass)"/>
-  <circle cx="266" cy="140" r="8" fill="url(#glass)"/>
-
-  <!-- airlock tunnel, hatch and ramp -->
-  <path d="M146 288 h28 l9 19 h-46 z" fill="#8b7d70"/>
-  <path d="M146 288 h28 l9 19 h-46 z" fill="url(#eastShade)"/>
-  <rect x="138" y="196" width="44" height="92" rx="10" fill="url(#tubeNS)"/>
-  <g stroke="#6d5a4b" stroke-width="1.5" opacity="0.38"><line x1="139" y1="222" x2="181" y2="222"/><line x1="139" y1="246" x2="181" y2="246"/></g>
-  <rect x="138" y="196" width="44" height="92" rx="10" fill="url(#dustLow)"/>
-  <rect x="147" y="263" width="26" height="21" rx="5" fill="#4a433e"/>
-  <circle cx="160" cy="273" r="3" fill="#d9a45a"/>
-
-  <!-- dome -->
-  <circle cx="160" cy="140" r="76" fill="url(#dome)"/>
-  <g fill="none" stroke="#6d5a4b" stroke-width="1.3" opacity="0.3">
-    <circle cx="160" cy="140" r="52"/><circle cx="160" cy="140" r="27"/>
-    <line x1="160" y1="64" x2="160" y2="216"/><line x1="84" y1="140" x2="236" y2="140"/>
-    <line x1="106" y1="86" x2="214" y2="194"/><line x1="214" y1="86" x2="106" y2="194"/>
-  </g>
-  <!-- mission stripe, faded by dust -->
-  <path d="M96 100 a76 76 0 0 1 28 -26" fill="none" stroke="#b5532c" stroke-width="5.5" stroke-linecap="round" opacity="0.8"/>
-  <!-- dust settled on the lower shell, and the sunlit side -->
-  <circle cx="160" cy="140" r="76" fill="url(#dust)"/>
-  <ellipse cx="128" cy="120" rx="27" ry="19" fill="#ffffff" opacity="0.32" filter="url(#haze)"/>
-  <circle cx="160" cy="140" r="75.4" fill="none" stroke="#5a4638" stroke-width="1.2" opacity="0.4"/>
-  <!-- skylight -->
-  <circle cx="160" cy="140" r="19" fill="#5a4c42"/>
-  <circle cx="160" cy="140" r="16" fill="url(#glass)"/>
-  <path d="M150 134 a11 11 0 0 1 10 -6" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" opacity="0.55"/>
-  <!-- roof equipment box with its own small shadow -->
-  <rect x="208" y="92" width="17" height="13" rx="2" fill="#2a140b" opacity="0.35"/>
-  <rect x="203" y="89" width="17" height="13" rx="2" fill="#6a5f56"/>
-  <rect x="203" y="89" width="7" height="13" rx="2" fill="#8c8076"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="340" viewBox="0 0 200 170"><defs><clipPath id="habA-b"><path d="M30 95 V138 A70 16 0 0 0 170 138 V95 Z"/></clipPath><clipPath id="habA-d"><path d="M40 95 A60 60 0 0 1 160 95 A60 13 0 0 1 40 95 Z"/></clipPath></defs>
+<ellipse cx="118" cy="147" rx="86" ry="15" fill="rgba(40,15,5,0.35)" />
+<ellipse cx="100" cy="141" rx="82" ry="18" fill="#c27650" stroke="#3a2418" stroke-width="2" stroke-linejoin="round"/>
+<path d="M30 95 V138 A70 16 0 0 0 170 138 V95 Z" fill="#efe7da"/>
+<path d="M30 113 A70 16 0 0 0 170 113 V122 A70 16 0 0 1 30 122 Z" fill="#e07a3f"/>
+<g clip-path="url(#habA-b)"><rect x="118" y="80" width="60" height="80" fill="rgba(70,35,15,0.2)"/></g>
+<path d="M30 95 V138 A70 16 0 0 0 170 138 V95" fill="none" stroke="#3a2418" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<ellipse cx="100" cy="95" rx="70" ry="16" fill="#f8f3ea" stroke="#3a2418" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M40 95 A60 60 0 0 1 160 95 A60 13 0 0 1 40 95 Z" fill="#f6f1e8"/>
+<g clip-path="url(#habA-d)"><path fill-rule="evenodd" d="M30 20 H175 V110 H30 Z M28 78 A60 60 0 1 0 148 78 A60 60 0 1 0 28 78 Z" fill="rgba(70,35,15,0.2)"/></g>
+<g fill="none" stroke="#cfc5b4" stroke-width="1.6">
+<path d="M68 105 Q70 55 100 35"/><path d="M132 105 Q130 55 100 35"/><path d="M45 76 Q100 92 155 76"/><path d="M58 54 Q100 66 142 54"/>
+</g>
+<path d="M40 95 A60 60 0 0 1 160 95" fill="none" stroke="#3a2418" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M58 62 Q64 44 84 38 Q70 48 66 64 Z" fill="#fff" opacity="0.75"/>
+<circle cx="80" cy="76" r="9" fill="#ffd56b" stroke="#3a2418" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="77" cy="73" r="2.6" fill="#fff" opacity="0.8"/>
+<circle cx="122" cy="72" r="6" fill="#ffd56b" stroke="#3a2418" stroke-width="2" stroke-linejoin="round"/>
+<path d="M86 142 V117 Q86 105 100 105 Q114 105 114 117 V142 Z" fill="#a9b4bf" stroke="#3a2418" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="100" cy="118" r="4.5" fill="rgba(165,228,246,0.55)" stroke="#3a2418" stroke-width="2" stroke-linejoin="round"/>
+<rect x="82" y="141" width="36" height="7" rx="2" fill="#7d8894" stroke="#3a2418" stroke-width="2" stroke-linejoin="round"/>
+<path d="M136 44 L144 15" stroke="#3a2418" stroke-width="3" stroke-linecap="round"/>
+<circle cx="144" cy="14" r="4.2" fill="#ff5a4f" stroke="#3a2418" stroke-width="2" stroke-linejoin="round"/>
 </svg>

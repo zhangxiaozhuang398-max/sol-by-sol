@@ -27,8 +27,8 @@ export const WORLD_BASE = {
   spawn: { x: 56.5, z: 64.1, heading: Math.PI }, // just south of the airlock, facing the base
   stations: [
     { id: "habitat", kind: "habitat", x: 56.5, z: 62.2, r: 1.5, mx: 56.5, mz: 60.5, solid: 1.9, icon: "🏠" },
-    { id: "panels", kind: "panels", x: 61.9, z: 61.0, r: 2.4, solid: 1.2, icon: "🔆" },
-    { id: "greenhouse", kind: "greenhouse", x: 51.2, z: 61.0, r: 2.3, solid: 1.2, icon: "🌱" },
+    { id: "panels", kind: "panels", x: 61.9, z: 61.0, r: 2.4, solid: 1.5, icon: "🔆" },
+    { id: "greenhouse", kind: "greenhouse", x: 51.2, z: 61.0, r: 2.3, solid: 1.4, icon: "🌱" },
     { id: "antenna", kind: "antenna", x: 66.0, z: 60.8, r: 2.1, solid: 0.9, icon: "📡" },
   ],
   // Where NASA's Perseverance rover really landed (18.4447°N, 77.4508°E), February 2021.

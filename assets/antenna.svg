@@ -1,52 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220">
-  <!-- High-gain dish antenna seen from orbit. Sun in the west (left) like in the CTX photo: the dish is a bowl,
-       so its west inner wall is in shade and its east inner wall is lit; the raised dish throws a long shadow east. -->
-  <defs>
-    <filter id="blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="6"/></filter>
-    <radialGradient id="apron">
-      <stop offset="0" stop-color="#5b3523" stop-opacity="0.42"/><stop offset="0.6" stop-color="#6e4530" stop-opacity="0.22"/><stop offset="1" stop-color="#7c5038" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="dish" cx="64%" cy="55%" r="78%">
-      <stop offset="0" stop-color="#f3eadf"/><stop offset="0.45" stop-color="#dccdbc"/><stop offset="1" stop-color="#9d8875"/>
-    </radialGradient>
-    <linearGradient id="westShade" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#2a140b" stop-opacity="0.34"/><stop offset="0.5" stop-color="#2a140b" stop-opacity="0"/>
-    </linearGradient>
-    <radialGradient id="dust">
-      <stop offset="0.6" stop-color="#b9774f" stop-opacity="0"/><stop offset="1" stop-color="#b9774f" stop-opacity="0.4"/>
-    </radialGradient>
-  </defs>
-
-  <ellipse cx="114" cy="114" rx="106" ry="104" fill="url(#apron)"/>
-  <ellipse cx="136" cy="118" rx="67" ry="66" fill="#2a140b" opacity="0.46" filter="url(#blur)"/>
-
-  <!-- tripod base -->
-  <g stroke="#4f4640" stroke-width="6" stroke-linecap="round">
-    <line x1="110" y1="110" x2="38" y2="176"/><line x1="110" y1="110" x2="184" y2="172"/><line x1="110" y1="110" x2="110" y2="20"/>
-  </g>
-  <g fill="#7d7168"><circle cx="38" cy="176" r="8"/><circle cx="184" cy="172" r="8"/><circle cx="110" cy="20" r="8"/></g>
-
-  <!-- dish -->
-  <circle cx="110" cy="110" r="68" fill="url(#dish)"/>
-  <g fill="none" stroke="#6d5a4b" stroke-width="1.2" opacity="0.3">
-    <circle cx="110" cy="110" r="48"/><circle cx="110" cy="110" r="28"/>
-    <line x1="110" y1="42" x2="110" y2="178"/><line x1="42" y1="110" x2="178" y2="110"/>
-    <line x1="62" y1="62" x2="158" y2="158"/><line x1="158" y1="62" x2="62" y2="158"/>
-  </g>
-  <circle cx="110" cy="110" r="68" fill="url(#dust)"/>
-  <circle cx="110" cy="110" r="68" fill="url(#westShade)"/>
-  <circle cx="110" cy="110" r="67" fill="none" stroke="#f7efe4" stroke-width="2.2" opacity="0.65"/>
-  <circle cx="110" cy="110" r="68.2" fill="none" stroke="#5a4638" stroke-width="1" opacity="0.4"/>
-
-  <!-- feed struts (with their thin shadows on the dish) and horn -->
-  <g stroke="#2a140b" stroke-width="3" stroke-linecap="round" opacity="0.22" transform="translate(6 2)">
-    <line x1="64" y1="80" x2="110" y2="110"/><line x1="156" y1="80" x2="110" y2="110"/><line x1="110" y1="164" x2="110" y2="110"/>
-  </g>
-  <g stroke="#463d37" stroke-width="3" stroke-linecap="round">
-    <line x1="64" y1="80" x2="110" y2="110"/><line x1="156" y1="80" x2="110" y2="110"/><line x1="110" y1="164" x2="110" y2="110"/>
-  </g>
-  <circle cx="116" cy="112" r="12" fill="#2a140b" opacity="0.3"/>
-  <circle cx="110" cy="110" r="12" fill="#3f3732"/>
-  <circle cx="110" cy="110" r="5.5" fill="#2f5c5c"/>
-  <circle cx="108.3" cy="108.3" r="1.8" fill="#bfe3df" opacity="0.8"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="340" viewBox="0 0 200 170"><defs></defs>
+<ellipse cx="114" cy="146" rx="50" ry="11" fill="rgba(40,15,5,0.35)" />
+<polygon points="80,121 118,121 128,113 90,113" fill="#f8f3ea" stroke="#3a2418" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="80" y="121" width="38" height="22" fill="#efe7da" stroke="#3a2418" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="118,121 128,113 128,135 118,143" fill="#efe7da" stroke="#3a2418" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="118,121 128,113 128,135 118,143" fill="rgba(70,35,15,0.2)"/>
+<rect x="86" y="127" width="10" height="5" rx="1.5" fill="#7ad67a"/><rect x="99" y="127" width="10" height="5" rx="1.5" fill="#ffd56b"/>
+<rect x="96" y="68" width="10" height="50" fill="#a9b4bf" stroke="#3a2418" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<g transform="rotate(-24 101 60)">
+<ellipse cx="101" cy="62" rx="50" ry="22" fill="#f4f0e8" stroke="#3a2418" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<ellipse cx="101" cy="59" rx="43" ry="16" fill="#d9d2c6"/>
+<ellipse cx="101" cy="59" rx="43" ry="16" fill="none" stroke="#3a2418" stroke-width="1.5" opacity="0.5"/>
+<path d="M62 62 L101 18 M140 62 L101 18 M101 74 L101 18" stroke="#3a2418" stroke-width="2.2" fill="none"/>
+<rect x="95" y="12" width="12" height="11" rx="2" fill="#a9b4bf" stroke="#3a2418" stroke-width="2" stroke-linejoin="round"/>
+<circle cx="101" cy="9" r="3.8" fill="#ff5a4f" stroke="#3a2418" stroke-width="2" stroke-linejoin="round"/>
+<path d="M60 56 Q70 44 92 42 Q74 48 66 60 Z" fill="#fff" opacity="0.6"/>
+</g>
 </svg>

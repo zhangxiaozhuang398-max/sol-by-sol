@@ -15,12 +15,17 @@
 const SPEED = 6.5; // terrain cells per second (one cell is about 463 m of real Mars)
 const TURN = 12; // how quickly the astronaut turns to face the walking direction
 
-// kind → picture and its width in terrain cells
+// kind → picture and its width in terrain cells.
+// The base buildings are cartoon drawings in a three-quarter view (made by
+// scripts/draw_buildings.mjs): `crisp` keeps their outlines sharp (no blur or
+// grain), and `anchor` is how far down the picture (0 = top, 1 = bottom) the
+// building stands on the ground, so it rises north of its spot and the
+// astronaut can walk behind it.
 const SPRITES = {
-  habitat: { file: "habitat.svg", size: 3.6 },
-  panels: { file: "panels.svg", size: 2.8 },
-  greenhouse: { file: "greenhouse.svg", size: 2.6 },
-  antenna: { file: "antenna.svg", size: 2.0 },
+  habitat: { file: "habitat.svg", size: 4.5, anchor: 0.78, crisp: true },
+  panels: { file: "panels.svg", size: 3.75, anchor: 0.72, crisp: true },
+  greenhouse: { file: "greenhouse.svg", size: 3.6, anchor: 0.79, crisp: true },
+  antenna: { file: "antenna.svg", size: 2.75, anchor: 0.8, crisp: true },
   landmark: { file: "rover.svg", size: 1.3 },
   astronaut: { file: "astronaut.svg", size: 1.3 }, // body only: world2d draws the arms and boots so they can move
   // survey sites: each is a drawing of the landform itself, with the instrument used to study it
@@ -218,9 +223,10 @@ export async function createWorld(opts) {
       let nx = clamp(st.x + st.vx * dt, 1, n - 1);
       let nz = clamp(st.z + st.vz * dt, 1, n - 1);
       for (const s of solids) {
-        const dx = nx - s.x, dz = nz - s.z;
+        // standing buildings have an oval footprint (squashed north–south like their drawing)
+        const k = s.k || 1, dx = nx - s.x, dz = (nz - s.z) / k;
         const d = Math.hypot(dx, dz);
-        if (d < s.r && d > 0.0001) { nx = s.x + (dx / d) * s.r; nz = s.z + (dz / d) * s.r; if (st.dest) st.dest = null; }
+        if (d < s.r && d > 0.0001) { nx = s.x + (dx / d) * s.r; nz = s.z + (dz / d) * s.r * k; if (st.dest) st.dest = null; }
       }
       st.x = nx;
       st.z = nz;
@@ -348,6 +354,7 @@ export async function createWorld(opts) {
       c.height = h;
       const b = c.getContext("2d");
       b.imageSmoothingQuality = "high";
+      if (sp.crisp) { b.drawImage(img, 0, 0, w, h); continue; } // cartoon art: sharp outlines, no photo grain
       b.filter = `blur(${(0.45 * dpr).toFixed(2)}px)`; // ignored where canvas filters are not supported
       b.drawImage(img, 0, 0, w, h);
       b.filter = "none";
@@ -366,15 +373,17 @@ export async function createWorld(opts) {
     }
   }
 
+  // Draws a picture at (x, z). Returns how far (px) it reaches below that point.
   function drawSprite(kind, x, z, rot = 0, scale = 1) {
     const img = baked[kind];
     const w = img.width * scale, h = img.height * scale;
+    const an = SPRITES[kind].anchor ?? 0.5;
     ctx.save();
     ctx.translate(sx(x), sy(z));
     if (rot) ctx.rotate(rot);
-    ctx.drawImage(img, -w / 2, -h / 2, w, h);
+    ctx.drawImage(img, -w / 2, -h * an, w, h);
     ctx.restore();
-    return h;
+    return h * (1 - an);
   }
 
   // A soft shadow on the ground. The sun is in the west in the CTX photo (look
@@ -397,12 +406,15 @@ export async function createWorld(opts) {
 
   // Ground wear that ties the drawings to the photo: a trodden path linking the
   // stations, and the rover's wheel tracks trailing away behind it.
-  const halfH = (kind) => (SPRITES[kind].size * (art[kind].height / art[kind].width)) / 2;
+  // How far (in cells) a picture reaches above / below the spot it stands on.
+  const spriteH = (kind) => SPRITES[kind].size * (art[kind].height / art[kind].width);
+  const above = (kind) => spriteH(kind) * (SPRITES[kind].anchor ?? 0.5);
+  const below = (kind) => spriteH(kind) * (1 - (SPRITES[kind].anchor ?? 0.5));
 
   function drawGroundWear() {
     const stops = targets
       .filter((t) => t.kind === "habitat" || t.kind === "panels" || t.kind === "greenhouse" || t.kind === "antenna")
-      .map((t) => ({ x: t.x, z: t.kind === "habitat" ? t.z + 0.8 : t.z + halfH(t.kind) + 0.85 })) // just south of the name labels
+      .map((t) => ({ x: t.x, z: t.kind === "habitat" ? t.z + 0.8 : t.z + below(t.kind) + 0.85 })) // just south of the name labels
       .sort((a, b) => a.x - b.x);
     if (stops.length > 1) {
       ctx.lineCap = "round";
@@ -906,8 +918,8 @@ export async function createWorld(opts) {
       if (o.kind === "astronaut") {
         drawAstronaut();
       } else if (art[o.kind]) {
-        const h = drawSprite(o.kind, o.x, o.z);
-        labels.push({ text: plainLabel(o.t), x: sx(o.x), y: sy(o.z) + h / 2 + 4 * dpr, done: o.t.done });
+        const down = drawSprite(o.kind, o.x, o.z);
+        labels.push({ text: plainLabel(o.t), x: sx(o.x), y: sy(o.z) + down + 4 * dpr, done: o.t.done });
       }
     }
 
@@ -928,10 +940,9 @@ export async function createWorld(opts) {
     for (const t of targets) {
       if (!focus.has(t.id) || st.near === t.id) continue;
       const kind = t.kind === "site" ? `site_${t.id}` : t.kind;
-      const sp = SPRITES[kind];
-      const half = sp ? (sp.size * (art[kind].height / art[kind].width)) / 2 : 0.6;
+      const up = SPRITES[kind] ? above(kind) : 0.6;
       const x = sx(t.mx ?? t.x), bob = Math.sin(st.time * 4 + t.x) * 0.12 * S;
-      const y = sy((t.mz ?? t.z) - half * (t.kind === "site" ? 0.55 : 1)) - 0.35 * S + bob;
+      const y = sy((t.mz ?? t.z) - up * (t.kind === "site" ? 0.55 : 1)) - 0.35 * S + bob;
       const r = 0.3 * S;
       ctx.save();
       ctx.shadowColor = "rgba(255,211,107,0.9)";
@@ -1052,7 +1063,7 @@ export async function createWorld(opts) {
     info: M,
     setTargets(list) {
       targets = list;
-      solids = list.filter((t) => t.solid).map((t) => ({ x: t.mx ?? t.x, z: t.mz ?? t.z, r: t.solid }));
+      solids = list.filter((t) => t.solid).map((t) => ({ x: t.mx ?? t.x, z: t.mz ?? t.z, r: t.solid, k: SPRITES[t.kind]?.crisp ? 0.4 : 1 }));
     },
     setSpawn(x, z, heading = Math.PI) {
       st.spawn = { x, z, heading };
@@ -1111,7 +1122,9 @@ export async function createWorld(opts) {
       endAction();
       return new Promise((resolve) => {
         const gear = t.kind === "site" ? SITE_GEAR[t.id] || [0, 0] : [0, 0];
-        const x = (t.mx ?? t.x) + gear[0], z = (t.mz ?? t.z) + gear[1];
+        // a standing building: play the job over the middle of the picture, not at its feet
+        const lift = t.kind !== "site" && SPRITES[t.kind] && art[t.kind] ? above(t.kind) - spriteH(t.kind) / 2 : 0;
+        const x = (t.mx ?? t.x) + gear[0], z = (t.mz ?? t.z) + gear[1] - lift;
         st.dest = null;
         const a = {
           kind, id, x, z, t0: st.time, dur: ms / 1000, done: resolve,
