@@ -41,9 +41,46 @@ function updateSoundBtn() {
   const on = audio.isEnabled();
   b.textContent = on ? "🔊" : "🔇";
   b.setAttribute("aria-label", t(on ? "top.soundOn" : "top.soundOff"));
-  b.title = t(on ? "top.soundOn" : "top.soundOff");
+  b.title = `${t(on ? "top.soundOn" : "top.soundOff")}\n${t("mixer.hint")}`;
 }
-$("#btn-sound")?.addEventListener("click", () => { audio.toggle(); updateSoundBtn(); });
+// Click: sound on/off. Right-click (or press and hold on a touch screen): the volume panel.
+let holdTimer = 0, held = false;
+$("#btn-sound")?.addEventListener("click", (e) => {
+  if (held) { held = false; e.preventDefault(); return; } // that press opened the panel
+  audio.toggle();
+  updateSoundBtn();
+});
+$("#btn-sound")?.addEventListener("contextmenu", (e) => { e.preventDefault(); openMixer(); });
+$("#btn-sound")?.addEventListener("pointerdown", (e) => {
+  if (e.pointerType === "mouse") return;
+  clearTimeout(holdTimer);
+  holdTimer = setTimeout(() => { held = true; openMixer(); }, 500);
+});
+for (const ev of ["pointerup", "pointerleave", "pointercancel"]) $("#btn-sound")?.addEventListener(ev, () => clearTimeout(holdTimer));
+
+function openMixer() {
+  audio.init();
+  const m = $("#mixer");
+  if (!m || !audio.levels) return; // an older cached page without the panel
+  const lv = audio.levels();
+  $$("input[data-level]", m).forEach((r) => {
+    r.value = Math.round(lv[r.dataset.level] * 100);
+    r.nextElementSibling.textContent = r.value;
+  });
+  m.classList.remove("hidden");
+  $("input[data-level]", m).focus();
+}
+const closeMixer = () => $("#mixer")?.classList.add("hidden");
+$("#mixer")?.addEventListener("input", (e) => {
+  const r = e.target.closest("input[data-level]");
+  if (!r) return;
+  audio.setLevel(r.dataset.level, r.value / 100);
+  r.nextElementSibling.textContent = r.value;
+  if (r.dataset.level === "effects") audio.click(); // hear how loud the effects are
+});
+$("#mixer-close")?.addEventListener("click", closeMixer);
+document.addEventListener("pointerdown", (e) => { if (!e.target.closest("#mixer, #btn-sound")) closeMixer(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMixer(); });
 document.addEventListener("pointerdown", () => { audio.init(); updateMusic(); }, { once: true });
 document.addEventListener("keydown", () => { audio.init(); updateMusic(); }, { once: true });
 

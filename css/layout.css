@@ -476,3 +476,19 @@ dialog.bigmap canvas { display: block; width: 100%; height: auto; max-height: 68
 .reward-card { border-left-color: var(--sand); background: linear-gradient(135deg, rgba(243, 181, 98, 0.2), var(--card)); }
 .reward-card .label { color: var(--sand); }
 .reward-card .rw-tip { font-size: 0.85rem; color: var(--muted); }
+
+/* ---- volume panel (right-click / long-press the sound button) ---- */
+.top-actions { position: relative; }
+.mixer {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 30; width: 260px; padding: 10px 12px 12px;
+  background: var(--bg-2); color: var(--text); border: 2px solid var(--line); border-radius: var(--radius-sm);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+}
+.mixer-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.mixer-head b { font-size: 1rem; }
+.mixer-x { border: 0; background: var(--card-2); color: var(--text); width: 24px; height: 24px; border-radius: 50%; cursor: pointer; font: inherit; font-size: 0.75rem; }
+.mixer-row { display: grid; grid-template-columns: 96px 1fr 30px; align-items: center; gap: 8px; margin: 6px 0; font-size: 0.85rem; font-weight: 700; }
+.mixer-row input { width: 100%; accent-color: var(--sand); }
+.mixer-row output { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.mixer-note { margin: 6px 0 0; font-size: 0.72rem; color: var(--muted); }
+@media (max-width: 900px) { .mixer { position: fixed; top: 64px; right: 8px; } }

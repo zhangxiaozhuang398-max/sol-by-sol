@@ -4,6 +4,13 @@
 
 const DICT = {
   en: {
+    // volume panel (right-click the sound button)
+    "mixer.title": "Volume",
+    "mixer.music": "🎷 Music",
+    "mixer.ambient": "🌬️ Mars sounds",
+    "mixer.effects": "🔔 Effects",
+    "mixer.note": "Mars sounds are real recordings by NASA's Perseverance rover.",
+    "mixer.hint": "Right-click (or press and hold) for volume",
     // research rewards (config.apBonus)
     "reward.title": "Research rewards",
     "reward.intro": "No building needed: reach the research total and the crew gets one more action point every day, starting the next morning.",
@@ -743,6 +750,13 @@ const DICT = {
   },
 
   zh: {
+    // volume panel (right-click the sound button)
+    "mixer.title": "音量",
+    "mixer.music": "🎷 音乐",
+    "mixer.ambient": "🌬️ 火星声音",
+    "mixer.effects": "🔔 音效",
+    "mixer.note": "火星声音是 NASA 毅力号在火星上录制的真实声音。",
+    "mixer.hint": "右键（或长按）调节音量",
     // research rewards (config.apBonus)
     "reward.title": "研究奖励",
     "reward.intro": "不用建造：研究点到了就自动送，每天多 1 个行动点，从第二天早上开始。",

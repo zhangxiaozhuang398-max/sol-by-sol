@@ -1,9 +1,29 @@
-// Tiny Web Audio sound bed for Sol by Sol. No files: everything is synthesised
-// so the game stays a single static download. Browsers start audio only after a
-// user gesture, so init() is called on the first pointerdown.
+// Web Audio sound bed for Sol by Sol: synthesized effects, the music bus for
+// js/music.js, and real sounds recorded on Mars. Browsers start audio only
+// after a user gesture, so init() is called on the first pointerdown.
 const STORAGE = "solbysol.sound";
+const LEVELS_KEY = "solbysol.levels";
 let ctx = null;
 let master = null;
+let musicVol = null, amb = null, sfx = null; // the three volume groups
+// 0…1 sliders. Each group has its own scale so the defaults sit well together.
+const SCALE = { music: 2.2, ambient: 1, effects: 1 };
+let levels = { music: 0.75, ambient: 0.5, effects: 0.8 };
+try { levels = { ...levels, ...JSON.parse(localStorage.getItem(LEVELS_KEY) || "{}") }; } catch { /* storage blocked */ }
+
+function applyLevels() {
+  if (!ctx || !musicVol) return;
+  const set = (node, key) => node.gain.setTargetAtTime(levels[key] * SCALE[key], ctx.currentTime, 0.05);
+  set(musicVol, "music");
+  set(amb, "ambient");
+  set(sfx, "effects");
+}
+function setLevel(key, value) {
+  if (!(key in levels)) return;
+  levels[key] = Math.max(0, Math.min(1, +value || 0));
+  try { localStorage.setItem(LEVELS_KEY, JSON.stringify(levels)); } catch { /* ignore */ }
+  applyLevels();
+}
 let noise = null;
 let windSource = null;
 let windFilter = null;
@@ -35,6 +55,12 @@ function init() {
   master = ctx.createGain();
   master.gain.value = enabled ? 0.35 : 0;
   master.connect(ctx.destination);
+  // three volume levels the player can set (right-click the sound button): music, Mars sounds, effects
+  musicVol = ctx.createGain();
+  amb = ctx.createGain();
+  sfx = ctx.createGain();
+  for (const n of [musicVol, amb, sfx]) n.connect(master);
+  applyLevels();
   noise = makeNoise();
 
   windSource = ctx.createBufferSource();
@@ -45,13 +71,13 @@ function init() {
   windFilter.frequency.value = 450;
   windGain = ctx.createGain();
   windGain.gain.value = 0.02;
-  windSource.connect(windFilter).connect(windGain).connect(master);
+  windSource.connect(windFilter).connect(windGain).connect(amb);
   windSource.start();
   applyWind();
   // the background music (js/music.js) plays into its own bus under the sound effects
   musicBus = ctx.createGain();
   musicBus.gain.value = 0;
-  musicBus.connect(master);
+  musicBus.connect(musicVol);
   loadMarsSounds();
   if (ctx.state === "suspended") ctx.resume().catch(() => {});
 }
@@ -93,7 +119,7 @@ function startMarsWind() {
   src.loopEnd = Math.max(1, w.buffer.duration - 0.5);
   const gain = ctx.createGain();
   gain.gain.value = 0;
-  src.connect(gain).connect(master);
+  src.connect(gain).connect(amb);
   src.start(0, 0.5);
   marsWind = { src, gain };
   applyWind();
@@ -113,7 +139,7 @@ function marsClip(name, seconds, level = 1) {
   g.gain.linearRampToValueAtTime(peak, t + 0.15);
   g.gain.setValueAtTime(peak, t + Math.max(0.2, len - 0.4));
   g.gain.linearRampToValueAtTime(0.0001, t + len);
-  src.connect(g).connect(master);
+  src.connect(g).connect(amb);
   src.start(t, start, len + 0.05);
   return true;
 }
@@ -167,7 +193,7 @@ function click() {
   g.gain.setValueAtTime(0.0001, t);
   g.gain.exponentialRampToValueAtTime(0.035, t + 0.006);
   g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
-  o.connect(g).connect(master);
+  o.connect(g).connect(sfx);
   o.start(t);
   o.stop(t + 0.08);
 }
@@ -183,7 +209,7 @@ function step() {
   const g = ctx.createGain();
   g.gain.setValueAtTime(0.05, t);
   g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
-  src.connect(f).connect(g).connect(master);
+  src.connect(f).connect(g).connect(sfx);
   src.start(t);
   src.stop(t + 0.12);
 }
@@ -199,7 +225,7 @@ function chime() {
     g.gain.setValueAtTime(0.0001, t + delay);
     g.gain.exponentialRampToValueAtTime(0.04, t + delay + 0.02);
     g.gain.exponentialRampToValueAtTime(0.0001, t + delay + 0.32);
-    o.connect(g).connect(master);
+    o.connect(g).connect(sfx);
     o.start(t + delay);
     o.stop(t + delay + 0.34);
   }
@@ -219,7 +245,7 @@ function whoosh() {
   g.gain.setValueAtTime(0.0001, t);
   g.gain.linearRampToValueAtTime(0.11, t + 0.06);
   g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
-  src.connect(f).connect(g).connect(master);
+  src.connect(f).connect(g).connect(sfx);
   src.start(t);
   src.stop(t + 0.6);
 }
@@ -237,7 +263,7 @@ function alarm() {
     g.gain.setValueAtTime(0.0001, at);
     g.gain.exponentialRampToValueAtTime(0.03, at + 0.01);
     g.gain.exponentialRampToValueAtTime(0.0001, at + 0.14);
-    o.connect(g).connect(master);
+    o.connect(g).connect(sfx);
     o.start(at);
     o.stop(at + 0.15);
   }
@@ -265,7 +291,7 @@ function drill(seconds = 1.5) {
   g.gain.linearRampToValueAtTime(0.09, t + 0.08);
   g.gain.setValueAtTime(0.09, t + seconds - 0.1);
   g.gain.exponentialRampToValueAtTime(0.0001, t + seconds);
-  src.connect(f).connect(g).connect(master);
+  src.connect(f).connect(g).connect(sfx);
   buzz.connect(bg).connect(g);
   src.start(t);
   buzz.start(t);
@@ -287,7 +313,7 @@ function found(rare = false) {
     g.gain.setValueAtTime(0.0001, at);
     g.gain.exponentialRampToValueAtTime(0.05, at + 0.02);
     g.gain.exponentialRampToValueAtTime(0.0001, at + 0.35);
-    o.connect(g).connect(master);
+    o.connect(g).connect(sfx);
     o.start(at);
     o.stop(at + 0.37);
   });
@@ -299,6 +325,8 @@ export const audio = {
   laser: (seconds) => marsClip("laser", seconds, 0.9),
   drive: (seconds) => marsClip("drive", seconds, 0.8),
   isEnabled: () => enabled,
+  // volume groups: "music" | "ambient" (Mars sounds) | "effects", each 0…1
+  setLevel, levels: () => ({ ...levels }),
   // for js/music.js: the audio context (null until the first tap), its bus and the shared noise
   context: () => ctx,
   musicBus: () => musicBus,

@@ -196,3 +196,9 @@ dialog.sheet, #info, #collection { border-radius: 0 !important; border: 3px soli
   .game .top-actions { gap: 5px; }
   .game .top-actions .btn, .game .top-actions .lang-toggle { padding: 4px 8px; box-shadow: 2px 2px 0 var(--orange); }
 }
+
+/* volume panel */
+.mixer { border-radius: 0; background: var(--ink); border: 3px solid var(--cream); box-shadow: 6px 6px 0 var(--orange); }
+.mixer-head b { font-family: var(--title); font-weight: 400; font-size: 1.4rem; letter-spacing: 0.06em; color: var(--mustard); }
+.mixer-x { border-radius: 0; background: var(--cream); color: var(--ink); }
+.mixer-row span { font-family: "Oswald", var(--cjk); text-transform: uppercase; letter-spacing: 0.05em; }

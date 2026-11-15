@@ -108,8 +108,16 @@
       <div class="top-actions">
         <button class="btn small" id="btn-help" data-i18n="top.help"></button>
         <button class="btn small" id="btn-new" data-i18n="top.new"></button>
-        <button class="btn small sound-btn" id="btn-sound" type="button">🔊</button>
+        <button class="btn small sound-btn" id="btn-sound" type="button" aria-haspopup="dialog">🔊</button>
         <button class="lang-toggle" data-i18n="lang.toggle" data-i18n-aria="lang.aria">中文</button>
+        <!-- volume panel: right-click (or long-press) the sound button -->
+        <div class="mixer hidden" id="mixer" role="dialog" data-i18n-aria="mixer.title">
+          <div class="mixer-head"><b data-i18n="mixer.title"></b><button class="mixer-x" type="button" id="mixer-close" data-i18n-aria="dock.close">✕</button></div>
+          <label class="mixer-row"><span data-i18n="mixer.music"></span><input type="range" min="0" max="100" step="1" data-level="music"><output></output></label>
+          <label class="mixer-row"><span data-i18n="mixer.ambient"></span><input type="range" min="0" max="100" step="1" data-level="ambient"><output></output></label>
+          <label class="mixer-row"><span data-i18n="mixer.effects"></span><input type="range" min="0" max="100" step="1" data-level="effects"><output></output></label>
+          <p class="mixer-note" data-i18n="mixer.note"></p>
+        </div>
       </div>
     </header>
 
