@@ -1,62 +1,89 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320">
-  <!-- Mars habitat seen from above: central dome, two side modules, airlock tunnel to the south. Light from the north-west. -->
+  <!-- Mars habitat seen from orbit: a dome banked with regolith, two side modules, an airlock tunnel to the south.
+       Made to sit on the CTX photo: the sun is in the west (left) like in the photo, so shadows fall to the east;
+       surfaces are dusty off-white with no drawn outlines. -->
   <defs>
-    <filter id="blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="7"/></filter>
-    <radialGradient id="dome" cx="38%" cy="34%" r="75%">
-      <stop offset="0" stop-color="#ffffff"/><stop offset="0.45" stop-color="#e8e6ef"/><stop offset="1" stop-color="#9c98ad"/>
+    <filter id="blur" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    <filter id="haze" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="3"/></filter>
+    <radialGradient id="apron">
+      <stop offset="0" stop-color="#5b3523" stop-opacity="0.5"/><stop offset="0.55" stop-color="#6e4530" stop-opacity="0.28"/><stop offset="1" stop-color="#7c5038" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="tube" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#f4f3f8"/><stop offset="1" stop-color="#a7a3b8"/>
+    <radialGradient id="dome" cx="34%" cy="42%" r="74%">
+      <stop offset="0" stop-color="#f6eee3"/><stop offset="0.4" stop-color="#e1d3c3"/><stop offset="0.8" stop-color="#b39d8a"/><stop offset="1" stop-color="#8a7462"/>
+    </radialGradient>
+    <radialGradient id="dust">
+      <stop offset="0.5" stop-color="#b9774f" stop-opacity="0"/><stop offset="1" stop-color="#b9774f" stop-opacity="0.5"/>
+    </radialGradient>
+    <linearGradient id="tubeEW" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9a8472"/><stop offset="0.36" stop-color="#eadfd2"/><stop offset="0.6" stop-color="#d8c9ba"/><stop offset="1" stop-color="#84705f"/>
     </linearGradient>
-    <linearGradient id="lock" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#d9d6e2"/><stop offset="0.5" stop-color="#f3f2f7"/><stop offset="1" stop-color="#9a96ab"/>
+    <linearGradient id="tubeNS" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#bba795"/><stop offset="0.34" stop-color="#ece1d4"/><stop offset="0.64" stop-color="#cdbdac"/><stop offset="1" stop-color="#7d6a5a"/>
     </linearGradient>
-    <radialGradient id="glass" cx="40%" cy="35%" r="70%">
-      <stop offset="0" stop-color="#b9fff6"/><stop offset="1" stop-color="#2b8f88"/>
+    <linearGradient id="eastShade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0.35" stop-color="#2a140b" stop-opacity="0"/><stop offset="1" stop-color="#2a140b" stop-opacity="0.3"/>
+    </linearGradient>
+    <linearGradient id="dustLow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.45" stop-color="#b9774f" stop-opacity="0"/><stop offset="1" stop-color="#b9774f" stop-opacity="0.42"/>
+    </linearGradient>
+    <radialGradient id="glass" cx="35%" cy="35%" r="75%">
+      <stop offset="0" stop-color="#5f8d8f"/><stop offset="0.5" stop-color="#27474d"/><stop offset="1" stop-color="#10232a"/>
     </radialGradient>
   </defs>
 
-  <!-- shadow -->
-  <g filter="url(#blur)" fill="#1a0d08" opacity="0.5" transform="translate(14 16)">
-    <circle cx="160" cy="140" r="78"/>
-    <rect x="40" y="112" width="240" height="56" rx="28"/>
-    <rect x="138" y="200" width="44" height="92" rx="12"/>
+  <!-- trampled, darker soil around the base -->
+  <ellipse cx="160" cy="166" rx="158" ry="150" fill="url(#apron)"/>
+
+  <!-- shadows, cast east; the dome is tallest so its shadow is longest -->
+  <g filter="url(#blur)" fill="#2a140b">
+    <circle cx="188" cy="149" r="80" opacity="0.48"/>
+    <rect x="52" y="118" width="244" height="56" rx="28" opacity="0.42"/>
+    <rect x="150" y="201" width="44" height="92" rx="12" opacity="0.42"/>
   </g>
 
-  <!-- regolith berm around the base of the dome -->
-  <circle cx="160" cy="140" r="90" fill="#8a4a2c" opacity="0.55"/>
-  <circle cx="160" cy="140" r="84" fill="#a55a36" opacity="0.5"/>
+  <!-- regolith banked up against the dome -->
+  <circle cx="160" cy="140" r="93" fill="#96654a" opacity="0.5" filter="url(#haze)"/>
+  <circle cx="157" cy="139" r="85" fill="#a37153" opacity="0.5" filter="url(#haze)"/>
 
   <!-- side modules -->
-  <rect x="38" y="112" width="244" height="56" rx="28" fill="url(#tube)" stroke="#6f6b80" stroke-width="2"/>
-  <g stroke="#8d899e" stroke-width="2" opacity="0.8">
-    <line x1="66" y1="113" x2="66" y2="167"/><line x1="90" y1="113" x2="90" y2="167"/>
-    <line x1="230" y1="113" x2="230" y2="167"/><line x1="254" y1="113" x2="254" y2="167"/>
+  <rect x="38" y="112" width="244" height="56" rx="28" fill="url(#tubeEW)"/>
+  <g stroke="#6d5a4b" stroke-width="1.5" opacity="0.38">
+    <line x1="66" y1="114" x2="66" y2="166"/><line x1="90" y1="112" x2="90" y2="168"/>
+    <line x1="230" y1="112" x2="230" y2="168"/><line x1="254" y1="114" x2="254" y2="166"/>
   </g>
-  <circle cx="54" cy="140" r="9" fill="url(#glass)" stroke="#51607a" stroke-width="2"/>
-  <circle cx="266" cy="140" r="9" fill="url(#glass)" stroke="#51607a" stroke-width="2"/>
+  <rect x="38" y="112" width="244" height="56" rx="28" fill="url(#dustLow)"/>
+  <rect x="38" y="112" width="244" height="56" rx="28" fill="url(#eastShade)"/>
+  <circle cx="54" cy="140" r="8" fill="url(#glass)"/>
+  <circle cx="266" cy="140" r="8" fill="url(#glass)"/>
 
-  <!-- airlock tunnel -->
-  <rect x="138" y="196" width="44" height="92" rx="10" fill="url(#lock)" stroke="#6f6b80" stroke-width="2"/>
-  <g stroke="#8d899e" stroke-width="2"><line x1="139" y1="222" x2="181" y2="222"/><line x1="139" y1="246" x2="181" y2="246"/></g>
-  <rect x="146" y="262" width="28" height="22" rx="5" fill="#6c5ba8" stroke="#3d3368" stroke-width="2"/>
-  <circle cx="160" cy="273" r="4" fill="#f3b562"/>
-  <!-- ramp -->
-  <path d="M146 288 h28 l8 18 h-44 z" fill="#8c8898" stroke="#5c586c" stroke-width="2"/>
+  <!-- airlock tunnel, hatch and ramp -->
+  <path d="M146 288 h28 l9 19 h-46 z" fill="#8b7d70"/>
+  <path d="M146 288 h28 l9 19 h-46 z" fill="url(#eastShade)"/>
+  <rect x="138" y="196" width="44" height="92" rx="10" fill="url(#tubeNS)"/>
+  <g stroke="#6d5a4b" stroke-width="1.5" opacity="0.38"><line x1="139" y1="222" x2="181" y2="222"/><line x1="139" y1="246" x2="181" y2="246"/></g>
+  <rect x="138" y="196" width="44" height="92" rx="10" fill="url(#dustLow)"/>
+  <rect x="147" y="263" width="26" height="21" rx="5" fill="#4a433e"/>
+  <circle cx="160" cy="273" r="3" fill="#d9a45a"/>
 
   <!-- dome -->
-  <circle cx="160" cy="140" r="76" fill="url(#dome)" stroke="#6f6b80" stroke-width="2.5"/>
-  <g fill="none" stroke="#8d899e" stroke-width="1.6" opacity="0.75">
-    <circle cx="160" cy="140" r="52"/><circle cx="160" cy="140" r="26"/>
+  <circle cx="160" cy="140" r="76" fill="url(#dome)"/>
+  <g fill="none" stroke="#6d5a4b" stroke-width="1.3" opacity="0.3">
+    <circle cx="160" cy="140" r="52"/><circle cx="160" cy="140" r="27"/>
     <line x1="160" y1="64" x2="160" y2="216"/><line x1="84" y1="140" x2="236" y2="140"/>
     <line x1="106" y1="86" x2="214" y2="194"/><line x1="214" y1="86" x2="106" y2="194"/>
   </g>
+  <!-- mission stripe, faded by dust -->
+  <path d="M96 100 a76 76 0 0 1 28 -26" fill="none" stroke="#b5532c" stroke-width="5.5" stroke-linecap="round" opacity="0.8"/>
+  <!-- dust settled on the lower shell, and the sunlit side -->
+  <circle cx="160" cy="140" r="76" fill="url(#dust)"/>
+  <ellipse cx="128" cy="120" rx="27" ry="19" fill="#ffffff" opacity="0.32" filter="url(#haze)"/>
+  <circle cx="160" cy="140" r="75.4" fill="none" stroke="#5a4638" stroke-width="1.2" opacity="0.4"/>
   <!-- skylight -->
-  <circle cx="160" cy="140" r="20" fill="url(#glass)" stroke="#51607a" stroke-width="2.5"/>
-  <path d="M148 132 a14 14 0 0 1 14 -8" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
-  <!-- orange mission stripe + hatch marks -->
-  <path d="M96 100 a76 76 0 0 1 28 -26" fill="none" stroke="#e46a3c" stroke-width="7" stroke-linecap="round"/>
-  <rect x="196" y="176" width="20" height="12" rx="3" fill="#e46a3c" transform="rotate(45 206 182)"/>
-  <!-- small roof antenna -->
-  <circle cx="212" cy="96" r="6" fill="#444058"/><circle cx="212" cy="96" r="2.5" fill="#4fd1c5"/>
+  <circle cx="160" cy="140" r="19" fill="#5a4c42"/>
+  <circle cx="160" cy="140" r="16" fill="url(#glass)"/>
+  <path d="M150 134 a11 11 0 0 1 10 -6" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" opacity="0.55"/>
+  <!-- roof equipment box with its own small shadow -->
+  <rect x="208" y="92" width="17" height="13" rx="2" fill="#2a140b" opacity="0.35"/>
+  <rect x="203" y="89" width="17" height="13" rx="2" fill="#6a5f56"/>
+  <rect x="203" y="89" width="7" height="13" rx="2" fill="#8c8076"/>
 </svg>

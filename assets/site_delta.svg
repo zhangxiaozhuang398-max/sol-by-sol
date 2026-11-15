@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="260" viewBox="0 0 320 260">
+  <!-- Survey site "Ancient Lake Delta": the fan of mud and sand a river dropped where it met the lake, with the old
+       branching channels, and a row of sealed sample tubes laid on the ground (as Perseverance did at "Three Forks").
+       An illustration, larger than life. The river came from the west (left); the fan's steep front faces east, in shade. -->
+  <defs>
+    <filter id="blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter>
+    <filter id="haze" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="1.8"/></filter>
+    <radialGradient id="fan" cx="6%" cy="46%" r="96%">
+      <stop offset="0" stop-color="#e8c8aa"/><stop offset="0.6" stop-color="#d2a888"/><stop offset="1" stop-color="#b98c70"/>
+    </radialGradient>
+    <path id="shape" d="M18 118 C60 70 110 26 172 14 C196 26 206 40 214 34 C232 44 232 62 246 64 C262 82 252 98 266 110 C272 132 256 146 262 162 C252 182 234 184 232 200 C212 214 198 206 186 220 C150 232 80 186 18 118 Z"/>
+    <clipPath id="inFan"><use href="#shape"/></clipPath>
+  </defs>
+
+  <!-- shadow below the fan's east-facing front -->
+  <use href="#shape" fill="#2a140b" opacity="0.5" filter="url(#blur)" transform="translate(12 3)"/>
+  <use href="#shape" fill="url(#fan)"/>
+  <g clip-path="url(#inFan)" fill="none" stroke-linecap="round">
+    <!-- arcs: each band of mud was laid down as the delta grew out into the lake -->
+    <g stroke="#9c7258" stroke-width="1.6" opacity="0.4">
+      <circle cx="18" cy="118" r="70"/><circle cx="18" cy="118" r="112"/><circle cx="18" cy="118" r="152"/><circle cx="18" cy="118" r="192"/><circle cx="18" cy="118" r="226"/>
+    </g>
+    <!-- branching channels, now standing as low ridges: a dark east side and a sunlit west side -->
+    <g stroke="#3a1c10" stroke-width="5" opacity="0.32" transform="translate(2.5 1)" filter="url(#haze)">
+      <path d="M18 118 C70 100 110 70 172 30"/><path d="M96 92 C140 96 180 78 232 56"/><path d="M18 118 C90 118 170 110 262 116"/>
+      <path d="M130 116 C170 130 210 140 256 156"/><path d="M18 118 C70 140 120 170 186 212"/><path d="M92 152 C130 170 180 184 228 196"/>
+    </g>
+    <g stroke="#f0d3b6" stroke-width="4">
+      <path d="M18 118 C70 100 110 70 172 30"/><path d="M96 92 C140 96 180 78 232 56"/><path d="M18 118 C90 118 170 110 262 116"/>
+      <path d="M130 116 C170 130 210 140 256 156"/><path d="M18 118 C70 140 120 170 186 212"/><path d="M92 152 C130 170 180 184 228 196"/>
+    </g>
+    <!-- the fan front darkens towards its shaded east edge -->
+    <use href="#shape" stroke="#3a1c10" stroke-width="16" opacity="0.28" filter="url(#haze)" transform="translate(-6 0)"/>
+  </g>
+  <!-- where the river came in -->
+  <path d="M-12 124 C0 112 8 122 20 118" fill="none" stroke="#6b4634" stroke-width="12" stroke-linecap="round" opacity="0.55" filter="url(#haze)"/>
+
+  <!-- sample tubes laid out on the ground in a zigzag -->
+  <g fill="#2a140b" opacity="0.4">
+    <rect x="186" y="222" width="20" height="5.5" rx="2.7" transform="rotate(24 196 225)"/><rect x="212" y="226" width="20" height="5.5" rx="2.7" transform="rotate(-24 222 229)"/>
+    <rect x="238" y="222" width="20" height="5.5" rx="2.7" transform="rotate(24 248 225)"/><rect x="264" y="226" width="20" height="5.5" rx="2.7" transform="rotate(-24 274 229)"/>
+  </g>
+  <g fill="#e6dccf">
+    <rect x="184" y="220" width="20" height="5.5" rx="2.7" transform="rotate(24 194 223)"/><rect x="210" y="224" width="20" height="5.5" rx="2.7" transform="rotate(-24 220 227)"/>
+    <rect x="236" y="220" width="20" height="5.5" rx="2.7" transform="rotate(24 246 223)"/><rect x="262" y="224" width="20" height="5.5" rx="2.7" transform="rotate(-24 272 227)"/>
+  </g>
+  <g fill="#b5532c"><circle cx="186.5" cy="219.8" r="2.4"/><circle cx="227.8" cy="223.6" r="2.4"/><circle cx="238.5" cy="219.8" r="2.4"/><circle cx="279.8" cy="223.6" r="2.4"/></g>
+</svg>

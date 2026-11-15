@@ -1,32 +1,48 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="300" height="260" viewBox="0 0 300 260">
-  <!-- Solar array field seen from above: three rows of tilted panels on frames. -->
+  <!-- Solar array field seen from orbit: three rows of low panels with a film of dust.
+       Sun in the west (left) like in the CTX photo, short shadows to the east, no drawn outlines. -->
   <defs>
-    <filter id="blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter>
+    <filter id="blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4"/></filter>
+    <radialGradient id="apron">
+      <stop offset="0" stop-color="#5b3523" stop-opacity="0.42"/><stop offset="0.6" stop-color="#6e4530" stop-opacity="0.24"/><stop offset="1" stop-color="#7c5038" stop-opacity="0"/>
+    </radialGradient>
     <linearGradient id="cell" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#5f86e0"/><stop offset="0.5" stop-color="#2b4aa3"/><stop offset="1" stop-color="#16285f"/>
+      <stop offset="0" stop-color="#4c5f86"/><stop offset="0.5" stop-color="#27365b"/><stop offset="1" stop-color="#18223f"/>
     </linearGradient>
-    <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.5" stop-color="#ffffff" stop-opacity="0.35"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    <linearGradient id="glare" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#e9eefc" stop-opacity="0"/><stop offset="0.5" stop-color="#e9eefc" stop-opacity="0.24"/><stop offset="1" stop-color="#e9eefc" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="dustLow" x1="0" y1="0" x2="0.25" y2="1">
+      <stop offset="0.2" stop-color="#b9774f" stop-opacity="0.08"/><stop offset="1" stop-color="#b9774f" stop-opacity="0.45"/>
     </linearGradient>
     <g id="row">
-      <rect x="0" y="0" width="240" height="52" rx="4" fill="#1a0d08" opacity="0.5" filter="url(#blur)" transform="translate(12 14)"/>
-      <rect x="0" y="0" width="240" height="52" rx="4" fill="#c9c6d3" stroke="#6f6b80" stroke-width="2"/>
-      <rect x="5" y="5" width="230" height="42" rx="2" fill="url(#cell)"/>
-      <g stroke="#0f1c45" stroke-width="1.5">
-        <line x1="5" y1="19" x2="235" y2="19"/><line x1="5" y1="33" x2="235" y2="33"/>
-        <line x1="28" y1="5" x2="28" y2="47"/><line x1="51" y1="5" x2="51" y2="47"/><line x1="74" y1="5" x2="74" y2="47"/>
-        <line x1="97" y1="5" x2="97" y2="47"/><line x1="120" y1="5" x2="120" y2="47"/><line x1="143" y1="5" x2="143" y2="47"/>
-        <line x1="166" y1="5" x2="166" y2="47"/><line x1="189" y1="5" x2="189" y2="47"/><line x1="212" y1="5" x2="212" y2="47"/>
+      <rect x="9" y="6" width="240" height="52" rx="3" fill="#2a140b" opacity="0.45" filter="url(#blur)"/>
+      <rect x="0" y="0" width="240" height="52" rx="3" fill="#8e8175"/>
+      <rect x="0" y="0" width="240" height="3" rx="1.5" fill="#cbbdae"/>
+      <rect x="4" y="4" width="232" height="44" rx="1.5" fill="url(#cell)"/>
+      <g stroke="#0f1830" stroke-width="1.2" opacity="0.6">
+        <line x1="4" y1="18.7" x2="236" y2="18.7"/><line x1="4" y1="33.3" x2="236" y2="33.3"/>
+        <line x1="27.2" y1="4" x2="27.2" y2="48"/><line x1="50.4" y1="4" x2="50.4" y2="48"/><line x1="73.6" y1="4" x2="73.6" y2="48"/>
+        <line x1="96.8" y1="4" x2="96.8" y2="48"/><line x1="120" y1="4" x2="120" y2="48"/><line x1="143.2" y1="4" x2="143.2" y2="48"/>
+        <line x1="166.4" y1="4" x2="166.4" y2="48"/><line x1="189.6" y1="4" x2="189.6" y2="48"/><line x1="212.8" y1="4" x2="212.8" y2="48"/>
       </g>
-      <rect x="60" y="5" width="46" height="42" fill="url(#sheen)" transform="skewX(-20) translate(14 0)"/>
+      <path d="M52 4 h44 l-16 44 h-44 z" fill="url(#glare)"/>
+      <rect x="4" y="4" width="232" height="44" rx="1.5" fill="url(#dustLow)"/>
     </g>
   </defs>
-  <!-- cable trench to the habitat -->
-  <path d="M30 130 H6" stroke="#5c3a28" stroke-width="6" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- trampled, darker soil under the array -->
+  <ellipse cx="152" cy="130" rx="150" ry="128" fill="url(#apron)"/>
+  <!-- cable trench towards the habitat -->
+  <path d="M34 130 H4" stroke="#5a3826" stroke-width="5" stroke-linecap="round" opacity="0.55"/>
+
   <use href="#row" x="30" y="24"/>
   <use href="#row" x="30" y="104"/>
   <use href="#row" x="30" y="184"/>
+
   <!-- junction box -->
-  <rect x="18" y="116" width="20" height="28" rx="4" fill="#e9e4f5" stroke="#6f6b80" stroke-width="2"/>
-  <circle cx="28" cy="130" r="4" fill="#f3b562"/>
+  <rect x="22" y="119" width="20" height="28" rx="3" fill="#2a140b" opacity="0.35"/>
+  <rect x="17" y="116" width="20" height="28" rx="3" fill="#b3a494"/>
+  <rect x="17" y="116" width="8" height="28" rx="3" fill="#d6c9ba"/>
+  <circle cx="27" cy="130" r="3" fill="#d9a45a"/>
 </svg>

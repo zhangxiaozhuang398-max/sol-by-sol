@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="260" viewBox="0 0 320 260">
+  <!-- Survey site "Small Crater": a bowl crater with a raised rim and thrown-out rubble, and a seismometer under
+       its white wind cover (like the one NASA's InSight lander set on the ground). An illustration, larger than life.
+       Sun in the west (left) like in the CTX photo: the west inner wall is in shade, the east inner wall is lit. -->
+  <defs>
+    <filter id="blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter>
+    <filter id="haze" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2"/></filter>
+    <radialGradient id="ejecta">
+      <stop offset="0.4" stop-color="#e0b594" stop-opacity="0.6"/><stop offset="0.7" stop-color="#d2a585" stop-opacity="0.28"/><stop offset="1" stop-color="#d2a585" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="floor" cx="56%" cy="52%" r="60%">
+      <stop offset="0" stop-color="#b98c70"/><stop offset="1" stop-color="#93684f"/>
+    </radialGradient>
+    <linearGradient id="wall" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2a140b" stop-opacity="0.8"/><stop offset="0.42" stop-color="#2a140b" stop-opacity="0.22"/>
+      <stop offset="0.62" stop-color="#2a140b" stop-opacity="0"/><stop offset="0.8" stop-color="#fff0dc" stop-opacity="0.25"/><stop offset="1" stop-color="#fff0dc" stop-opacity="0.6"/>
+    </linearGradient>
+    <radialGradient id="cover" cx="36%" cy="38%" r="72%">
+      <stop offset="0" stop-color="#fbf5ec"/><stop offset="0.6" stop-color="#e0d3c3"/><stop offset="1" stop-color="#a5917d"/>
+    </radialGradient>
+  </defs>
+
+  <!-- blanket of thrown-out soil, with a few rays -->
+  <circle cx="150" cy="118" r="128" fill="url(#ejecta)"/>
+  <g stroke="#ecc7a8" stroke-linecap="round" opacity="0.35" filter="url(#haze)">
+    <line x1="150" y1="118" x2="40" y2="40" stroke-width="7"/><line x1="150" y1="118" x2="268" y2="34" stroke-width="6"/>
+    <line x1="150" y1="118" x2="34" y2="176" stroke-width="5"/><line x1="150" y1="118" x2="150" y2="6" stroke-width="5"/>
+    <line x1="150" y1="118" x2="120" y2="236" stroke-width="6"/><line x1="150" y1="118" x2="282" y2="150" stroke-width="5"/>
+  </g>
+  <!-- the raised rim throws a shadow outside its east edge -->
+  <path d="M196 62 A68 68 0 0 1 196 174 A82 82 0 0 0 196 62 Z" fill="#2a140b" opacity="0.4" filter="url(#haze)" transform="translate(10 0)"/>
+  <circle cx="150" cy="118" r="68" fill="#e3bc9d"/>
+  <!-- bowl -->
+  <circle cx="150" cy="118" r="60" fill="url(#floor)"/>
+  <circle cx="150" cy="118" r="60" fill="url(#wall)"/>
+  <circle cx="150" cy="118" r="61" fill="none" stroke="#5a3826" stroke-width="1.5" opacity="0.4"/>
+  <path d="M96 84 A64 64 0 0 1 142 54" fill="none" stroke="#fff3e2" stroke-width="4" stroke-linecap="round" opacity="0.5" filter="url(#haze)"/>
+  <!-- rubble on the rim and around it -->
+  <g fill="#7a5a48"><circle cx="78" cy="96" r="4"/><circle cx="92" cy="182" r="5"/><circle cx="222" cy="84" r="3.5"/><circle cx="60" cy="140" r="3"/><circle cx="176" cy="204" r="4"/><circle cx="240" cy="126" r="3"/><circle cx="118" cy="36" r="3.5"/></g>
+  <g fill="#2a140b" opacity="0.35"><circle cx="82" cy="97" r="3.5"/><circle cx="96.5" cy="183.5" r="4.5"/><circle cx="225.5" cy="85" r="3"/><circle cx="180" cy="205.5" r="3.5"/></g>
+
+  <!-- seismometer: white wind cover with a skirt, a flat cable back to a small data box -->
+  <path d="M210 186 C226 196 236 204 252 206" fill="none" stroke="#c9a15a" stroke-width="3.5" stroke-linecap="round"/>
+  <rect x="251" y="200" width="16" height="13" rx="2.5" fill="#2a140b" opacity="0.35"/>
+  <rect x="247" y="197" width="16" height="13" rx="2.5" fill="#8c8076"/><rect x="247" y="197" width="6" height="13" rx="2.5" fill="#b3a494"/>
+  <ellipse cx="222" cy="191" rx="19" ry="17" fill="#2a140b" opacity="0.42" filter="url(#haze)"/>
+  <circle cx="210" cy="186" r="19" fill="#bfae9b"/>
+  <circle cx="210" cy="186" r="14.5" fill="url(#cover)"/>
+  <circle cx="210" cy="186" r="14.5" fill="none" stroke="#5a4638" stroke-width="1" opacity="0.4"/>
+  <circle cx="210" cy="186" r="3" fill="#8c8076"/>
+</svg>

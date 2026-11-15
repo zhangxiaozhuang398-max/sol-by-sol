@@ -2,7 +2,7 @@ import * as E from "./game.js";
 import { CONFIG as C } from "./config.js";
 import { SITES, BASE, RINGS, WORLD_BASE, siteById } from "./sites.js";
 import { createWorld } from "./world2d.js";
-import { FACTS } from "./facts.js";
+import { FACTS, SITE_STORIES, TECH_INFO } from "./facts.js";
 import { buildReport } from "./report.js";
 import { t, tr, pick, getLang, setLang, applyStatic } from "./i18n.js";
 
@@ -20,13 +20,18 @@ let pool = [];
 let s = null; // current mission
 let ui = freshUi();
 function freshUi() {
-  return { site: null, alloc: null, prevHud: null, lastPhase: null, classic: false, worldDay: null };
+  return {
+    site: null, alloc: null, prevHud: null, lastPhase: null, classic: false, worldDay: null,
+    // which right-hand panel is open: "tasks", "tech", "cal" or null (phones start closed)
+    panel: window.matchMedia("(max-width: 900px)").matches ? null : "tasks",
+    prevSci: null, doneMark: "",
+  };
 }
 const stage = $("#stage");
 
 // ---------- saving (per browser, optional) ----------
 const SAVE_KEY = "solbysol.save";
-const SAVE_V = 2;
+const SAVE_V = 3; // 3: daily orders, panel checks and the technology line
 const COLL_KEY = "solbysol.knowledge";
 function save() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: SAVE_V, g: s })); } catch { /* storage blocked: fine */ }
@@ -63,9 +68,28 @@ function factHtml(id, label = "", withLesson = false) {
     ${withLesson && f.lesson ? `<p class="lesson">🎮 ${esc(pick(f.lesson))}</p>` : ""}
     <p class="src">${esc(t("fact.source"))} <a href="${f.source.url}" target="_blank" rel="noopener">${esc(pick(f.source.label))} ↗</a></p>`;
 }
-function openInfo(html) {
+function openInfo(html, wide = false) {
   $("#info-body").innerHTML = html;
+  $("#info").classList.toggle("wide", wide);
   $("#info").showModal();
+}
+
+// The card shown after collecting at a survey site: what went into the sample
+// tube, what it tells us, why it matters for future explorers, and the real
+// missions behind it. `fresh` is the first visit; later it reads as field notes.
+const SAMPLE_COLOR = { dune: "#c9774f", crater: "#a58a76", cliff: "#d8b294", riverbed: "#8a6c5a", canyon: "#7a5240", delta: "#e0b898" };
+function storyHtml(id, fresh) {
+  const st = siteById(id), story = SITE_STORIES[id];
+  if (!st || !story) return "";
+  const sealed = SITES.filter((x) => s.visits[x.id] > 0).length;
+  const tubes = SITES.map((x) => `<i class="tube${s.visits[x.id] > 0 ? " full" : ""}${x.id === id ? " now" : ""}" style="--tube:${SAMPLE_COLOR[x.id]}" title="${esc(t(`site.${x.id}.name`))}"></i>`).join("");
+  const part = (cls, icon, key) => `<section class="story-part ${cls}"><h4><span aria-hidden="true">${icon}</span> ${esc(t(`story.${key}`))}</h4><p>${esc(pick(story[key]))}</p></section>`;
+  return `<div class="label">${esc(t(fresh ? "story.label" : "story.notes"))}</div>
+    <h3>${st.icon} ${esc(t(`site.${id}.name`))}</h3>
+    <div class="tube-rack"><span class="tubes" aria-hidden="true">${tubes}</span><span>${esc(t("story.tube", { n: sealed, total: SITES.length }))}</span></div>
+    <p class="story-sample"><span aria-hidden="true">🧪</span> <b>${esc(t("story.sample"))}</b> ${esc(pick(story.sample))}</p>
+    ${part("sci", "🔬", "science")}${part("fut", "🚀", "future")}${part("his", "📜", "history")}
+    <p class="src">${esc(t("fact.source"))} <a href="${story.source.url}" target="_blank" rel="noopener">${esc(pick(story.source.label))} ↗</a></p>`;
 }
 
 function alertHtml(list) {
@@ -81,6 +105,9 @@ function render() {
   const phaseKey = `${s.sol}-${s.phase}`;
   syncWorld();
   renderStage();
+  $("#screen-game").classList.toggle("staged", !stage.classList.contains("hidden"));
+  renderPanels();
+  noticeTech();
   if (ui.lastPhase !== phaseKey) {
     stage.scrollTop = 0;
     if (ui.lastPhase !== null) window.scrollTo({ top: 0 });
@@ -100,53 +127,150 @@ function renderTop() {
 
 const nightsLeft = () => N - s.sol + (s.phase === "settle" || s.phase === "end" ? 0 : 1);
 
-function renderHud() {
-  const prev = ui.prevHud || {};
+// The sidebar gauges. Each resource has a small moving drawing instead of an
+// emoji. The drawings take the row's colour (--c) and its fill level (--pct,
+// 0 to 1), so the battery icon really fills and empties. All motion is CSS (see
+// "sidebar gauges" in style.css) and stops under prefers-reduced-motion.
+const HUD_ICONS = {
+  // battery: the level bar follows --pct, the bolt flickers
+  battery: `<svg viewBox="0 0 24 24"><rect class="ln" x="2.5" y="7" width="17" height="10" rx="3"/><rect class="fl" x="20.6" y="10" width="1.9" height="4" rx="0.95"/>
+    <rect class="fl i-level" x="4.7" y="9.2" width="12.6" height="5.6" rx="1.4"/><path class="i-bolt" d="M12.3 7.4 8.5 12.7h2.6l-.9 3.9 3.9-5.4h-2.7z"/></svg>`,
+  // oxygen: bubbles rise and fade, one after another
+  oxygen: `<svg viewBox="0 0 24 24"><circle class="ln i-bub" cx="7.6" cy="15.6" r="3.1"/><circle class="ln i-bub b2" cx="15.6" cy="13.4" r="4.3"/>
+    <circle class="ln i-bub b3" cx="10.6" cy="6.6" r="2.2"/><path class="ln thin i-bub b2" d="M13.4 12.4a2.5 2.5 0 0 1 2-1.4"/></svg>`,
+  // radiation: the trefoil turns slowly, a ring pulses out like a counter click
+  dose: `<svg viewBox="0 0 24 24"><g transform="translate(12 12)"><circle class="ln thin i-ping" r="9"/><g class="i-spin">
+    <path class="fl" d="M-4.5-7.79A9 9 0 0 1 4.5-7.79L1.7-2.94A3.4 3.4 0 0 0-1.7-2.94Z"/>
+    <path class="fl" transform="rotate(120)" d="M-4.5-7.79A9 9 0 0 1 4.5-7.79L1.7-2.94A3.4 3.4 0 0 0-1.7-2.94Z"/>
+    <path class="fl" transform="rotate(240)" d="M-4.5-7.79A9 9 0 0 1 4.5-7.79L1.7-2.94A3.4 3.4 0 0 0-1.7-2.94Z"/></g><circle class="fl" r="1.7"/></g></svg>`,
+  // food: a sprout in a pot, swaying
+  food: `<svg viewBox="0 0 24 24"><path class="fl dim" d="M6.4 16.6h11.2l-1.3 4.3a1.5 1.5 0 0 1-1.4 1.1H9.1a1.5 1.5 0 0 1-1.4-1.1z"/><g transform="translate(12 16.6)"><g class="i-sway">
+    <path class="ln" d="M0 0V-7"/><path class="fl" d="M0-3.8C-3.8-3.7-6.4-5.9-6.6-9.7-2.8-9.8-.2-7.6 0-3.8Z"/><path class="fl" d="M0-6.6C.1-10.1 2.5-12.5 6.4-12.6 6.3-9 3.9-6.7 0-6.6Z"/></g></g></svg>`,
+  // solar panel: a glint of sunlight sweeps across the cells
+  panel: `<svg viewBox="0 0 24 24"><rect class="fl dim" x="3" y="5.5" width="18" height="12" rx="2"/><svg x="3" y="5.5" width="18" height="12" viewBox="0 0 18 12"><path class="i-sheen" d="M-7 0h5l-3 12h-5z"/></svg>
+    <rect class="ln" x="3" y="5.5" width="18" height="12" rx="2"/><path class="ln thin" d="M9 5.5v12M15 5.5v12M3 11.5h18"/><path class="ln" d="M12 17.5v3.2M8.6 20.9h6.8"/></svg>`,
+  // science: two electrons circle an atom's core
+  science: `<svg viewBox="0 0 24 24"><g transform="translate(12 12)"><g transform="rotate(-32)"><ellipse class="ln thin" rx="9.8" ry="4.1"/><g class="i-ex"><g class="i-ey"><circle class="fl" r="1.6"/></g></g></g>
+    <g transform="rotate(32)"><ellipse class="ln thin" rx="9.8" ry="4.1"/><g class="i-ex e2"><g class="i-ey e2"><circle class="fl" r="1.6"/></g></g></g><circle class="fl i-core" r="2.5"/></g></svg>`,
+};
+
+const calmMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+function replay(el, cls) { // run a CSS animation class again from the start
+  el.classList.remove(cls);
+  void el.offsetWidth;
+  el.classList.add(cls);
+}
+function countTo(el, from, to, ms = 650) {
+  cancelAnimationFrame(el._raf);
+  if (calmMotion.matches || from === to) { el.textContent = to; return; }
+  el.textContent = from;
+  const t0 = performance.now();
+  const tick = (now) => {
+    const k = Math.min(1, (now - t0) / ms);
+    el.textContent = Math.round(from + (to - from) * (1 - (1 - k) ** 3));
+    if (k < 1) el._raf = requestAnimationFrame(tick);
+  };
+  el._raf = requestAnimationFrame(tick);
+}
+function floatDelta(row, d, upIsBad) { // a little "+12" that rises from the number and fades
+  if (calmMotion.matches) return;
+  const chip = document.createElement("span");
+  chip.className = `res-delta ${(d > 0) !== upIsBad ? "good" : "bad"}`;
+  chip.textContent = sign(d);
+  chip.setAttribute("aria-hidden", "true");
+  chip.addEventListener("animationend", () => chip.remove());
+  setTimeout(() => chip.remove(), 2500);
+  row.appendChild(chip);
+}
+
+function hudRows() {
   const nights = nightsLeft();
   const foodShort = nights - s.food;
   let batteryNote = "";
-  if (s.phase === "day") batteryNote = t("hud.note.batteryDay", { n: E.expectedIncome(s) });
+  if (s.phase === "day") batteryNote = t("hud.note.batteryDay", { n: sunsetPower() });
   if (s.phase === "night") batteryNote = t("hud.note.batteryNight", { n: s.today.income });
-  const items = [
-    { key: "battery", icon: "⚡", val: s.battery, max: C.max.battery, c: "var(--blue)", note: batteryNote, fact: "coldNights" },
-    { key: "oxygen", icon: "🫁", val: s.oxygen, max: C.max.oxygen, c: "var(--teal)", fact: "moxie",
+  return [
+    { key: "battery", val: s.battery, max: C.max.battery, c: "var(--blue)", note: batteryNote, fact: "coldNights",
+      unit: s.battery > C.max.battery ? t("hud.avail") : `/${C.max.battery}` },
+    { key: "oxygen", val: s.oxygen, max: C.max.oxygen, unit: `/${C.max.oxygen}`, c: "var(--teal)", fact: "moxie",
       note: t(s.oxygen < 25 ? "hud.note.o2low" : "hud.note.o2", { n: C.oxygenUse.crewDaily }), bad: s.oxygen < 25 },
-    { key: "dose", icon: "☢️", val: s.dose, max: C.max.dose, c: "var(--red)", fact: "radiationAddsUp",
+    { key: "dose", val: s.dose, max: C.max.dose, unit: `/${C.max.dose}`, c: "var(--red)", fact: "radiationAddsUp", upIsBad: true,
       note: t(s.dose >= 70 ? "hud.note.doseHigh" : "hud.note.dose"), bad: s.dose >= 70 },
-    { key: "food", icon: "🥫", val: s.food, unit: t("unit.days"), max: N, c: "var(--green)", fact: "veggie",
+    { key: "food", val: s.food, max: N, unit: t("unit.days"), c: "var(--green)", fact: "veggie",
       note: nights <= 0 ? "" : foodShort > 0 ? t("hud.note.foodShort", { n: foodShort }) : t("hud.note.foodOk"), bad: foodShort > 0 },
+    // Panel cleanliness is found out at the panels (free daily check); research
+    // lives in the mission panel on the right.
   ];
-  let html = items.map((it) => {
-    const pct = Math.max(0, Math.min(100, (it.val / it.max) * 100));
-    const flash = prev[it.key] != null && prev[it.key] !== it.val ? " flash" : "";
-    const unit = it.unit ? `<small>${esc(it.unit)}</small>`
-      : it.key === "battery" && it.val > it.max ? `<small>${esc(t("hud.avail"))}</small>` : `<small>/${it.max}</small>`;
-    return `<div class="res${flash}" style="--c:${it.c}">
-      <div class="res-head"><span class="res-icon" aria-hidden="true">${it.icon}</span><span class="res-name">${esc(t(`hud.${it.key}`))}</span>
-      <span class="res-val">${it.val}${unit}</span>
-      <button class="info" data-fact="${it.fact}" aria-label="${esc(t("hud.info"))}">?</button></div>
-      <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
-      ${it.note ? `<div class="res-note${it.bad ? " bad" : ""}">${it.note}</div>` : ""}
+}
+
+// What sunset will add today. Until the panels are checked the crew only
+// knows the most it could be ("≤ 80").
+function sunsetPower() {
+  return s.today && s.today.inspected ? E.expectedIncome(s) : `≤${E.maxPowerFor(s, s.sol)}`;
+}
+
+function hudRowHtml(r, i) {
+  return `${r.divider ? '<div class="res-divider"></div>' : ""}<div class="res" data-res="${r.key}" style="--c:${r.c};--i:${i}">
+      <div class="res-head"><span class="res-icon" aria-hidden="true">${HUD_ICONS[r.key]}</span><span class="res-name">${esc(t(`hud.${r.key}`))}</span>
+      <span class="res-val"><span class="num"></span><small></small></span>
+      ${r.fact ? `<button class="info" data-fact="${r.fact}" aria-label="${esc(t("hud.info"))}">?</button>` : ""}</div>
+      <div class="bar${r.thin ? " thin" : ""}"><div class="fill"></div>${r.stars ? `<div class="tick" style="left:${(C.stars[1] / C.stars[2]) * 100}%"></div>` : ""}</div>
+      <div class="res-note" hidden></div>
+      ${r.stars ? `<div class="stars-row"><span>${esc(t("hud.star1", { n: N }))}</span><span>⭐⭐ ${C.stars[1]}</span><span>⭐⭐⭐ ${C.stars[2]}</span></div>` : ""}
     </div>`;
-  }).join("");
-  const starsGot = E.starsFor(s.science);
-  html += `<div class="res-divider"></div>
-    <div class="res${prev.panel != null && prev.panel !== s.panel ? " flash" : ""}" style="--c:var(--muted)">
-      <div class="res-head"><span class="res-icon" aria-hidden="true">🔆</span><span class="res-name">${esc(t("hud.panel"))}</span><span class="res-val">${s.panel}<small>%</small></span>
-      <button class="info" data-fact="dustDevil" aria-label="${esc(t("hud.info"))}">?</button></div>
-      <div class="bar thin"><div class="fill" style="width:${s.panel}%"></div></div>
-    </div>
-    <div class="res${prev.science != null && prev.science !== s.science ? " flash" : ""}" style="--c:var(--violet)">
-      <div class="res-head"><span class="res-icon" aria-hidden="true">🔬</span><span class="res-name">${esc(t("hud.science"))}</span><span class="res-val">${s.science}</span></div>
-      <div class="bar thin"><div class="fill" style="width:${Math.min(100, (s.science / C.stars[2]) * 100)}%"></div>
-        <div class="tick" style="left:${(C.stars[1] / C.stars[2]) * 100}%"></div></div>
-      <div class="stars-row">
-        <span class="${starsGot >= 1 ? "got" : ""}">${esc(t("hud.star1", { n: N }))}</span>
-        <span class="${starsGot >= 2 ? "got" : ""}">⭐⭐ ${C.stars[1]}</span>
-        <span class="${starsGot >= 3 ? "got" : ""}">⭐⭐⭐ ${C.stars[2]}</span>
-      </div>
-    </div>`;
-  $("#hud").innerHTML = html;
+}
+
+// The rows are built once (per language) and then updated in place, so the bars
+// slide, the numbers count, and the icons keep moving instead of restarting.
+function renderHud() {
+  const hud = $("#hud");
+  const first = !ui.prevHud; // a mission has just started or been loaded: let the gauges appear one by one
+  const prev = ui.prevHud || {};
+  const rows = hudRows();
+  if (hud.dataset.lang !== getLang() || !hud.firstElementChild) {
+    hud.innerHTML = rows.map(hudRowHtml).join("");
+    hud.dataset.lang = getLang();
+  }
+  if (first) {
+    $$(".res", hud).forEach((el) => el.classList.remove("flash"));
+    $$(".res-delta", hud).forEach((el) => el.remove());
+    replay(hud, "enter");
+    clearTimeout(hud._enter);
+    hud._enter = setTimeout(() => hud.classList.remove("enter"), 1800);
+  }
+  rows.forEach((r) => {
+    const el = $(`[data-res="${r.key}"]`, hud);
+    const pct = Math.max(0, Math.min(1, r.val / r.max));
+    el.style.setProperty("--pct", pct.toFixed(3));
+    el.classList.toggle("warn", !!r.bad);
+    const fill = $(".fill", el);
+    if (first) { // start empty so the bar grows in
+      fill.style.transition = "none";
+      fill.style.width = "0%";
+      void fill.offsetWidth;
+      fill.style.transition = "";
+    }
+    fill.style.width = `${pct * 100}%`;
+    $(".res-val small", el).textContent = r.unit;
+    const numEl = $(".num", el);
+    const had = prev[r.key] != null && numEl.textContent !== "";
+    const changed = had && prev[r.key] !== r.val;
+    if (first) countTo(numEl, 0, r.val, 900);
+    else if (changed) countTo(numEl, prev[r.key], r.val);
+    else { cancelAnimationFrame(numEl._raf); numEl.textContent = r.val; }
+    if (changed) {
+      replay(el, "flash");
+      floatDelta(el, r.val - prev[r.key], !!r.upIsBad);
+    }
+    const note = $(".res-note", el);
+    note.hidden = !r.note;
+    note.textContent = r.note || "";
+    note.classList.toggle("bad", !!r.bad);
+    if (r.stars) {
+      const got = E.starsFor(s.science);
+      $$(".stars-row span", el).forEach((sp, i) => sp.classList.toggle("got", got > i));
+    }
+  });
   ui.prevHud = { battery: s.battery, oxygen: s.oxygen, dose: s.dose, food: s.food, panel: s.panel, science: s.science };
 }
 
@@ -171,7 +295,6 @@ function renderStage() {
   // "today" box is only used then.
   const walkingDay = s.phase === "day" && walking();
   stage.classList.toggle("hidden", walkingDay);
-  if (!walkingDay) $("#side-day").innerHTML = "";
   if (s.phase === "briefing") renderBriefing();
   else if (s.phase === "day") renderDay();
   else if (s.phase === "night") renderNight();
@@ -186,7 +309,7 @@ function realStormLine(storm) {
 
 function renderBriefing() {
   const key = E.weatherKey(s, s.sol);
-  const inc = E.expectedIncome(s);
+  const inc = E.maxPowerFor(s, s.sol); // the panels have not been checked yet this morning
   const hasTomorrow = s.sol < N;
   const tKey = hasTomorrow ? E.weatherKey(s, s.sol + 1) : null;
   const stormToday = E.solarStormOn(s, s.sol);
@@ -222,20 +345,25 @@ function renderBriefing() {
   if (s.oxygen < 25) add("warn", "brief.alert.lowO2", { oxygen: s.oxygen });
   const short = nightsLeft() - s.food;
   if (short > 0 && short >= nightsLeft() - 2) add("warn", "brief.alert.food", { food: s.food, nights: nightsLeft() });
-  if (s.panel <= 80) add("info", "brief.alert.panel", { panel: s.panel, gain: E.incomeFor(s, s.sol, 100) - inc });
   if (s.dose >= 70) add("warn", "brief.alert.dose", { dose: s.dose });
+  // technologies unlocked overnight by research Earth sent back with its reply
+  const lastSci = s.history.length ? s.history[s.history.length - 1].science : 0;
+  const newTech = E.techsBetween(lastSci, s.science);
 
   stage.innerHTML = `
     <div class="stage-head"><h2>${esc(t("brief.title"))}</h2><span class="sub">${esc(t("brief.sub"))}</span></div>
     <div class="brief-grid">
       <div class="brief-card${key === "dust" ? " danger" : ""}"><div class="label">${esc(t("brief.today"))}</div><div class="big">${wIcon(key)}</div>
-        <div class="name">${esc(wName(key))}</div><div class="detail">${t("brief.income", { n: inc, panel: s.panel })}</div></div>
+        <div class="name">${esc(wName(key))}</div><div class="detail">${t("brief.income2", { n: E.maxPowerFor(s, s.sol) })}</div></div>
       <div class="brief-card${tKey === "dust" ? " warn" : ""}"><div class="label">${esc(t("brief.tomorrow"))}</div>
-        ${hasTomorrow ? `<div class="big">${wIcon(tKey)}</div><div class="name">${esc(wName(tKey))}</div><div class="detail">${t("brief.tomorrow.income", { n: E.incomeFor(s, s.sol + 1) })}</div>`
+        ${hasTomorrow ? `<div class="big">${wIcon(tKey)}</div><div class="name">${esc(wName(tKey))}</div><div class="detail">${t("brief.tomorrow.income2", { n: E.maxPowerFor(s, s.sol + 1) })}</div>`
           : `<div class="big">🏁</div><div class="name">${esc(t("brief.lastDay"))}</div><div class="detail">${esc(t("brief.lastDay.detail"))}</div>`}</div>
       ${space}
     </div>
     ${mail}
+    ${newTech.map(techCardHtml).join("")}
+    <div class="orders"><h3>${esc(t("brief.orders", { n: s.sol }))}</h3>
+      <ul class="task-list">${s.today.tasks.map((k, i) => taskHtml(k, i)).join("")}</ul></div>
     ${alertHtml(alerts)}
     <div class="stage-foot">
       <span class="hint">${t("brief.ap", { n: C.actionPoints })}</span>
@@ -314,7 +442,8 @@ function renderDayClassic() {
       </div>
       <div>
         <div class="actions">
-          ${actionButton("do-clean", "🧽", "act.clean.name", t("act.clean.desc", { panel: s.panel, gain: clean.gain || 0 }), clean)}
+          ${actionButton("do-inspect", "🔍", "act.inspect.name", t("act.inspect.desc"), E.checkInspect(s))}
+          ${actionButton("do-clean", "🧽", "act.clean.name", s.today.inspected ? t("act.clean.desc", { panel: s.panel, gain: clean.gain || 0 }) : t("act.clean.descUnknown"), clean)}
           ${actionButton("do-tend", "🌱", "act.tend.name", t("act.tend.desc", { sci: C.greenhouse.tendScience, food: C.greenhouse.tendFood }), E.checkTend(s))}
           ${actionButton("do-call", "📡", "act.call.name", t("act.call.desc", { min: s.lightMinutes, days: C.call.forecastDays, sci: C.call.science }), E.checkCall(s))}
         </div>
@@ -324,7 +453,7 @@ function renderDayClassic() {
       </div>
     </div>
     <div class="stage-foot">
-      <span class="hint">${t("day.hint", { n: E.expectedIncome(s) })}${s.ap > 0 ? esc(t("day.hintAp", { n: s.ap })) : ""}</span>
+      <span class="hint">${t("day.hint", { n: sunsetPower() })}${s.ap > 0 ? esc(t("day.hintAp", { n: s.ap })) : ""}</span>
       ${world ? `<button class="btn small" id="to-walk" type="button">${esc(t("world.walkMode"))}</button>` : ""}
       <button class="btn primary" id="go-night" type="button">${esc(t("day.sunset"))}</button>
     </div>`;
@@ -337,6 +466,7 @@ function renderDayClassic() {
   });
   const go = $("#go-eva");
   if (go) go.onclick = () => { E.doEva(s, ui.site); render(); };
+  $("#do-inspect").onclick = () => { E.inspectPanels(s); render(); };
   $("#do-clean").onclick = () => { E.doClean(s); render(); };
   $("#do-tend").onclick = () => { E.doTend(s); render(); };
   $("#do-call").onclick = () => { E.doCall(s); render(); };
@@ -393,7 +523,9 @@ function syncWorld() {
   const play = s.phase === "day" && !ui.classic;
   el.classList.remove("hidden");
   el.classList.toggle("play", play);
+  $("#screen-game").classList.toggle("playing", play);
   world.setTargets(worldTargets());
+  world.setFocus(play ? focusTargets() : []);
   world.setLook(s.phase, E.weatherKey(s, s.sol));
   if (play && ui.worldDay !== s.sol) {
     world.respawn();
@@ -428,10 +560,11 @@ function promptButton(label, ok = true) {
 
 function updatePrompt() {
   const el = $("#world-prompt");
-  if (!world || !s || s.phase !== "day" || ui.classic) { el.innerHTML = ""; return; }
+  if (!world || !s || s.phase !== "day" || ui.classic) { el.innerHTML = ""; $("#screen-game").classList.remove("carded"); return; }
   const id = world.near;
   el.className = "world-prompt";
   $("#world").classList.toggle("has-card", !!id);
+  $("#screen-game").classList.toggle("carded", !!id);
   if (!id) {
     el.classList.add("hint");
     el.textContent = t(s.ap > 0 ? "world.hint.walk" : "world.hint.noAp");
@@ -448,11 +581,20 @@ function updatePrompt() {
       <div class="chips"><span class="chip">⚡ −${c.power}</span><span class="chip">🫁 −${c.oxygen}</span>
         <span class="chip${c.storm ? " bad" : ""}">☢️ +${c.dose}</span><span class="chip">🔬 +${c.science}</span></div>
       ${alertHtml(chk.warnings)}
-      <div class="site-go">${promptButton(t("world.site.go"), chk.ok)}${lock(chk)}</div>`;
+      <div class="site-go">${promptButton(t("world.site.go"), chk.ok)}${lock(chk)}
+        ${s.visits[id] > 0 ? `<button class="btn small" id="notes-btn" type="button">${esc(t("story.notesBtn"))}</button>` : ""}</div>`;
   } else if (id === "panels") {
-    const chk = E.checkClean(s);
-    html = `<h4>🔆 ${esc(t("act.clean.name"))}</h4><p>${t("act.clean.desc", { panel: s.panel, gain: chk.gain || 0 })}</p>
-      <div class="site-go">${promptButton(t("world.panels.go"), chk.ok)}${lock(chk)}</div>`;
+    if (!s.today.inspected) { // first the free daily check: until then nobody knows how dusty they are
+      html = `<h4>🔆 ${esc(t("world.panels.title"))} <span class="chip">${esc(t("task.free"))}</span></h4><p>${esc(t("world.panels.check"))}</p>
+        <div class="site-go">${promptButton(t("world.panels.inspect"))}</div>`;
+    } else {
+      const chk = E.checkClean(s);
+      const tone = s.panel >= 90 ? "var(--green)" : s.panel >= 75 ? "var(--sand)" : "var(--red)";
+      html = `<h4>🔆 ${esc(t("world.panels.title"))}</h4>
+        <div class="panel-gauge"><span>${esc(t("world.panels.clean"))}</span><div class="bar" style="--c:${tone}"><div class="fill" style="width:${s.panel}%"></div></div><span>${s.panel}%</span></div>
+        <p>${esc(t("world.panels.status", { n: E.expectedIncome(s), max: E.maxPowerFor(s, s.sol) }))}${chk.ok ? ` ${esc(t("world.panels.gain", { gain: chk.gain }))}` : ""}</p>
+        <div class="site-go">${promptButton(t("world.panels.go"), chk.ok)}${lock(chk)}</div>`;
+    }
   } else if (id === "greenhouse") {
     const chk = E.checkTend(s);
     html = `<h4>🌱 ${esc(t("act.tend.name"))}</h4><p>${t("act.tend.desc", { sci: C.greenhouse.tendScience, food: C.greenhouse.tendFood })}</p>
@@ -462,7 +604,7 @@ function updatePrompt() {
     html = `<h4>📡 ${esc(t("act.call.name"))}</h4><p>${t("act.call.desc", { min: s.lightMinutes, days: C.call.forecastDays, sci: C.call.science })}</p>
       <div class="site-go">${promptButton(t("world.antenna.go"), chk.ok)}${lock(chk)}</div>`;
   } else if (id === "habitat") {
-    html = `<h4>${esc(t("world.habitat.title"))}</h4><p>${esc(t("world.habitat.desc", { n: E.expectedIncome(s) }))}</p>
+    html = `<h4>${esc(t("world.habitat.title"))}</h4><p>${esc(t("world.habitat.desc", { n: sunsetPower() }))}</p>
       ${s.ap > 0 ? alertHtml([{ level: "warn", key: "world.habitat.apLeft", params: { n: s.ap } }]) : ""}
       <div class="site-go">${promptButton(t("world.habitat.go"))}</div>`;
   } else if (id === "perseverance") {
@@ -472,6 +614,8 @@ function updatePrompt() {
   el.innerHTML = html;
   const btn = $("#use-btn");
   if (btn) btn.onclick = () => usePrompt();
+  const notes = $("#notes-btn");
+  if (notes) notes.onclick = () => openInfo(storyHtml(id, false), true);
 }
 
 function toast(text) {
@@ -494,15 +638,48 @@ function endDayNow() {
   render();
 }
 
-// The player pressed E (or tapped the button) next to something.
-function usePrompt() {
-  if (!world || !s || s.phase !== "day" || ui.classic) return;
+// The player pressed E (or tapped the button) next to something. A job first
+// plays a short animation on the map (drilling, brushing, watering, calling
+// Earth); its result is applied when the animation ends.
+let working = false;
+const JOB_MS = { sample: 1900, inspect: 1200, clean: 1500, tend: 1600, call: 1700 };
+const STATION_JOB = { greenhouse: "tend", antenna: "call" };
+const JOB_CHECK = { sample: (id) => E.checkEva(s, id), inspect: () => E.checkInspect(s), clean: () => E.checkClean(s), tend: () => E.checkTend(s), call: () => E.checkCall(s) };
+
+async function usePrompt() {
+  if (working || !world || !s || s.phase !== "day" || ui.classic) return;
   const id = world.near;
   if (!id) return;
+  const job = siteById(id) ? "sample" : id === "panels" ? (s.today.inspected ? "clean" : "inspect") : STATION_JOB[id];
+  if (job) {
+    const chk = JOB_CHECK[job](id);
+    if (!chk.ok) return; // nothing to animate: the card already says why
+    const mission = s;
+    working = true;
+    const el = $("#world-prompt");
+    el.className = "world-prompt hint busy";
+    el.textContent = t(`world.busy.${job}`);
+    try {
+      await world.playAction(job, id, calmMotion.matches ? 0 : JOB_MS[job]);
+    } finally {
+      working = false;
+    }
+    if (s !== mission || s.phase !== "day" || ui.classic) { // the mission changed while the job was playing
+      if (s) updatePrompt();
+      return;
+    }
+  }
   if (siteById(id)) {
     const r = E.doEva(s, id);
-    if (!r.ok) return;
+    if (!r.ok) { updatePrompt(); return; }
     toast(`+${r.cost.science} 🔬   −${r.cost.power} ⚡  −${r.cost.oxygen} 🫁  +${r.cost.dose} ☢️`);
+    render();
+    if (r.cost.visits === 0 && s.phase === "day") openInfo(storyHtml(id, true), true); // first sample from this site
+    return;
+  } else if (id === "panels" && job === "inspect") {
+    const r = E.inspectPanels(s);
+    if (!r.ok) return;
+    toast(t("world.toast.inspect", { panel: r.panel }));
   } else if (id === "panels") {
     const r = E.doClean(s);
     if (!r.ok) return;
@@ -523,20 +700,10 @@ function usePrompt() {
   render();
 }
 
+// Walking day: the map is the screen. The day's log, the "simple map" switch
+// and "end the day" live in the mission panel (renderTasksPanel).
 function renderDayWorld() {
-  const key = E.weatherKey(s, s.sol);
   stage.innerHTML = "";
-  $("#side-day").innerHTML = `
-    <div class="day-bar">
-      <div><h2 class="day-h">${esc(t("day.titleWorld"))}</h2><span class="sub">${wIcon(key)} ${esc(wName(key))} · ${t("day.hint", { n: E.expectedIncome(s) })}</span></div>
-      <div class="log"><ul>${s.today.log.length ? s.today.log.map((l) => `<li>${tr(l.key, l.params)}</li>`).join("") : `<li>${esc(t("day.logEmpty"))}</li>`}</ul></div>
-      <div class="btns">
-        <button class="btn small" id="to-classic" type="button">${esc(t("world.classic"))}</button>
-        <button class="btn small" id="end-day" type="button">${esc(t("world.endDay"))}</button>
-      </div>
-    </div>`;
-  $("#to-classic").onclick = () => { ui.classic = true; ui.site = null; render(); };
-  $("#end-day").onclick = () => endDayNow();
 }
 
 function renderDay() {
@@ -577,7 +744,7 @@ function renderNight() {
         <div class="ctrl"><label class="switch"><input type="checkbox" id="gh-toggle" ${ui.alloc.gh ? "checked" : ""}><span class="track"></span><span class="state" id="gh-state"></span></label></div></div>
       <div class="arow${ss ? " highlight" : ""}"><span class="ic" aria-hidden="true">🛡️</span>
         <div><div class="t">${esc(t("night.sh.name"))}</div><div class="d">${ss ? t("night.sh.storm", { shielded: ss.shielded, unshielded: ss.unshielded }) : esc(t("night.sh.calm"))}</div></div>
-        <span class="cost">${C.power.shield} ⚡</span>
+        <span class="cost">${E.shieldCost(s)} ⚡</span>
         <div class="ctrl"><label class="switch"><input type="checkbox" id="sh-toggle" ${ui.alloc.shield ? "checked" : ""}><span class="track"></span><span class="state" id="sh-state"></span></label></div></div>
     </div>
     <div class="proj" id="proj"></div>
@@ -602,7 +769,7 @@ function updateNight() {
   const a = ui.alloc;
   const p = E.previewNight(s, a);
   $("#o2-cost").textContent = `${a.o2} ⚡`;
-  $("#o2-desc").textContent = a.o2 ? t("night.o2.on", { made: p.o2Made, per: C.oxygenGen.step * 2, per2: C.oxygenGen.o2PerStep * 2 }) : t("night.o2.off");
+  $("#o2-desc").textContent = a.o2 ? t("night.o2.on", { made: p.o2Made, per: C.oxygenGen.step * 2, per2: E.o2PerStep(s) * 2 }) : t("night.o2.off");
   $("#gh-state").textContent = t(a.gh ? "ui.on" : "ui.off");
   $("#sh-state").textContent = t(a.shield ? "ui.on" : "ui.off");
 
@@ -611,7 +778,7 @@ function updateNight() {
     ["ls", C.power.lifeSupport, t("seg.ls")],
     ["o2", a.o2, t("seg.o2")],
     ["gh", a.gh ? C.power.greenhouse : 0, t("seg.gh")],
-    ["sh", a.shield ? C.power.shield : 0, t("seg.sh")],
+    ["sh", a.shield ? E.shieldCost(s) : 0, t("seg.sh")],
   ];
   if (p.overBudget) segs.push(["over", p.cost - s.battery, t("seg.over")]);
   else {
@@ -656,19 +823,29 @@ function renderSettle() {
   const h = s.history[s.history.length - 1];
   const m = s.morning;
   const a = h.alloc;
-  const o2Made = E.o2FromPower(a.o2);
+  const o2Made = E.o2FromPower(a.o2, s);
+  const tasks = s.today.tasks || [];
+  const newTech = E.techsBetween(m.science, s.science);
   const storm = E.solarStormOn(s, s.sol);
   const w = (k, n) => (n ? t(k, { n }) : "");
   stage.innerHTML = `
     <div class="stage-head"><h2>${esc(t("settle.title"))}</h2><span class="sub">${esc(t("settle.sub", { n: s.sol }))}</span></div>
     <div class="changes">
-      ${change("⚡", "hud.battery", m.battery, s.battery, [w("why.income", h.income), w("why.eva", h.evaPower), w("why.night", E.nightCost(a)), w("why.overflow", h.overflow)], "var(--blue)")}
+      ${change("⚡", "hud.battery", m.battery, s.battery, [w("why.income", h.income), w("why.eva", h.evaPower), w("why.night", E.nightCost(a, s)), w("why.overflow", h.overflow)], "var(--blue)")}
       ${change("🫁", "hud.oxygen", m.oxygen, s.oxygen, [w("why.breath", C.oxygenUse.crewDaily), w("why.suit", h.evaOxygen), w("why.o2made", o2Made), a.gh ? w("why.gh", C.greenhouse.o2) : ""], "var(--teal)")}
       ${change("🥫", "hud.food", m.food, s.food, [t("why.eat"), a.gh ? w("why.food", C.greenhouse.food + (h.tended ? C.greenhouse.tendFood : 0)) : ""], "var(--green)", ` ${t("unit.days")}`)}
       ${change("☢️", "hud.dose", m.dose, s.dose, [w("why.base", h.nightDose), w("why.evaDose", h.evaDose)], "var(--red)")}
       ${change("🔬", "hud.science", m.science, s.science, [h.evas.length ? t("why.evas", { n: h.evas.length }) : t("why.noEva")], "var(--violet)")}
-      ${change("🔆", "hud.panel", m.panel, s.panel, [h.cleaned ? t("why.cleaned") : "", t("why.dusted", { weather: wName(h.weather) }), h.dustDevil ? t("why.devil") : ""], "var(--muted)", "%")}
+      <div class="change" style="--c:var(--sand)"><div class="k">🔆 ${esc(t("settle.power"))}</div>
+        <div class="v">+${h.income} ⚡ <small>/ ${C.weather[h.weather].solar + E.bonusPower(s)}</small></div>
+        <div class="why">${esc(t(h.inspected ? "settle.powerWhy" : "settle.powerWhyUnchecked", { panel: h.panelBefore }))}${h.dustDevil ? esc(t("fmt.sep")) + t("why.devil") : ""}</div></div>
     </div>
+    <div class="settle-goals">
+      <div><h3>${esc(t("settle.tasks", { n: tasks.filter((k) => k.done).length, total: tasks.length }))}</h3>
+        <ul class="task-list">${tasks.map((k, i) => taskHtml(k, i, { final: true })).join("")}</ul></div>
+      <div><h3>${esc(t("research.title"))}</h3>${researchHtml()}</div>
+    </div>
+    ${newTech.map(techCardHtml).join("")}
     ${s.tonightNotes.length ? `<div class="notes">${s.tonightNotes.map((n) => `<div class="note">${tr(n.key, n.params)}</div>`).join("")}</div>` : ""}
     ${storm ? stormBoxHtml(storm) : ""}
     ${s.tonightCards.map((id) => `<div class="fact-card story">${factHtml(id, t("settle.story"), true)}</div>`).join("")}
@@ -737,6 +914,7 @@ function renderEnd() {
     ["stat.sols", `${st.sols} / ${N}`], ["stat.science", st.science], ["stat.evas", st.evas],
     ["stat.sites", `${st.sitesVisited} / ${SITES.length}`], ["stat.clean", st.cleanings], ["stat.calls", st.calls],
     ["stat.gh", st.ghNights], ["stat.dose", st.maxDose],
+    ["stat.tasks", s.tasksDone || 0], ["stat.tech", `${E.unlockedTechs(s).length} / ${C.tech.length}`],
   ].map(([k, v]) => `<div class="stat"><div class="k">${esc(t(k))}</div><div class="v">${v}</div></div>`).join("");
 
   const faced = s.history.filter((h) => h.solarStorm);
@@ -765,6 +943,200 @@ function showEnd() {
   }
   renderEnd();
 }
+
+// ---------- right-hand panels: mission + research, technology line, calendar ----------
+const TASK_ICON = { inspect: "🔍", sample: "🧪", anySample: "🧪", shelter: "🛡️", tend: "🌱", call: "📡" };
+const TASK_PLACE = { inspect: "panels", tend: "greenhouse", call: "antenna" }; // where each order is done on the map
+const taskPlace = (k) => (k.kind === "sample" ? k.site : TASK_PLACE[k.kind] || null);
+const starOf = (at) => (at === C.stars[2] ? "⭐⭐⭐" : at === C.stars[1] ? "⭐⭐" : "");
+
+// done / failed / todo. `final`: the day is over, so anything not done is missed.
+function taskState(k, final) {
+  if (k.done) return "done";
+  if (final || (k.kind === "shelter" && s.today.evas.length)) return "failed";
+  return "todo";
+}
+
+function taskHtml(k, i, opts = {}) {
+  const st = taskState(k, opts.final);
+  const place = taskPlace(k);
+  const go = opts.go && st === "todo" && place;
+  const mark = st === "done" ? "✓" : st === "failed" ? "✕" : TASK_ICON[k.kind];
+  const name = k.kind === "shelter" ? t(`task.shelter.${k.why}`) : tr(`task.${k.kind}`, { site: k.site });
+  const sub = k.kind === "shelter" ? t(`task.shelter.${k.why}.d`) : t(`task.${k.kind}.d`, { n: C.call.forecastDays });
+  const reward = k.reward ? `<span class="rw">+${k.reward} 🔬</span>` : `<span class="rw free">${esc(t("task.free"))}</span>`;
+  return `<li class="task ${st}${go ? " go" : ""}${opts.fresh && opts.fresh.has(i) ? " just-done" : ""}"${go ? ` data-go="${place}" tabindex="0" role="button" title="${esc(t("tasks.guide"))}"` : ""}>
+    <span class="tk" aria-hidden="true">${mark}</span><span class="tt">${esc(name)}<span class="td">${esc(sub)}</span></span>${reward}</li>`;
+}
+
+function tubesHtml() {
+  return SITES.map((x) => `<i class="tube${s.visits[x.id] > 0 ? " full" : ""}" style="--tube:${SAMPLE_COLOR[x.id]}" title="${esc(t(`site.${x.id}.name`))}"></i>`).join("");
+}
+
+// The whole game in one box: when the rocket leaves, what earns each star, the sample case.
+function goalHtml() {
+  const left = N - s.sol;
+  const pips = Array.from({ length: N }, (_, i) => `<i class="${i + 1 < s.sol ? "past" : i + 1 === s.sol ? "now" : ""}${i + 1 === N ? " last" : ""}"></i>`).join("");
+  const stars = [
+    { n: 1, label: t("goal.star1", { n: N }), p: `${Math.min(s.sol, N)}/${N}`, got: !!(s.outcome && s.outcome.success) },
+    { n: 2, label: t("goal.star2", { n: C.stars[1] }), p: `${Math.min(s.science, C.stars[1])}/${C.stars[1]}`, got: s.science >= C.stars[1] },
+    { n: 3, label: t("goal.star3", { n: C.stars[2] }), p: `${Math.min(s.science, C.stars[2])}/${C.stars[2]}`, got: s.science >= C.stars[2] },
+  ];
+  const sealed = SITES.filter((x) => s.visits[x.id] > 0).length;
+  return `<div class="goal"><div class="goal-title">${esc(t("goal.title"))}</div><div class="goal-sub">${esc(t("goal.sub"))}</div>
+    <div class="launch"><span class="rocket" aria-hidden="true">🚀</span><span>${esc(left > 0 ? t("goal.launch", { n: left }) : t("goal.launchToday"))}</span></div>
+    <div class="sol-pips" aria-hidden="true">${pips}</div>
+    <ul class="stars-goal">${stars.map((x) => `<li class="${x.got ? "got" : ""}"><span class="st" aria-hidden="true">${"⭐".repeat(x.n)}</span><span>${esc(x.label)}</span><span class="p">${x.p}</span></li>`).join("")}</ul>
+    <div class="mini-rack"><span class="tubes" aria-hidden="true">${tubesHtml()}</span><span>${esc(t("goal.samples", { n: sealed, total: SITES.length }))}</span></div>
+  </div>`;
+}
+
+// Research points on a bar, with the five technologies as steps along it.
+function researchHtml(withLink = true) {
+  const max = C.stars[2];
+  const steps = C.tech.map((k) => {
+    const info = TECH_INFO[k.id];
+    const star = starOf(k.at);
+    return `<span class="step${s.science >= k.at ? " on" : ""}" style="left:${Math.min(100, (k.at / max) * 100)}%" title="${esc(pick(info.name))}">${info.icon}<b>${k.at}</b>${star ? `<i>${star}</i>` : ""}</span>`;
+  }).join("");
+  const nx = E.nextTech(s);
+  return `<div class="research-line"><span class="big">${s.science}</span><span>${esc(t("research.pts"))}</span></div>
+    <div class="research-bar" role="img" aria-label="${esc(t("research.aria", { n: s.science, max }))}"><div class="fill" style="width:${Math.min(100, (s.science / max) * 100)}%"></div>${steps}</div>
+    <div class="research-next">${nx ? t("research.next", { name: esc(pick(TECH_INFO[nx.id].name)), n: nx.at - s.science }) : esc(t("research.all"))}
+      ${withLink ? ` <button class="linkish" type="button" data-open-panel="tech">${esc(t("research.open"))}</button>` : ""}</div>`;
+}
+
+function techSource(info) {
+  return `<p class="src">${esc(t("fact.source"))} <a href="${info.source.url}" target="_blank" rel="noopener">${esc(pick(info.source.label))} ↗</a></p>`;
+}
+
+// Shown in the morning report or night report the day a technology unlocks.
+function techCardHtml(k) {
+  const info = TECH_INFO[k.id];
+  return `<div class="tech-card"><div class="label">${esc(t("tech.newLabel"))}${starOf(k.at) ? ` · ${starOf(k.at)}` : ""}</div>
+    <h3>${info.icon} ${esc(pick(info.name))}</h3>
+    <p><b>${esc(t("tech.effect"))}</b> ${esc(pick(info.effect))}</p>
+    <p>${esc(pick(info.story))}</p>${techSource(info)}</div>`;
+}
+
+function techItemHtml(k, nx) {
+  const info = TECH_INFO[k.id];
+  const on = s.science >= k.at, next = !!nx && nx.id === k.id;
+  const star = starOf(k.at);
+  return `<article class="tech ${on ? "on" : next ? "next" : "locked"}">
+    <div class="ti" aria-hidden="true">${info.icon}</div>
+    <div><h5>${esc(pick(info.name))}<span class="at">${esc(on ? t("tech.on") : t("tech.at", { n: k.at }))}${star ? ` ${star}` : ""}</span></h5>
+      <p class="eff"><b>${esc(t("tech.effect"))}</b> ${esc(pick(info.effect))}</p>
+      ${next ? `<div class="prog" aria-hidden="true"><i style="width:${Math.min(100, (s.science / k.at) * 100)}%"></i></div>` : ""}
+      <details><summary>${esc(t("tech.story"))}</summary><p>${esc(pick(info.story))}</p>${techSource(info)}</details></div>
+  </article>`;
+}
+
+const panelHead = (key) => `<div class="gpanel-head"><h3>${esc(t(key))}</h3><button class="gpanel-x" type="button" data-panel-close aria-label="${esc(t("dock.close"))}">✕</button></div>`;
+
+function renderTasksPanel() {
+  const el = $("#panel-tasks");
+  const tasks = (s.today && s.today.tasks) || [];
+  const final = s.phase === "night" || s.phase === "settle" || s.phase === "end";
+  const walkingDay = s.phase === "day" && walking();
+  // tasks finished since the last draw get a little "done!" bounce
+  const mark = `${s.sol}:${tasks.map((k) => (k.done ? 1 : 0)).join("")}`;
+  const [prevSol, prevBits = ""] = ui.doneMark.split(":");
+  const fresh = new Set();
+  if (prevSol === String(s.sol)) tasks.forEach((k, i) => { if (k.done && prevBits[i] === "0") fresh.add(i); });
+  ui.doneMark = mark;
+  const log = s.today ? s.today.log : [];
+  const top = el.scrollTop;
+  el.innerHTML = `${panelHead("tasks.title")}
+    ${goalHtml()}
+    <h4>${esc(t("tasks.today", { n: s.sol }))}</h4>
+    <ul class="task-list">${tasks.map((k, i) => taskHtml(k, i, { go: walkingDay, fresh, final })).join("")}</ul>
+    ${walkingDay ? `<p class="task-hint">${esc(t("tasks.hintGo"))}</p>` : ""}
+    <h4>${esc(t("research.title"))}</h4>
+    ${researchHtml()}
+    ${walkingDay ? `<details class="day-log"${log.length ? " open" : ""}><summary>${esc(t("day.log"))}</summary>
+        <ul>${log.length ? log.map((l) => `<li>${tr(l.key, l.params)}</li>`).join("") : `<li>${esc(t("day.logEmpty"))}</li>`}</ul></details>
+      <div class="day-ctrl"><button class="btn" id="to-classic" type="button">${esc(t("world.classic"))}</button>
+        <button class="btn primary" id="end-day" type="button">${esc(t("world.endDay"))}</button></div>` : ""}`;
+  el.scrollTop = top;
+}
+
+function renderTechPanel() {
+  const el = $("#panel-tech");
+  const nx = E.nextTech(s);
+  const top = el.scrollTop;
+  el.innerHTML = `${panelHead("tech.title")}<p class="tech-intro">${esc(t("tech.intro"))}</p>
+    ${researchHtml(false)}
+    <div class="tech-list">${C.tech.map((k) => techItemHtml(k, nx)).join("")}</div>`;
+  el.scrollTop = top;
+}
+
+function renderPanels() {
+  if (!s) return;
+  const tasks = (s.today && s.today.tasks) || [];
+  $("#dock-tasks").textContent = tasks.length ? `${tasks.filter((k) => k.done).length}/${tasks.length}` : "";
+  $("#dock-tech").textContent = `${s.science}`;
+  $("#dock-cal").textContent = "";
+  $$(".dock-btn").forEach((b) => {
+    b.classList.toggle("on", b.dataset.panel === ui.panel);
+    b.setAttribute("aria-expanded", String(b.dataset.panel === ui.panel));
+  });
+  $$(".gpanel").forEach((p) => p.classList.toggle("open", p.dataset.panel === ui.panel));
+  if (world) world.setInsets(ui.panel && !window.matchMedia("(max-width: 900px)").matches ? 336 : 0);
+  if (ui.panel === "tasks") renderTasksPanel();
+  else if (ui.panel === "tech") renderTechPanel();
+}
+
+function openPanel(name) {
+  ui.panel = name;
+  renderPanels();
+}
+
+// A technology unlocked while walking: tell the player on the map and make
+// the dock's technology button pulse. (The reports show the full card.)
+function noticeTech() {
+  const before = ui.prevSci == null ? s.science : ui.prevSci;
+  ui.prevSci = s.science;
+  const gained = E.techsBetween(before, s.science);
+  if (!gained.length) return;
+  replay($('.dock-btn[data-panel="tech"]'), "ping");
+  if (s.phase === "day" && walking()) {
+    const name = pick(TECH_INFO[gained[gained.length - 1].id].name);
+    setTimeout(() => toast(t("tech.toast", { name })), 1700); // after the job's own toast
+  }
+}
+
+// Gold markers on the map: where today's unfinished orders are done, and the
+// habitat once there is nothing left to do.
+function focusTargets() {
+  const ids = (s.today.tasks || []).filter((k) => taskState(k) === "todo").map(taskPlace).filter(Boolean);
+  if (!ids.length || s.ap === 0) ids.push("habitat");
+  return ids;
+}
+
+// "Show the way": the astronaut walks to the place of a task.
+function guideTo(id) {
+  if (!world || !walking() || s.phase !== "day") return;
+  const site = siteById(id);
+  const st = WORLD_BASE.stations.find((x) => x.id === id);
+  if (site) world.walkTo(site.wx, site.wz);
+  else if (st) world.walkTo(st.x, st.z);
+  if (window.matchMedia("(max-width: 900px)").matches) openPanel(null); // phones: get the panel out of the way
+}
+
+$("#rcol").addEventListener("click", (e) => {
+  const dock = e.target.closest(".dock-btn");
+  if (dock) { openPanel(ui.panel === dock.dataset.panel ? null : dock.dataset.panel); return; }
+  if (e.target.closest("[data-panel-close]")) { openPanel(null); return; }
+  const go = e.target.closest("[data-go]");
+  if (go) { guideTo(go.dataset.go); return; }
+  if (e.target.closest("#to-classic")) { ui.classic = true; ui.site = null; render(); return; }
+  if (e.target.closest("#end-day")) endDayNow();
+});
+$("#rcol").addEventListener("keydown", (e) => {
+  const go = e.target.closest("[data-go]");
+  if (go && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); guideTo(go.dataset.go); }
+});
 
 // ---------- collection ----------
 function updateCollectionCount() {
@@ -818,6 +1190,8 @@ document.addEventListener("click", (e) => {
     refreshLanguage();
   } else if (btn.dataset.fact) {
     openInfo(factHtml(btn.dataset.fact, "", true));
+  } else if (btn.dataset.openPanel) {
+    openPanel(btn.dataset.openPanel);
   } else if (btn.matches("[data-close]")) {
     btn.closest("dialog").close();
   }

@@ -71,4 +71,20 @@ export const CONFIG = {
 
   // Science thresholds for ⭐ (first star = surviving all sols).
   stars: [0, 60, 100],
+
+  // Daily orders from Mission Control (see genTasks in game.js): bonus research
+  // for finishing them. Checking the solar panels is a free daily routine.
+  tasks: { sample: 2, anySample: 1, shelter: 1, tend: 1, call: 1 },
+
+  // The technology line: research (science) unlocks real NASA technologies.
+  // Science never goes down, so a technology stays on once unlocked.
+  // The 60 and 100 steps are also the ⭐⭐ and ⭐⭐⭐ marks.
+  tech: [
+    { id: "dustShield", at: 20 }, // dust settles on the panels half as fast
+    { id: "moxie2", at: 40 }, // O₂ Maker: 5 power → 5 oxygen
+    { id: "shelter", at: 60 }, // shield room costs 10 power a night
+    { id: "fission", at: 80 }, // +10 power every sunset, whatever the weather
+    { id: "sampleReturn", at: 100 }, // the goal: samples ready to fly home
+  ],
+  techEffects: { o2PerStep: 5, shieldPower: 10, fissionPower: 10 },
 };

@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/layout.css">
 </head>
 <body>
   <!-- Title screen -->
@@ -39,23 +40,36 @@
     </div>
   </section>
 
-  <!-- Game screen: the Mars map fills the screen; survival info lives in the sidebar;
-       the panels for each of the day's four phases float over the map. -->
+  <!-- Game screen: the Mars map fills the screen. Top left: the four supplies.
+       Right: the mission, technology and calendar panels, opened from the dock.
+       The panels for each of the day's four phases float over the map. -->
   <section id="screen-game" class="screen game">
-    <aside class="side" id="side">
+    <aside class="hud-card" id="hud-card">
       <div class="brand">
         <span class="brand-planet" aria-hidden="true"></span>
         <div><div class="brand-title">Sol by Sol</div><div class="brand-sub" id="sol-label"></div></div>
       </div>
       <section class="hud" id="hud" data-i18n-aria="hud.aria"></section>
-      <section class="side-day" id="side-day" aria-live="polite"></section>
-      <section class="timeline" data-i18n-aria="cal.aria">
-        <div class="card-title" data-i18n="cal.title"></div>
-        <div class="sols" id="sols"></div>
+    </aside>
+
+    <div class="rcol" id="rcol">
+      <div class="world-map">
+        <canvas id="minimap" width="168" height="168" data-i18n-aria="world.mapAria"></canvas>
+        <div class="world-map-cap" data-i18n="world.mapCap"></div>
+      </div>
+      <nav class="dock" data-i18n-aria="dock.aria">
+        <button class="dock-btn" type="button" data-panel="tasks"><span aria-hidden="true">🎯</span><b data-i18n="dock.tasks"></b><em id="dock-tasks"></em></button>
+        <button class="dock-btn" type="button" data-panel="tech"><span aria-hidden="true">🔬</span><b data-i18n="dock.tech"></b><em id="dock-tech"></em></button>
+        <button class="dock-btn" type="button" data-panel="cal"><span aria-hidden="true">📅</span><b data-i18n="dock.cal"></b><em id="dock-cal"></em></button>
+      </nav>
+      <section class="gpanel" id="panel-tasks" data-panel="tasks"></section>
+      <section class="gpanel" id="panel-tech" data-panel="tech"></section>
+      <section class="gpanel" id="panel-cal" data-panel="cal">
+        <div class="gpanel-head"><h3 data-i18n="cal.title"></h3><button class="gpanel-x" type="button" data-panel-close data-i18n-aria="dock.close">✕</button></div>
+        <div class="sols" id="sols" data-i18n-aria="cal.aria"></div>
         <div class="sols-legend" data-i18n="cal.legend"></div>
       </section>
-      <p class="side-credit" data-i18n="world.credit"></p>
-    </aside>
+    </div>
 
     <!-- The walkable Mars surface: a real orbital photo of Jezero crater -->
     <section class="world hidden" id="world" data-i18n-aria="world.aria">
@@ -65,14 +79,11 @@
         <span class="world-chip" id="world-weather"></span>
         <span class="world-chip" id="world-loc"></span>
       </div>
-      <div class="world-map">
-        <canvas id="minimap" width="168" height="168" data-i18n-aria="world.mapAria"></canvas>
-        <div class="world-map-cap" data-i18n="world.mapCap"></div>
-      </div>
       <div class="world-toast" id="world-toast" aria-live="polite"></div>
       <div class="world-prompt" id="world-prompt" aria-live="polite"></div>
       <div class="joy" id="joy" aria-hidden="true"><i></i></div>
       <div class="world-keys" data-i18n-html="world.keys"></div>
+      <p class="world-credit" data-i18n="world.credit"></p>
     </section>
 
     <header class="topbar">
