@@ -404,12 +404,16 @@ function receive(g, m) {
 // ---------- phase 1: briefing ----------
 function startSol(g) {
   g.phase = "briefing";
+  // the research reward counts research up to yesterday, so it starts the day
+  // after the total is reached (research Earth sends this morning counts tomorrow)
   g.ap = maxAp(g);
   g.today = {
     evas: [], cleaned: false, tended: false, called: false, inspected: false, repaired: false,
     income: 0, overflow: 0, panelBefore: g.panel, batterySunset: null,
     alloc: null, nightDose: 0, dustDevil: false, alarm: false, log: [], tasks: [], broke: [], built: [], nightEvent: null,
+    apGain: g.ap - (g.apMax || C.actionPoints), // >0 on the first morning with the extra point
   };
+  g.apMax = g.ap;
   g.known[g.sol] = true; // the crew can see today's sky for themselves
   // parts that were not fixed in time break at dawn
   for (const f of g.faults) {
@@ -427,9 +431,6 @@ function startSol(g) {
   if (g.dustStorm.start === g.sol) g.stormReady = g.battery >= C.goals.stormBattery;
   g.today.tasks = genTasks(g);
   checkGoals(g);
-  g.ap = maxAp(g); // research that arrived overnight counts for the reward today
-  g.today.apGain = g.ap - (g.apMax || C.actionPoints); // >0 on the first morning with a research reward
-  g.apMax = g.ap;
   g.morning = snapshot(g);
 }
 

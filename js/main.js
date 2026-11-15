@@ -527,7 +527,7 @@ function renderBriefing() {
       ${space}
     </div>
     ${mail}
-    ${s.today.apGain > 0 ? rewardCardHtml("today") : ""}
+    ${s.today.apGain > 0 ? rewardCardHtml("today") : E.apBonusBetween(lastSci, s.science).length && s.sol < N ? rewardCardHtml("tomorrow") : ""}
     ${newTech.map(techCardHtml).join("")}
     <div class="orders"><h3>${esc(t("brief.orders", { n: s.sol }))}</h3>
       <ul class="task-list">${s.today.tasks.map((k, i) => taskHtml(k, i)).join("")}</ul></div>

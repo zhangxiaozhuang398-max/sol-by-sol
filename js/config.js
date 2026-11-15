@@ -161,12 +161,10 @@ export const CONFIG = {
   techEffects: { o2PerStep: 5, shieldPower: 10, fissionPower: 10 },
 
   // Research rewards: at each of these research totals the crew gets one more
-  // action point every day from then on, for free (no building). Applies from
-  // the next morning. Picked with scripts/balance.html (?apb=… to try others).
-  // 30 comes mid-game for most players, when the far trips (helicopter, rover)
-  // start to need more points; 70 comes in storm season for good researchers.
-  // In the bot runs this mainly turns more good missions into ⭐⭐⭐ (planner:
-  // 2% → 10%), while players who spend every point on trips run lower on
-  // power and air, so the extra point is a choice, not a free win.
-  apBonus: [30, 70],
+  // action point every day, for free (no building). It starts the day after
+  // the total is reached. One reward, at 40: mid-game, when the far trips
+  // (helicopter, rover) start to need more points. scripts/balance.html
+  // (?apb=… to try others) shows the extra point is a choice, not a free win:
+  // players who spend every point on trips run lower on power and air.
+  apBonus: [40],
 };
