@@ -16,6 +16,8 @@ const params = new URLSearchParams(location.search);
 const games = +params.get("games") || 300;
 // try other research rewards: ?apb=30,70 (or ?apb= for none)
 if (params.has("apb")) C.apBonus = params.get("apb") ? params.get("apb").split(",").map(Number) : [];
+// try other starting supplies: ?start=battery:90,food:9
+if (params.get("start")) for (const kv of params.get("start").split(",")) { const [k, v] = kv.split(":"); if (k in C.start) C.start[k] = +v; }
 const N = C.totalSols;
 
 // Night plan. "careful" players weigh everything (the same search as Pip's
