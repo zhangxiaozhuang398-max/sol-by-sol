@@ -1,48 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="320" height="260" viewBox="0 0 320 260">
-  <!-- Survey site "Ancient Lake Delta": the fan of mud and sand a river dropped where it met the lake, with the old
-       branching channels, and a row of sealed sample tubes laid on the ground (as Perseverance did at "Three Forks").
-       An illustration, larger than life. The river came from the west (left); the fan's steep front faces east, in shade. -->
-  <defs>
-    <filter id="blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter>
-    <filter id="haze" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="1.8"/></filter>
-    <radialGradient id="fan" cx="6%" cy="46%" r="96%">
-      <stop offset="0" stop-color="#e8c8aa"/><stop offset="0.6" stop-color="#d2a888"/><stop offset="1" stop-color="#b98c70"/>
-    </radialGradient>
-    <path id="shape" d="M18 118 C60 70 110 26 172 14 C196 26 206 40 214 34 C232 44 232 62 246 64 C262 82 252 98 266 110 C272 132 256 146 262 162 C252 182 234 184 232 200 C212 214 198 206 186 220 C150 232 80 186 18 118 Z"/>
-    <clipPath id="inFan"><use href="#shape"/></clipPath>
-  </defs>
-
-  <!-- shadow below the fan's east-facing front -->
-  <use href="#shape" fill="#2a140b" opacity="0.5" filter="url(#blur)" transform="translate(12 3)"/>
-  <use href="#shape" fill="url(#fan)"/>
-  <g clip-path="url(#inFan)" fill="none" stroke-linecap="round">
-    <!-- arcs: each band of mud was laid down as the delta grew out into the lake -->
-    <g stroke="#9c7258" stroke-width="1.6" opacity="0.4">
-      <circle cx="18" cy="118" r="70"/><circle cx="18" cy="118" r="112"/><circle cx="18" cy="118" r="152"/><circle cx="18" cy="118" r="192"/><circle cx="18" cy="118" r="226"/>
-    </g>
-    <!-- branching channels, now standing as low ridges: a dark east side and a sunlit west side -->
-    <g stroke="#3a1c10" stroke-width="5" opacity="0.32" transform="translate(2.5 1)" filter="url(#haze)">
-      <path d="M18 118 C70 100 110 70 172 30"/><path d="M96 92 C140 96 180 78 232 56"/><path d="M18 118 C90 118 170 110 262 116"/>
-      <path d="M130 116 C170 130 210 140 256 156"/><path d="M18 118 C70 140 120 170 186 212"/><path d="M92 152 C130 170 180 184 228 196"/>
-    </g>
-    <g stroke="#f0d3b6" stroke-width="4">
-      <path d="M18 118 C70 100 110 70 172 30"/><path d="M96 92 C140 96 180 78 232 56"/><path d="M18 118 C90 118 170 110 262 116"/>
-      <path d="M130 116 C170 130 210 140 256 156"/><path d="M18 118 C70 140 120 170 186 212"/><path d="M92 152 C130 170 180 184 228 196"/>
-    </g>
-    <!-- the fan front darkens towards its shaded east edge -->
-    <use href="#shape" stroke="#3a1c10" stroke-width="16" opacity="0.28" filter="url(#haze)" transform="translate(-6 0)"/>
-  </g>
-  <!-- where the river came in -->
-  <path d="M-12 124 C0 112 8 122 20 118" fill="none" stroke="#6b4634" stroke-width="12" stroke-linecap="round" opacity="0.55" filter="url(#haze)"/>
-
-  <!-- sample tubes laid out on the ground in a zigzag -->
-  <g fill="#2a140b" opacity="0.4">
-    <rect x="186" y="222" width="20" height="5.5" rx="2.7" transform="rotate(24 196 225)"/><rect x="212" y="226" width="20" height="5.5" rx="2.7" transform="rotate(-24 222 229)"/>
-    <rect x="238" y="222" width="20" height="5.5" rx="2.7" transform="rotate(24 248 225)"/><rect x="264" y="226" width="20" height="5.5" rx="2.7" transform="rotate(-24 274 229)"/>
-  </g>
-  <g fill="#e6dccf">
-    <rect x="184" y="220" width="20" height="5.5" rx="2.7" transform="rotate(24 194 223)"/><rect x="210" y="224" width="20" height="5.5" rx="2.7" transform="rotate(-24 220 227)"/>
-    <rect x="236" y="220" width="20" height="5.5" rx="2.7" transform="rotate(24 246 223)"/><rect x="262" y="224" width="20" height="5.5" rx="2.7" transform="rotate(-24 272 227)"/>
-  </g>
-  <g fill="#b5532c"><circle cx="186.5" cy="219.8" r="2.4"/><circle cx="227.8" cy="223.6" r="2.4"/><circle cx="238.5" cy="219.8" r="2.4"/><circle cx="279.8" cy="223.6" r="2.4"/></g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="520" viewBox="0 0 320 260"><defs></defs><ellipse cx="160" cy="140" rx="155" ry="105" fill="#b86a45" opacity="0.22"/>
+<ellipse cx="160" cy="140" rx="124" ry="81.9" fill="#b86a45" opacity="0.18"/>
+<ellipse cx="172" cy="160" rx="130" ry="50" fill="rgba(40,15,5,0.25)"/>
+<path d="M45 150 C70 180 120 200 160 190 C190 200 230 205 260 190 C290 175 300 140 285 110 L293 118 C307 152 298 188 266 203 C232 219 190 213 160 205 C118 213 66 195 42 160 Z" fill="#a8633d" stroke="#3a2418" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M30 90 C60 60 110 70 140 80 C190 60 250 70 285 110 C300 140 290 175 260 190 C230 205 190 200 160 190 C120 200 70 180 45 150 C30 130 25 110 30 90 Z" fill="#e3ad82" stroke="#3a2418" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M14 92 C22 92 26 92 30 92" stroke="#3a2418" stroke-width="3"/>
+<path d="M14 92 C40 94 80 100 110 110 C140 120 170 130 200 140 C220 147 240 150 262 152 M110 110 C140 98 180 92 222 98 C238 100 252 104 266 112 M150 124 C160 150 180 168 206 176 M200 140 C218 128 244 126 270 132" fill="none" stroke="#b47a58" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 92 C40 94 80 100 110 110 C140 120 170 130 200 140 C220 147 240 150 262 152 M110 110 C140 98 180 92 222 98 C238 100 252 104 266 112 M150 124 C160 150 180 168 206 176 M200 140 C218 128 244 126 270 132" fill="none" stroke="#f0c9a6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M60 80 Q80 72 104 78" fill="none" stroke="#f6d5b5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<ellipse cx="216" cy="194" rx="26" ry="5" fill="rgba(40,15,5,0.3)"/><g transform="translate(195 186) rotate(68)">
+<rect x="-3.5" y="-11" width="7" height="22" rx="3.5" fill="#f4efe6" stroke="#3a2418" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><rect x="-3.5" y="-11" width="7" height="6" rx="2" fill="#e07a3f" stroke="#3a2418" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></g><g transform="translate(205 188) rotate(68)">
+<rect x="-3.5" y="-11" width="7" height="22" rx="3.5" fill="#f4efe6" stroke="#3a2418" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><rect x="-3.5" y="-11" width="7" height="6" rx="2" fill="#e07a3f" stroke="#3a2418" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></g><g transform="translate(215 186) rotate(68)">
+<rect x="-3.5" y="-11" width="7" height="22" rx="3.5" fill="#f4efe6" stroke="#3a2418" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><rect x="-3.5" y="-11" width="7" height="6" rx="2" fill="#e07a3f" stroke="#3a2418" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></g><g transform="translate(225 188) rotate(68)">
+<rect x="-3.5" y="-11" width="7" height="22" rx="3.5" fill="#f4efe6" stroke="#3a2418" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><rect x="-3.5" y="-11" width="7" height="6" rx="2" fill="#e07a3f" stroke="#3a2418" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></g></svg>

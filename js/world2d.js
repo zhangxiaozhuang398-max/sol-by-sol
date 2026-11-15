@@ -26,15 +26,15 @@ const SPRITES = {
   panels: { file: "panels.svg", size: 3.75, anchor: 0.72, crisp: true },
   greenhouse: { file: "greenhouse.svg", size: 3.6, anchor: 0.79, crisp: true },
   antenna: { file: "antenna.svg", size: 2.75, anchor: 0.8, crisp: true },
-  landmark: { file: "rover.svg", size: 1.3 },
+  landmark: { file: "rover.svg", size: 2.1, anchor: 0.8, crisp: true },
   astronaut: { file: "astronaut.svg", size: 1.3 }, // body only: world2d draws the arms and boots so they can move
-  // survey sites: each is a drawing of the landform itself, with the instrument used to study it
-  site_dune: { file: "site_dune.svg", size: 4.6 },
-  site_crater: { file: "site_crater.svg", size: 4.6 },
-  site_cliff: { file: "site_cliff.svg", size: 4.6 },
-  site_riverbed: { file: "site_riverbed.svg", size: 4.6 },
-  site_canyon: { file: "site_canyon.svg", size: 4.6 },
-  site_delta: { file: "site_delta.svg", size: 4.6 },
+  // survey sites (scripts/draw_sites.mjs): each is a cartoon of the landform itself, with the instrument used to study it
+  site_dune: { file: "site_dune.svg", size: 4.6, crisp: true },
+  site_crater: { file: "site_crater.svg", size: 4.6, crisp: true },
+  site_cliff: { file: "site_cliff.svg", size: 4.6, crisp: true },
+  site_riverbed: { file: "site_riverbed.svg", size: 4.6, crisp: true },
+  site_canyon: { file: "site_canyon.svg", size: 4.6, crisp: true },
+  site_delta: { file: "site_delta.svg", size: 4.6, crisp: true },
 };
 // Where the instrument stands in each site drawing, in cells from the drawing's centre.
 // The "not explored yet" light and the "explored" flag are placed there.
@@ -435,19 +435,19 @@ export async function createWorld(opts) {
     }
     for (const t of targets) {
       if (t.kind !== "landmark") continue;
-      const x = sx(t.x), y = sy(t.z);
-      const gap = SPRITES.landmark.size * S * 0.37, len = 5 * S;
-      const g = ctx.createLinearGradient(0, y, 0, y + len);
+      // the rover faces west, so its wheel tracks trail away to the east, one per row of wheels
+      const x = sx(t.x) + 0.5 * S, y = sy(t.z), len = 5 * S;
+      const g = ctx.createLinearGradient(x, 0, x + len, 0);
       g.addColorStop(0, "rgba(62,32,18,0.42)");
       g.addColorStop(1, "rgba(62,32,18,0)");
       ctx.strokeStyle = g;
       ctx.lineWidth = 0.1 * S;
       ctx.lineCap = "butt";
-      for (const side of [-1, 1]) {
-        const x0 = x + side * gap;
+      for (const dy of [-0.27, -0.03]) {
+        const y0 = y + dy * S;
         ctx.beginPath();
-        ctx.moveTo(x0, y);
-        ctx.bezierCurveTo(x0, y + len * 0.45, x0 - 0.9 * S, y + len * 0.6, x0 - 1.3 * S, y + len);
+        ctx.moveTo(x, y0);
+        ctx.bezierCurveTo(x + len * 0.45, y0, x + len * 0.6, y0 + 0.9 * S, x + len, y0 + 1.3 * S);
         ctx.stroke();
       }
     }

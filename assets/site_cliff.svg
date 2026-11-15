@@ -1,46 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="320" height="260" viewBox="0 0 320 260">
-  <!-- Survey site "Layered Cliff": a small flat-topped hill (butte) whose sides show stacked rock layers, like the
-       real "Kodiak" butte in Jezero, and a core drill on a tripod. An illustration, larger than life.
-       Seen from above, each higher layer is a smaller shape; the sun is in the west, so every step shades its east side. -->
-  <defs>
-    <filter id="blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter>
-    <filter id="haze" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="1.8"/></filter>
-    <radialGradient id="apron">
-      <stop offset="0" stop-color="#6e4530" stop-opacity="0.4"/><stop offset="0.7" stop-color="#6e4530" stop-opacity="0.18"/><stop offset="1" stop-color="#6e4530" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="lit" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#fff0dc" stop-opacity="0.28"/><stop offset="0.5" stop-color="#fff0dc" stop-opacity="0"/><stop offset="1" stop-color="#2a140b" stop-opacity="0.3"/>
-    </linearGradient>
-    <path id="blob" d="M-100 6 C-106 -38 -70 -80 -18 -88 C30 -96 84 -70 98 -22 C110 20 78 70 26 84 C-22 96 -92 60 -100 6 Z"/>
-  </defs>
-
-  <ellipse cx="150" cy="128" rx="150" ry="126" fill="url(#apron)"/>
-  <use href="#blob" transform="translate(166 126) scale(1.08)" fill="#2a140b" opacity="0.45" filter="url(#blur)"/>
-
-  <!-- five layers, bottom to top: each is drawn with a dark step on its east side, then its own colour -->
-  <g transform="translate(146 122)">
-    <use href="#blob" transform="scale(1.06)" fill="#a2745a"/>
-    <use href="#blob" transform="translate(5 2) scale(0.87)" fill="#3a1c10" opacity="0.45" filter="url(#haze)"/>
-    <use href="#blob" transform="translate(-2 -1) scale(0.86) rotate(8)" fill="#d8b294"/>
-    <use href="#blob" transform="translate(3 1) scale(0.68) rotate(8)" fill="#3a1c10" opacity="0.45" filter="url(#haze)"/>
-    <use href="#blob" transform="translate(-4 -2) scale(0.67) rotate(-14)" fill="#b3876b"/>
-    <use href="#blob" transform="translate(1 0) scale(0.5) rotate(-14)" fill="#3a1c10" opacity="0.45" filter="url(#haze)"/>
-    <use href="#blob" transform="translate(-6 -3) scale(0.49) rotate(20)" fill="#e6c4a6"/>
-    <use href="#blob" transform="translate(-2 -1) scale(0.31) rotate(20)" fill="#3a1c10" opacity="0.4" filter="url(#haze)"/>
-    <use href="#blob" transform="translate(-8 -4) scale(0.3) rotate(-30)" fill="#c69d80"/>
-    <use href="#blob" transform="scale(1.06)" fill="url(#lit)"/>
-    <!-- thin bedding lines inside the layers -->
-    <g fill="none" stroke="#6b4632" stroke-width="1.2" opacity="0.4">
-      <use href="#blob" transform="translate(-1 0) scale(0.96) rotate(4)"/><use href="#blob" transform="translate(-3 -1) scale(0.77) rotate(-3)"/><use href="#blob" transform="translate(-5 -2) scale(0.58) rotate(4)"/><use href="#blob" transform="translate(-7 -3) scale(0.4) rotate(-8)"/>
-    </g>
-  </g>
-
-  <!-- core drill on a tripod, with a rack of sample tubes beside it -->
-  <ellipse cx="226" cy="198" rx="20" ry="16" fill="#2a140b" opacity="0.4" filter="url(#haze)"/>
-  <g stroke="#4f4640" stroke-width="3.4" stroke-linecap="round"><line x1="212" y1="190" x2="194" y2="202"/><line x1="212" y1="190" x2="230" y2="204"/><line x1="212" y1="190" x2="212" y2="168"/></g>
-  <g fill="#7d7168"><circle cx="194" cy="202" r="4"/><circle cx="230" cy="204" r="4"/><circle cx="212" cy="168" r="4"/></g>
-  <circle cx="212" cy="190" r="10" fill="#d9ccbc"/><circle cx="210.4" cy="188.4" r="6" fill="#f3eadf"/><circle cx="212" cy="190" r="3" fill="#463d37"/>
-  <rect x="240" y="186" width="26" height="16" rx="3" fill="#2a140b" opacity="0.35"/>
-  <rect x="236" y="183" width="26" height="16" rx="3" fill="#8c8076"/>
-  <g fill="#e6dccf"><circle cx="242" cy="188" r="2.6"/><circle cx="249" cy="188" r="2.6"/><circle cx="256" cy="188" r="2.6"/><circle cx="242" cy="194" r="2.6"/><circle cx="249" cy="194" r="2.6"/></g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="520" viewBox="0 0 320 260"><defs></defs><ellipse cx="160" cy="140" rx="152" ry="100" fill="#b86a45" opacity="0.22"/>
+<ellipse cx="160" cy="140" rx="121.60000000000001" ry="78" fill="#b86a45" opacity="0.18"/>
+<defs><clipPath id="wall"><path d="M48 104 L252 98 L257 168 L44 173 Z"/></clipPath></defs>
+<ellipse cx="170" cy="174" rx="118" ry="16" fill="rgba(40,15,5,0.3)"/>
+<g clip-path="url(#wall)"><rect x="30" y="100" width="240" height="20" fill="#d9965f"/><rect x="30" y="118" width="240" height="20" fill="#b8703f"/><rect x="30" y="132" width="240" height="20" fill="#e0a676"/><rect x="30" y="146" width="240" height="20" fill="#a9633a"/><rect x="30" y="158" width="240" height="20" fill="#cf8a57"/><path d="M46 120 Q100 115 150 118 T254 116" fill="none" stroke="#7a4a35" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M46 134 Q100 130 150 132 T254 130" fill="none" stroke="#7a4a35" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M46 148 Q100 145 150 146 T254 144" fill="none" stroke="#7a4a35" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M46 160 Q100 158 150 158 T254 156" fill="none" stroke="#7a4a35" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="205" y="90" width="60" height="90" fill="rgba(60,25,10,0.22)"/></g>
+<path d="M48 104 L252 98 L257 168 L44 173 Z" fill="none" stroke="#3a2418" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M48 104 L88 66 L208 58 L252 98 Z" fill="#e8b388" stroke="#3a2418" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M102 92 L215 88 L216 101 L100 104 Z" fill="#c07848" stroke="#3a2418" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M102 92 L120 72 L190 68 L215 88 Z" fill="#f0c39a" stroke="#3a2418" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M92 70 L120 66" fill="none" stroke="#f8dcbf" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<ellipse cx="40" cy="178" rx="9" ry="5" fill="#bfae9c" stroke="#3a2418" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="262" cy="172" rx="7" ry="4" fill="#bfae9c" stroke="#3a2418" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="120" cy="184" rx="6" ry="4" fill="#bfae9c" stroke="#3a2418" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<ellipse cx="220" cy="192" rx="20" ry="5" fill="rgba(40,15,5,0.3)"/>
+<path d="M196 194 L210 154 L224 194 M210 154 L213 196" fill="none" stroke="#3a2418" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="204" y="158" width="12" height="24" rx="2.5" fill="#e07a3f" stroke="#3a2418" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="204" y="158" width="12" height="6" rx="2" fill="#f4efe6" stroke="#3a2418" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M210 182 V194" fill="none" stroke="#5d6874" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>

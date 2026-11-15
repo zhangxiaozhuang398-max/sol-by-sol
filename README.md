@@ -101,7 +101,7 @@ js/game.js     pure game logic (seeded, testable): the four phases and all rules
 js/report.js   failure / success debrief built from the player's own run
 js/sites.js    explore sites and base stations, placed on the real terrain grid
 js/world2d.js  the walkable top-down Mars surface (canvas): real ground picture, astronaut, minimap
-assets/        drawings of the base buildings (cartoon three-quarter view, from scripts/draw_buildings.mjs), survey sites, rover and astronaut (SVG)
+assets/        cartoon drawings of the base buildings, survey sites and rover (from scripts/draw_buildings.mjs and scripts/draw_sites.mjs), and the astronaut (SVG)
 js/facts.js    sourced story and knowledge cards (English + Chinese)
 js/i18n.js     interface text (English + Chinese)
 js/main.js     user interface (world prompts, power sliders, report, end screen)
@@ -114,7 +114,7 @@ Run locally with any static server, for example `npx serve .` or `python -m http
 
 ## Use of AI tools
 
-Code, data scripts and documentation in this repository were written with help from an AI coding assistant (Claude by Anthropic). The team chose the challenge and the game concept direction (survival management with trade-offs), the exploration-map idea and the four-phase day came from a teammate's prototype, and the team reviewed the results. The cartoon drawings of the habitat, solar panels, greenhouse and antenna (drawn by code in `scripts/draw_buildings.mjs`) and the drawings of the survey sites, rover and astronaut (`assets/*.svg`) are AI-generated vector art; the game labels them as such on screen and in the footer. The ground picture is real NASA imagery, not AI-generated. No AI-generated audio or video is used.
+Code, data scripts and documentation in this repository were written with help from an AI coding assistant (Claude by Anthropic). The team chose the challenge and the game concept direction (survival management with trade-offs), the exploration-map idea and the four-phase day came from a teammate's prototype, and the team reviewed the results. The cartoon drawings of the base buildings, the six survey sites and the rover (drawn by code in `scripts/draw_buildings.mjs` and `scripts/draw_sites.mjs`) and the astronaut drawing (`assets/*.svg`) are AI-generated vector art; the game labels them as such on screen and in the footer. The ground picture is real NASA imagery, not AI-generated. No AI-generated audio or video is used.
 
 ## Credits
 
