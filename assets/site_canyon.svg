@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="260" viewBox="0 0 320 260">
+  <!-- Survey site "Canyon Rim": the valley an ancient river cut through the crater wall (Neretva Vallis), with stepped
+       walls dropping to a dark floor, and a survey scanner on a tripod at the edge. An illustration, larger than life. -->
+  <defs>
+    <filter id="blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter>
+    <filter id="haze" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="1.8"/></filter>
+    <radialGradient id="fade">
+      <stop offset="0.5" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <mask id="soft"><ellipse cx="160" cy="130" rx="164" ry="134" fill="url(#fade)"/></mask>
+    <path id="valley" d="M-20 92 C40 70 78 124 130 118 S 214 78 262 104 S 318 150 348 140"/>
+  </defs>
+
+  <g mask="url(#soft)" fill="none" stroke-linecap="round">
+    <!-- from the rim down to the floor: each narrower band is a lower, darker step in the wall -->
+    <use href="#valley" stroke="#e0b898" stroke-width="124" opacity="0.4" filter="url(#blur)"/>
+    <use href="#valley" stroke="#b98c70" stroke-width="98"/>
+    <use href="#valley" stroke="#3a1c10" stroke-width="80" opacity="0.4" filter="url(#haze)" transform="translate(0 -2)"/>
+    <use href="#valley" stroke="#a37558" stroke-width="76"/>
+    <use href="#valley" stroke="#3a1c10" stroke-width="58" opacity="0.45" filter="url(#haze)" transform="translate(0 -2)"/>
+    <use href="#valley" stroke="#8a6049" stroke-width="54"/>
+    <use href="#valley" stroke="#2a140b" stroke-width="36" opacity="0.55" filter="url(#haze)" transform="translate(0 -2)"/>
+    <use href="#valley" stroke="#6b4634" stroke-width="32"/>
+    <!-- the old riverbed along the floor, and sunlight catching the top edge of the north wall -->
+    <use href="#valley" stroke="#a88468" stroke-width="5" stroke-dasharray="30 10 12 10" opacity="0.7"/>
+    <use href="#valley" stroke="#fff0dc" stroke-width="2.5" opacity="0.45" transform="translate(0 50)" filter="url(#haze)"/>
+    <!-- gullies running down the walls -->
+    <g stroke="#3a1c10" stroke-width="2" opacity="0.3">
+      <path d="M60 46 l8 26"/><path d="M110 70 l-4 26"/><path d="M168 50 l8 26"/><path d="M226 44 l-2 28"/><path d="M280 72 l6 24"/>
+      <path d="M48 142 l10 -24"/><path d="M104 166 l4 -26"/><path d="M178 156 l-6 -26"/><path d="M244 148 l4 -24"/>
+    </g>
+  </g>
+
+  <!-- survey scanner on a tripod at the south rim; its shadow falls east -->
+  <path d="M210 190 L262 198" stroke="#2a140b" stroke-width="5" stroke-linecap="round" opacity="0.4" filter="url(#haze)"/>
+  <g stroke="#4f4640" stroke-width="3.4" stroke-linecap="round"><line x1="210" y1="188" x2="192" y2="200"/><line x1="210" y1="188" x2="228" y2="202"/><line x1="210" y1="188" x2="210" y2="208"/></g>
+  <g fill="#7d7168"><circle cx="192" cy="200" r="4"/><circle cx="228" cy="202" r="4"/><circle cx="210" cy="208" r="4"/></g>
+  <rect x="199" y="178" width="22" height="18" rx="5" fill="#d9ccbc"/>
+  <rect x="199" y="178" width="9" height="18" rx="5" fill="#f3eadf"/>
+  <rect x="204" y="170" width="12" height="10" rx="3" fill="#463d37"/>
+  <circle cx="210" cy="174" r="3" fill="#2f5c5c"/><circle cx="209" cy="173" r="1" fill="#bfe3df"/>
+</svg>

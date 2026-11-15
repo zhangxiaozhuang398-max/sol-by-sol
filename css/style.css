@@ -227,10 +227,6 @@ button.info {
 .chip.bad { background: #6a2540; }
 .lock { font-size: 0.85rem; color: var(--muted); }
 .actions { display: flex; flex-direction: column; gap: 10px; }
-.actions-note {
-  padding: 14px 16px; border: 1px dashed var(--line); border-radius: var(--radius-sm);
-  color: var(--muted); font-weight: 700; line-height: 1.45; background: rgba(255,255,255,0.03);
-}
 .action {
   display: grid; grid-template-columns: 40px 1fr; gap: 2px 10px; align-items: center; font: inherit; color: var(--text);
   text-align: left; padding: 12px; border-radius: var(--radius); background: var(--card);
@@ -393,16 +389,6 @@ details.data-table th:first-child, details.data-table td:first-child { text-alig
 .world.play { height: min(68vh, 640px); min-height: 440px; }
 .world-view, .world-view canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .world-view canvas { cursor: pointer; }
-.world-loading {
-  position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
-  gap: 14px; background: rgba(20, 14, 36, 0.72); z-index: 6; color: var(--text); font-weight: 800; text-align: center; padding: 20px;
-}
-.world-loading.show { display: flex; }
-.world-loading .spinner {
-  width: 42px; height: 42px; border-radius: 50%; border: 4px solid var(--line); border-top-color: var(--sand);
-  animation: world-spin 1s linear infinite;
-}
-@keyframes world-spin { to { transform: rotate(360deg); } }
 .world-top { position: absolute; top: 10px; left: 10px; display: flex; gap: 8px; flex-wrap: wrap; pointer-events: none; }
 .world-chip {
   background: rgba(27, 21, 48, 0.82); border: 2px solid var(--line); border-radius: 999px;
@@ -471,10 +457,8 @@ details.data-table th:first-child, details.data-table td:first-child { text-alig
 }
 @media (max-width: 640px) {
   .world.play { height: 70vh; min-height: 380px; }
-  .top-actions #btn-new { display: none; }
   .world-map canvas { width: 104px; height: 104px; }
   .world-credit { display: none; }
-  .world.play .world-keys { display: none; }
 }
 .world-prompt.hint { bottom: auto; top: 54px; }
 .world.play .world-credit { display: none; }
@@ -535,8 +519,8 @@ body:has(#screen-game.active) .footer { display: none; }
 .game .side-day .log { flex: none; font-size: 0.82rem; }
 .game .side-day .log ul { flex-direction: column; }
 .game .side-day .log li { background: var(--bg-2); padding: 5px 8px; }
-.game .side-day .btns { margin: 0; flex-wrap: wrap; gap: 4px; }
-.game .side-day .btns .btn { flex: 1 1 45%; white-space: nowrap; padding: 4px 6px; font-size: 0.75rem; }
+.game .side-day .btns { margin: 0; }
+.game .side-day .btns .btn { flex: 1; }
 .side-credit { margin: auto 0 0; font-size: 0.68rem; line-height: 1.35; color: var(--muted); }
 
 /* ---- map: everything to the right of the sidebar ---- */
@@ -547,9 +531,6 @@ body:has(#screen-game.active) .footer { display: none; }
 .game .world-top, .game .world-map { top: 64px; }
 .game .world-top { left: 12px; }
 .game .world-map { right: 12px; }
-/* In 3D the base is small enough to read without a minimap; the rover map
-   button opens the full crater map. Keep the 3D view clear. */
-.world.is3d .world-map { display: none; }
 
 /* ---- top bar floats over the map ---- */
 .game .topbar {
@@ -652,227 +633,179 @@ body:has(#screen-game.active) .footer { display: none; }
 }
 .game .side { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
 
-/* Phones: keep the top bar inside the viewport; New Mission lives on the title screen. */
-@media (max-width: 640px) {
-  .game .top-actions #btn-new { display: none !important; }
-}
-
 /* =====================================================================
-   Phase 1, kid-friendly: big gauges, Pip the robot, short cards
+   Sidebar gauges: each resource has a small moving drawing (built in
+   main.js, HUD_ICONS), and things fade up into place when a mission
+   starts. --c is the row's colour, --pct its fill level (0 to 1), --i its
+   position in the list. The reduced-motion rule above switches all of this
+   off, and every resting state is drawn to look right while still.
    ===================================================================== */
-
-/* ---- resource gauges ---- */
-.gauges { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-.gauge {
-  font: inherit; color: var(--text); cursor: pointer; border: 2px solid transparent; border-radius: 16px;
-  background: var(--bg-2); padding: 8px 4px 7px; display: flex; flex-direction: column; align-items: center; gap: 3px;
-  transition: transform 0.12s, border-color 0.2s;
+.res { position: relative; }
+.res-icon {
+  position: relative; flex: none; width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;
+  background: rgba(255, 255, 255, 0.07);
+  background: color-mix(in srgb, var(--c) 17%, transparent);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 45%, transparent);
+  transition: transform 0.25s cubic-bezier(0.3, 1.6, 0.5, 1);
 }
-.gauge:hover { transform: translateY(-2px); border-color: var(--line); }
-.gauge:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
-.gauge .ring {
-  width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center;
-  background: conic-gradient(var(--c) calc(var(--p) * 1%), rgba(255, 255, 255, 0.09) 0);
+.res:hover .res-icon { transform: translateY(-2px) scale(1.1) rotate(-4deg); }
+.res-icon > svg { width: 19px; height: 19px; display: block; overflow: visible; }
+.game .hud .res-head { gap: 7px; }
+.game .hud .res-name { font-size: 0.9rem; } /* keeps "Panel cleanliness" on one line beside the wider icon */
+.res-icon .ln { fill: none; stroke: var(--c); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.res-icon .ln.thin { stroke-width: 1.2; opacity: 0.75; }
+.res-icon .fl { fill: var(--c); }
+.res-icon .fl.dim { opacity: 0.4; }
+
+/* a soft glow that breathes behind each icon, out of step with its neighbours */
+.res-icon::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  animation: icon-halo 3.4s ease-in-out infinite; animation-delay: calc(var(--i, 0) * -0.55s);
 }
-.gauge .ring-icon { width: 48px; height: 48px; border-radius: 50%; background: var(--bg-2); display: grid; place-items: center; font-size: 1.6rem; }
-.gauge .g-name { font-weight: 800; font-size: 0.82rem; color: var(--muted); }
-.gauge .g-val { font-family: "Baloo 2", var(--cjk); font-weight: 800; font-size: 1.15rem; line-height: 1; font-variant-numeric: tabular-nums; }
-.gauge .g-val small { font-size: 0.7rem; color: var(--muted); font-family: "Nunito", var(--cjk); }
-.gauge .g-mood { font-size: 0.78rem; font-weight: 800; white-space: nowrap; }
-.gauge.low { border-color: rgba(243, 181, 98, 0.55); }
-.gauge.low .g-word { color: var(--sand); }
-.gauge.bad { border-color: var(--red); background: #3d1f35; animation: gauge-pulse 0.9s ease-in-out infinite alternate; }
-.gauge.bad .g-word { color: #ff9aa9; }
-@keyframes gauge-pulse { from { box-shadow: 0 0 0 0 rgba(255, 93, 115, 0); } to { box-shadow: 0 0 0 5px rgba(255, 93, 115, 0.35); } }
-.gauge.flash .ring-icon, .dose-badge.flash .d-icon, .mini.flash b { animation: pop-num 0.5s ease-out; }
-@keyframes pop-num { 0% { transform: scale(1); } 40% { transform: scale(1.3); } 100% { transform: scale(1); } }
-
-.dose-badge {
-  font: inherit; color: var(--text); cursor: pointer; width: 100%; margin-top: 8px; border-radius: 14px;
-  border: 2px solid transparent; background: var(--bg-2); padding: 8px 10px;
-  display: grid; grid-template-columns: auto auto 1fr; grid-template-rows: auto auto; gap: 2px 8px; align-items: center; text-align: left;
+@keyframes icon-halo {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% { box-shadow: 0 0 11px 1px rgba(255, 255, 255, 0.25); box-shadow: 0 0 11px 1px color-mix(in srgb, var(--c) 55%, transparent); }
 }
-.dose-badge .d-icon { grid-row: span 2; font-size: 1.5rem; }
-.dose-badge .d-name { font-weight: 800; font-size: 0.9rem; }
-.dose-badge .d-word { grid-column: 2 / 4; font-size: 0.8rem; font-weight: 800; }
-.dose-badge .d-word small { color: var(--muted); font-weight: 700; margin-left: 4px; }
-.dose-badge .d-bar { height: 10px; border-radius: 5px; background: rgba(255, 255, 255, 0.09); overflow: hidden; position: relative; }
-.dose-badge .d-bar i { position: absolute; inset: 0 auto 0 0; width: calc(var(--p) * 1%); background: linear-gradient(90deg, #7ad67a, #f3b562 50%, #ff5d73); border-radius: 5px; }
-.dose-badge.low { border-color: rgba(243, 181, 98, 0.55); }
-.dose-badge.bad { border-color: var(--red); background: #3d1f35; animation: gauge-pulse 0.9s ease-in-out infinite alternate; }
+/* a resource in trouble: amber frame and a quick warning ring */
+.res.warn .res-icon { box-shadow: inset 0 0 0 1.5px var(--warning); }
+.res.warn .res-icon::before { animation: icon-alarm 1.1s ease-out infinite; }
+@keyframes icon-alarm { from { box-shadow: 0 0 0 0 rgba(243, 181, 98, 0.7); } to { box-shadow: 0 0 0 9px rgba(243, 181, 98, 0); } }
 
-.hud-mini { display: flex; gap: 6px; margin-top: 8px; }
-.mini {
-  font: inherit; color: var(--text); flex: 1; min-width: 0; border: 0; border-radius: 12px; background: var(--bg-2);
-  padding: 6px 8px; font-size: 0.85rem; text-align: left; display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap;
+/* battery: the level follows the real charge, the bolt flickers */
+.res-icon .i-level {
+  transform-box: fill-box; transform-origin: 0 50%; transform: scaleX(var(--pct, 1));
+  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); animation: i-charge 2.4s ease-in-out infinite;
 }
-button.mini { cursor: pointer; }
-.mini b { font-family: "Baloo 2", var(--cjk); font-size: 1rem; }
-.mini small { color: var(--muted); font-size: 0.72rem; }
-.mini .stars-got { font-size: 0.75rem; letter-spacing: -1px; }
-.hud-tap { margin: 6px 2px 0; font-size: 0.7rem; color: var(--muted); text-align: center; }
-.game .hud { display: block; }
-
-/* ---- Pip the robot ---- */
-.guide {
-  grid-column: 2; grid-row: 2; z-index: 4; align-self: end; justify-self: center;
-  display: flex; align-items: center; gap: 10px; margin: 0 14px 16px; max-width: min(620px, calc(100% - 28px));
-  padding: 9px 16px 9px 9px; border-radius: 999px; background: rgba(27, 21, 48, 0.94); border: 2px solid var(--teal);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); pointer-events: none;
+@keyframes i-charge { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.95; } }
+.res-icon .i-bolt {
+  fill: #fff; stroke: var(--card); stroke-width: 0.9; stroke-linejoin: round; paint-order: stroke;
+  transform-box: fill-box; transform-origin: center; animation: i-bolt 2.4s ease-in-out infinite;
 }
-.guide.hidden { display: none; }
-.guide p { margin: 0; font-size: 1rem; font-weight: 700; line-height: 1.35; }
-.guide p b { color: var(--teal); margin-right: 6px; }
-.guide-bot {
-  position: relative; flex: none; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center;
-  font-size: 1.7rem; background: var(--card); border: 2px solid var(--teal);
+@keyframes i-bolt { 0%, 56%, 80%, 100% { transform: none; opacity: 1; } 62% { transform: scale(1.28); } 66% { opacity: 0.3; } 70% { transform: scale(1.12); opacity: 1; } }
+
+/* oxygen: bubbles rise and fade, one after another */
+.res-icon .i-bub { animation: i-bubble 3.3s ease-in-out infinite; }
+.res-icon .i-bub.b2 { animation-delay: -1.1s; }
+.res-icon .i-bub.b3 { animation-delay: -2.2s; }
+@keyframes i-bubble { 0% { transform: translateY(5px); opacity: 0; } 25%, 70% { opacity: 1; } 100% { transform: translateY(-6px); opacity: 0; } }
+
+/* radiation: the trefoil turns, a ring pulses out; both speed up near the limit */
+.res-icon .i-spin { animation: i-spin 16s linear infinite; }
+@keyframes i-spin { to { transform: rotate(360deg); } }
+.res-icon .i-ping { animation: i-ping 2.6s ease-out infinite; }
+@keyframes i-ping { 0% { transform: scale(0.3); opacity: 0.9; } 70%, 100% { transform: scale(1.3); opacity: 0; } }
+.res.warn .i-spin { animation-duration: 5s; }
+.res.warn .i-ping { animation-duration: 1s; }
+
+/* food: the sprout sways */
+.res-icon .i-sway { animation: i-sway 3.6s ease-in-out infinite alternate; }
+@keyframes i-sway { from { transform: rotate(-8deg); } to { transform: rotate(8deg); } }
+
+/* solar panel: a glint of sunlight crosses the cells */
+.res-icon .i-sheen { fill: #fff; opacity: 0.8; animation: i-sheen 3.8s ease-in-out infinite; }
+@keyframes i-sheen { 0%, 35% { transform: translateX(0); } 75%, 100% { transform: translateX(31px); } }
+
+/* science: two electrons circle the core (a sideways swing plus an up-down swing a quarter turn apart) */
+.res-icon .i-ex { animation: i-ex 1.5s cubic-bezier(0.37, 0, 0.63, 1) infinite alternate; }
+.res-icon .i-ey { animation: i-ey 1.5s cubic-bezier(0.37, 0, 0.63, 1) infinite alternate; animation-delay: -0.75s; }
+.res-icon .i-ex.e2 { animation-duration: 2.1s; animation-delay: -0.6s; }
+.res-icon .i-ey.e2 { animation-duration: 2.1s; animation-delay: -1.65s; }
+@keyframes i-ex { from { transform: translateX(-9.8px); } to { transform: translateX(9.8px); } }
+@keyframes i-ey { from { transform: translateY(-4.1px); } to { transform: translateY(4.1px); } }
+.res-icon .i-core { transform-box: fill-box; transform-origin: center; animation: i-core 2.4s ease-in-out infinite; }
+@keyframes i-core { 50% { transform: scale(1.25); } }
+
+/* light sliding along each bar */
+.hud .bar .fill { overflow: hidden; }
+.hud .bar .fill::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.4) 50%, transparent 65%);
+  animation: bar-sheen 4.2s ease-in-out infinite; animation-delay: calc(var(--i, 0) * 0.4s);
 }
-.guide-bot i { position: absolute; right: -6px; bottom: -4px; font-style: normal; font-size: 1rem; }
-.guide.think { border-color: var(--blue); }
-.guide.think .guide-bot { border-color: var(--blue); }
-.guide.think p b { color: var(--blue); }
-.guide.worry { border-color: var(--sand); }
-.guide.worry .guide-bot { border-color: var(--sand); }
-.guide.worry p b { color: var(--sand); }
-.guide.alarm { border-color: var(--red); background: rgba(61, 31, 53, 0.96); }
-.guide.alarm .guide-bot { border-color: var(--red); }
-.guide.alarm p b { color: #ff9aa9; }
-.guide.pop .guide-bot { animation: bot-hop 0.6s ease-out; }
-.guide.pop p { animation: guide-in 0.35s ease-out; }
-@keyframes bot-hop { 0% { transform: translateY(0); } 30% { transform: translateY(-9px) rotate(-8deg); } 60% { transform: translateY(0) rotate(4deg); } 100% { transform: none; } }
-@keyframes guide-in { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
-/* leave room for Pip under the floating panel */
-.game .stage { max-height: calc(100% - 96px); }
-/* while walking, the key hints sit at the bottom; keep Pip above them */
-.world.play ~ .guide { margin-bottom: 44px; }
+@keyframes bar-sheen { 0%, 55% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 
-/* ---- short knowledge cards ---- */
-.kcard { display: flex; gap: 12px; align-items: center; }
-.kcard-icon { flex: none; width: 54px; height: 54px; border-radius: 16px; background: var(--bg-2); display: grid; place-items: center; font-size: 2rem; }
-.kcard h3 { margin: 0 0 3px; font-size: 1.05rem; }
-.kcard-short { margin: 0; font-size: 1.05rem; font-weight: 700; line-height: 1.4; }
-details.more { margin-top: 10px; border-radius: 12px; background: rgba(255, 255, 255, 0.04); padding: 2px 12px; }
-details.more > summary { cursor: pointer; font-weight: 800; font-size: 0.88rem; color: var(--teal); padding: 8px 0; list-style: none; }
-details.more > summary::-webkit-details-marker { display: none; }
-details.more > summary::after { content: " ▾"; }
-details.more[open] > summary::after { content: " ▴"; }
-details.more p { font-size: 0.9rem; }
+/* a mission starts: the gauges rise in one by one, icons pop, bars grow from empty */
+.hud.enter .res { animation: res-rise 0.65s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; animation-delay: calc(0.1s + var(--i, 0) * 80ms); }
+@keyframes res-rise { from { opacity: 0; transform: translateY(14px); filter: blur(5px); } }
+.hud.enter .res-icon { animation: icon-pop 0.75s cubic-bezier(0.3, 1.6, 0.5, 1) backwards; animation-delay: calc(0.22s + var(--i, 0) * 80ms); }
+@keyframes icon-pop { from { opacity: 0; transform: scale(0.2) rotate(-30deg); } }
+.hud.enter .bar .fill { transition: width 1s cubic-bezier(0.2, 0.8, 0.2, 1); transition-delay: calc(0.35s + var(--i, 0) * 80ms); }
 
-/* ---- morning report ---- */
-.brief-card .big-num { font-family: "Baloo 2", var(--cjk); font-weight: 800; font-size: 1.15rem; color: var(--text); }
-.mail.short { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.mail.short .mail-days { margin: 0; }
-
-/* ---- night power ---- */
-.pool.kid { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 1.1rem; }
-.pool.kid b { font-family: "Baloo 2", var(--cjk); font-size: 1.5rem; color: var(--sand); }
-.btn.suggest { background: linear-gradient(180deg, #ffd27a, var(--sand)); color: #2a1208; border: 0; font-weight: 800; }
-.suggest-note { margin: 4px 0 0; min-height: 0; color: var(--sand); font-weight: 700; }
-.suggest-note:empty { display: none; }
-.alloc-rows.kid .d { font-size: 0.86rem; }
-.proj-label { margin: 14px 0 6px; font-weight: 800; color: var(--muted); font-size: 0.9rem; }
-.proj-item.kid .v { display: flex; align-items: center; gap: 6px; }
-.proj-item.kid .pf { font-size: 1.1rem; }
-
-/* ---- night report ---- */
-.ktiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
-.ktile {
-  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 6px; border-radius: 14px;
-  background: var(--card); border-top: 4px solid var(--c);
+/* a value changes: the icon jumps and the change floats up from the number */
+.res.flash .res-icon { animation: icon-bump 0.6s cubic-bezier(0.3, 1.6, 0.5, 1); }
+@keyframes icon-bump { 30% { transform: scale(1.28) rotate(8deg); } }
+.res-delta {
+  position: absolute; right: 34px; top: -7px; z-index: 2; pointer-events: none;
+  font-family: "Baloo 2", var(--cjk); font-weight: 800; font-size: 0.85rem; line-height: 1.5; font-variant-numeric: tabular-nums;
+  padding: 0 8px; border-radius: 999px; background: var(--bg); border: 1.5px solid currentColor;
+  animation: delta-float 1.6s ease-out forwards;
 }
-.kt-icon { font-size: 1.6rem; }
-.kt-name { font-size: 0.78rem; color: var(--muted); font-weight: 800; }
-.kt-val { font-family: "Baloo 2", var(--cjk); font-weight: 800; font-size: 1.25rem; }
-.kt-delta { font-weight: 800; font-size: 0.9rem; color: var(--muted); }
-.kt-delta.good { color: #7ad67a; }
-.kt-delta.bad { color: #ff9aa9; }
-.storm-line { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: #3d1f35; border-left: 5px solid var(--red); font-weight: 700; }
+.res-delta.good { color: var(--green); }
+.res-delta.bad { color: var(--red); }
+@keyframes delta-float {
+  0% { opacity: 0; transform: translateY(10px) scale(0.6); }
+  16% { opacity: 1; transform: translateY(0) scale(1.1); }
+  28% { transform: translateY(-2px) scale(1); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-20px); }
+}
 
-/* ---- phones ---- */
+/* the sidebar's blocks rise in when the game screen opens */
+.screen.game.active .side > * { animation: side-rise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+.screen.game.active .side > :nth-child(2) { animation-delay: 0.06s; }
+.screen.game.active .side > :nth-child(3) { animation-delay: 0.12s; }
+.screen.game.active .side > :nth-child(4) { animation-delay: 0.18s; }
+.screen.game.active .side > :nth-child(5) { animation-delay: 0.24s; }
+@keyframes side-rise { from { opacity: 0; transform: translateY(16px); } }
+
+/* the little Mars in the corner: its glow breathes and a moon goes round */
+.brand-planet { position: relative; animation: planet-glow 4s ease-in-out infinite; }
+@keyframes planet-glow { 50% { box-shadow: 0 0 30px rgba(228, 106, 60, 0.8); } }
+.brand-planet::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 16%; height: 16%; margin: -8% 0 0 -8%;
+  border-radius: 50%; background: #e9dccb; box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+  transform: rotate(-30deg) translateX(430%); animation: moon-orbit 9s linear infinite;
+}
+@keyframes moon-orbit { from { transform: rotate(0deg) translateX(430%); } to { transform: rotate(360deg) translateX(430%); } }
+
+/* calendar: today glows softly, a storm warning twinkles */
+.sol.today { animation: today-pulse 2.6s ease-in-out infinite; }
+@keyframes today-pulse { 50% { box-shadow: 0 0 0 3px rgba(228, 106, 60, 0.28), 0 0 14px rgba(228, 106, 60, 0.5); } }
+.sol .flare { animation: flare-twinkle 2.2s ease-in-out infinite; }
+@keyframes flare-twinkle { 50% { transform: scale(1.35) rotate(40deg); } }
+
 @media (max-width: 900px) {
-  .game .hud { display: block; padding: 6px 8px; }
-  .gauge { flex-direction: row; justify-content: center; gap: 5px; padding: 4px; border-radius: 12px; }
-  .gauge .ring { width: 34px; height: 34px; }
-  .gauge .ring-icon { width: 26px; height: 26px; font-size: 0.95rem; }
-  .gauge .g-name, .gauge .g-word { display: none; }
-  .gauge .g-val { font-size: 0.95rem; }
-  .gauge .g-val small { display: none; }
-  .dose-badge { margin-top: 5px; padding: 4px 8px; grid-template-columns: auto 1fr auto; grid-template-rows: auto; }
-  .dose-badge .d-icon { grid-row: auto; font-size: 1rem; }
-  .dose-badge .d-name { display: none; }
-  .dose-badge .d-word { grid-column: auto; font-size: 0.72rem; }
-  .hud-mini, .hud-tap { display: none; }
-  .guide { grid-column: 1; grid-row: 3; margin: 0 8px 132px auto; max-width: calc(100% - 16px); border-radius: 18px; padding: 7px 10px 7px 7px; }
-  .guide p { font-size: 0.88rem; }
-  .guide-bot { width: 36px; height: 36px; font-size: 1.3rem; }
-  .world.play ~ .guide { margin-bottom: 128px; }
-  .game .stage { max-height: calc(100% - 120px); }
-  .ktiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .game .hud .res-icon { width: 22px; height: 22px; border-radius: 7px; }
+  .game .hud .res-icon > svg { width: 16px; height: 16px; }
+  .res-delta { right: 0; top: -10px; }
 }
 
 /* =====================================================================
-   Phase 2, feel: drilling, flying numbers, storm + dust overlays,
-   collapsible panel, tutorial nudge
+   Field discovery card: shown after the first sample from a survey site
+   (and again from "Field notes"). A rack of sample tubes, then three short
+   parts: the science, why it matters for the future, and the history.
    ===================================================================== */
-
-/* ---- drilling bar (replaces the action card for a moment) ---- */
-.world-prompt.drilling { border-color: var(--sand); }
-.drill { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.drill b { font-size: 1.05rem; }
-.drill-icon { font-size: 1.6rem; display: inline-block; animation: drill-shake 0.12s linear infinite alternate; }
-@keyframes drill-shake { from { transform: rotate(-12deg) translateY(-1px); } to { transform: rotate(12deg) translateY(1px); } }
-.drill-bar { flex: 1 1 100%; height: 12px; border-radius: 6px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
-.drill-bar i { display: block; height: 100%; width: 0; border-radius: 6px; background: linear-gradient(90deg, var(--sand), #ffd27a); animation: drill-fill linear forwards; }
-@keyframes drill-fill { to { width: 100%; } }
-
-/* ---- numbers that fly to the sidebar ---- */
-.fly {
-  position: fixed; z-index: 50; pointer-events: none; transform: translate(-50%, -50%);
-  font-family: "Baloo 2", var(--cjk); font-weight: 800; font-size: 1.35rem; color: #fff;
-  padding: 2px 10px; border-radius: 999px; background: rgba(27, 21, 48, 0.85); border: 2px solid var(--teal);
-  text-shadow: 0 1px 0 #000; opacity: 0; animation: fly-to 1.25s cubic-bezier(.5, 0, .3, 1) forwards;
+dialog.sheet.small.wide { width: min(580px, calc(100vw - 32px)); }
+.tube-rack { display: flex; align-items: center; gap: 10px; margin: 8px 0 10px; font-size: 0.85rem; font-weight: 800; color: var(--muted); }
+.tube-rack .tubes { display: inline-flex; gap: 5px; padding: 5px 8px; border-radius: 10px; background: var(--bg-2); }
+.tube {
+  position: relative; width: 11px; height: 30px; border-radius: 6px; overflow: hidden; display: block;
+  background: rgba(255, 255, 255, 0.08); box-shadow: inset 0 0 0 1.5px var(--line);
 }
-.fly.good { border-color: #7ad67a; }
-.fly.bad { border-color: #ff8a9a; }
-@keyframes fly-to {
-  0% { opacity: 0; transform: translate(-50%, -20%) scale(0.6); }
-  15% { opacity: 1; transform: translate(-50%, -90%) scale(1.15); }
-  35% { opacity: 1; transform: translate(-50%, -90%) scale(1); }
-  100% { opacity: 0.2; transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(0.55); }
-}
-
-/* ---- dust storm: brown haze and streaks over the view ---- */
-.world.dusty::after {
-  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
-  background:
-    radial-gradient(ellipse at 50% 55%, rgba(150, 90, 45, 0.12) 0%, rgba(120, 70, 35, 0.55) 75%),
-    repeating-linear-gradient(100deg, rgba(240, 190, 130, 0) 0 22px, rgba(240, 190, 130, 0.10) 22px 26px, rgba(240, 190, 130, 0) 26px 60px);
-  background-size: 100% 100%, 240px 100%;
-  animation: dust-blow 0.9s linear infinite;
-}
-@keyframes dust-blow { from { background-position: 0 0, 0 0; } to { background-position: 0 0, 240px 0; } }
-
-/* ---- solar storm today: the edges of the view pulse red ---- */
-.world.storm-alert::before {
-  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
-  box-shadow: inset 0 0 90px 20px rgba(255, 70, 90, 0.45);
-  animation: storm-pulse 1.4s ease-in-out infinite alternate;
-}
-@keyframes storm-pulse { from { opacity: 0.35; } to { opacity: 1; } }
-.world-top, .world-map, .world-prompt, .world-keys, .joy, .world-toast { z-index: 2; }
-
-/* ---- fold the floating panel away to look outside ---- */
-.collapse-btn { margin-left: auto; }
-.stage.collapsed > :not(.stage-head):not(.stage-foot) { display: none !important; }
-.stage.collapsed { width: auto; max-width: calc(100% - 28px); padding: 10px 14px; }
-.stage.collapsed .stage-head { margin-bottom: 6px; }
-.stage.collapsed .stage-foot { margin-top: 0; padding-top: 6px; }
-
-/* ---- tutorial: make the rover map button wiggle ---- */
-.btn.nudge { animation: nudge 1s ease-in-out infinite; border: 2px solid #ffd23f; }
-@keyframes nudge { 0%, 100% { transform: none; box-shadow: 0 0 0 0 rgba(255, 210, 63, 0); } 50% { transform: scale(1.06); box-shadow: 0 0 0 5px rgba(255, 210, 63, 0.35); } }
-
-.mini.rocks b { color: var(--sand); }
-@media (prefers-reduced-motion: reduce) {
-  .world.dusty::after, .world.storm-alert::before, .btn.nudge, .drill-icon { animation: none !important; }
-}
+.tube::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 7px; background: var(--line); }
+.tube.full { box-shadow: inset 0 0 0 1.5px #e6dccf; }
+.tube.full::before { background: var(--rust); }
+.tube.full::after { content: ""; position: absolute; left: 2.5px; right: 2.5px; bottom: 2.5px; top: 9px; border-radius: 3px; background: var(--tube, var(--sand)); }
+.tube.now { animation: tube-seal 0.9s cubic-bezier(0.3, 1.6, 0.5, 1) 0.25s backwards; box-shadow: inset 0 0 0 1.5px #fff, 0 0 10px rgba(127, 227, 218, 0.8); }
+@keyframes tube-seal { from { transform: translateY(-16px) scale(0.6); opacity: 0; } }
+.story-sample { background: var(--bg-2); border-radius: var(--radius-sm); padding: 8px 10px; }
+.story-part { margin-top: 10px; padding-left: 12px; border-left: 4px solid var(--c, var(--teal)); animation: story-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+.story-part h4 { font-size: 0.98rem; color: var(--c, var(--teal)); margin-bottom: 2px; }
+.story-part p { margin: 0; }
+.story-part.sci { --c: var(--violet); animation-delay: 0.15s; }
+.story-part.fut { --c: var(--teal); animation-delay: 0.3s; }
+.story-part.his { --c: var(--sand); animation-delay: 0.45s; }
+@keyframes story-in { from { opacity: 0; transform: translateY(10px); } }
+.world-prompt.hint.busy { border-color: var(--teal); }
+.world-prompt .site-go .btn.small { box-shadow: none; border: 2px solid var(--line); }

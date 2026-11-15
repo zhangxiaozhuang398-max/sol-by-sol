@@ -4,7 +4,10 @@
 //   briefing → day (3 action points: EVA on the map, clean panels, tend greenhouse,
 //   call Earth) → night (split power) → settle (what changed + story cards)
 //
-// Six things to watch: battery, oxygen, radiation dose, food, panel cleanliness, science.
+// Four supplies to keep up: battery, oxygen, radiation dose (keep it low), food.
+// Panel cleanliness is only known after the free daily check. Research (science)
+// earns the stars and unlocks the technology line; Mission Control's daily
+// orders give bonus research.
 // All text is produced as { key, params } so the UI can translate it (i18n.js).
 
 import { CONFIG as C } from "./config.js";
@@ -55,6 +58,7 @@ export function newGame(pool, seed) {
     tonightCards: [],
     tonightNotes: [],
     history: [],
+    tasksDone: 0,
     outcome: null,
   };
   SITES.forEach((site) => (g.visits[site.id] = 0));
@@ -108,14 +112,27 @@ export const weatherKey = (g, sol) => g.weather[sol];
 export const weatherOf = (g, sol) => C.weather[g.weather[sol]];
 export const solarStormOn = (g, sol) => g.solarStorms.find((s) => s.sol === sol) || null;
 export const stormStrength = (storm) => (storm ? C.solarStorm.strengths[storm.strength] : null);
+// ---------- technology line (config.tech) ----------
+export const techOn = (g, id) => { const x = C.tech.find((k) => k.id === id); return !!x && g.science >= x.at; };
+export const techsBetween = (from, to) => C.tech.filter((k) => k.at > from && k.at <= to); // unlocked when science went from → to
+export const unlockedTechs = (g) => C.tech.filter((k) => g.science >= k.at);
+export const nextTech = (g) => C.tech.find((k) => g.science < k.at) || null;
+export const shieldCost = (g) => (g && techOn(g, "shelter") ? C.techEffects.shieldPower : C.power.shield);
+export const o2PerStep = (g) => (g && techOn(g, "moxie2") ? C.techEffects.o2PerStep : C.oxygenGen.o2PerStep);
+export const bonusPower = (g) => (g && techOn(g, "fission") ? C.techEffects.fissionPower : 0);
+
+// Solar power from the weather and the panels' cleanliness (panel %).
 export const incomeFor = (g, sol, panel) => Math.round((weatherOf(g, sol).solar * (panel == null ? g.panel : panel)) / 100);
-export const expectedIncome = (g) => incomeFor(g, g.sol);
+// Everything that reaches the battery at sunset: solar + the fission plant once unlocked.
+export const powerFor = (g, sol, panel) => incomeFor(g, sol, panel) + bonusPower(g);
+export const maxPowerFor = (g, sol) => weatherOf(g, sol).solar + bonusPower(g); // with perfectly clean panels
+export const expectedIncome = (g) => powerFor(g, g.sol);
 export const isKnown = (g, sol) => !!g.known[sol];
 export const activeWarnings = (g) => g.solarStorms.filter((s) => s.warnSol <= g.sol && s.sol >= g.sol);
 export const warningKnown = (g, storm) => storm.warnSol <= g.sol;
-export const o2FromPower = (p) => (p / C.oxygenGen.step) * C.oxygenGen.o2PerStep;
-export const nightCost = (alloc) =>
-  C.power.lifeSupport + alloc.o2 + (alloc.gh ? C.power.greenhouse : 0) + (alloc.shield ? C.power.shield : 0);
+export const o2FromPower = (p, g) => (p / C.oxygenGen.step) * o2PerStep(g);
+export const nightCost = (alloc, g) =>
+  C.power.lifeSupport + alloc.o2 + (alloc.gh ? C.power.greenhouse : 0) + (alloc.shield ? shieldCost(g) : 0);
 export const starsFor = (science) => C.stars.filter((t) => science >= t).length;
 
 // Which knowledge/story card goes with a real storm.
@@ -139,14 +156,66 @@ function queueCard(g, id, kind) {
   }
 }
 
+const addScience = (g, n) => { g.science += n; };
+
+// ---------- daily orders from Mission Control ----------
+// Every morning: a free routine (check the solar panels), one science order and
+// one base order. Finishing an order earns bonus research (config.tasks).
+function genTasks(g) {
+  const tasks = [{ kind: "inspect", reward: 0 }];
+  const storm = solarStormOn(g, g.sol);
+  if (storm || weatherKey(g, g.sol) === "dust") {
+    // storm days teach the opposite lesson: the best science is staying safe
+    tasks.push({ kind: "shelter", why: storm ? "solar" : "dust", reward: C.tasks.shelter });
+  } else {
+    // the next unexplored site, nearer ones first; farther ones as the crew gains experience
+    const allowed = g.sol <= 3 ? 1 : g.sol <= 7 ? 2 : 3;
+    const left = SITES.filter((x) => !g.visits[x.id]).sort((a, b) => a.tier - b.tier);
+    const pick = left.find((x) => x.tier <= allowed) || left[0];
+    tasks.push(pick ? { kind: "sample", site: pick.id, reward: C.tasks.sample } : { kind: "anySample", reward: C.tasks.anySample });
+  }
+  let knownAhead = 0;
+  for (let n = g.sol + 2; n <= Math.min(C.totalSols, g.sol + 4); n++) if (g.known[n]) knownAhead++;
+  const foodShort = C.totalSols - g.sol + 1 - g.food;
+  const base = g.sol >= C.totalSols ? "tend"
+    : g.sol >= 2 && knownAhead < 2 ? "call"
+    : foodShort > 0 ? "tend"
+    : g.sol % 2 ? "tend" : "call";
+  tasks.push({ kind: base, reward: C.tasks[base] });
+  return tasks.map((k) => ({ ...k, done: false }));
+}
+
+// Mark finished orders and pay their bonus. `final` is sunset, when "stay
+// inside" orders are judged.
+function checkTasks(g, final = false) {
+  const T = g.today;
+  for (const k of T.tasks || []) {
+    if (k.done) continue;
+    const ok = k.kind === "inspect" ? T.inspected
+      : k.kind === "sample" ? T.evas.some((e) => e.id === k.site)
+      : k.kind === "anySample" ? T.evas.length > 0
+      : k.kind === "tend" ? T.tended
+      : k.kind === "call" ? T.called
+      : k.kind === "shelter" ? final && T.evas.length === 0
+      : false;
+    if (!ok) continue;
+    k.done = true;
+    g.tasksDone = (g.tasksDone || 0) + 1;
+    if (k.reward) {
+      addScience(g, k.reward);
+      T.log.push(no(`log.task.${k.kind}`, { site: k.site, n: k.reward }));
+    }
+  }
+}
+
 // ---------- phase 1: briefing ----------
 function startSol(g) {
   g.phase = "briefing";
   g.ap = C.actionPoints;
   g.today = {
-    evas: [], cleaned: false, tended: false, called: false,
+    evas: [], cleaned: false, tended: false, called: false, inspected: false,
     income: 0, overflow: 0, panelBefore: g.panel, batterySunset: null,
-    alloc: null, nightDose: 0, dustDevil: false, log: [],
+    alloc: null, nightDose: 0, dustDevil: false, log: [], tasks: [],
   };
   g.known[g.sol] = true;
   if (g.sol + 1 <= C.totalSols) g.known[g.sol + 1] = true;
@@ -154,10 +223,11 @@ function startSol(g) {
   g.inbox = g.inbox.filter((m) => m.arrives !== g.sol);
   g.mail.forEach((m) => {
     m.forecast.forEach((s) => (g.known[s] = true));
-    g.science += m.science;
+    addScience(g, m.science);
     queueCard(g, "weatherFromOrbit", "teach");
   });
   if (activeWarnings(g).some((s) => s.sol >= g.sol)) queueCard(g, "forecast", "teach");
+  g.today.tasks = genTasks(g);
   g.morning = snapshot(g);
 }
 
@@ -211,10 +281,11 @@ export function doEva(g, id) {
   g.battery -= c.power;
   g.oxygen -= c.oxygen;
   g.dose += c.dose;
-  g.science += c.science;
+  addScience(g, c.science);
   g.visits[id] += 1;
   g.today.evas.push({ id, tier: c.tier, power: c.power, oxygen: c.oxygen, dose: c.dose, science: c.science, storm: c.storm });
   g.today.log.push(no("log.eva", { site: id, sci: c.science, power: c.power, o2: c.oxygen, dose: c.dose }));
+  checkTasks(g);
   queueCard(g, siteById(id).fact, "teach");
   if (g.dose >= C.radiationCardAt) queueCard(g, "marsRadiation", "teach");
   if (g.dose >= C.radiationCardAt2) queueCard(g, "radiationAddsUp", "teach");
@@ -225,11 +296,27 @@ export function doEva(g, id) {
   return chk;
 }
 
+// Checking the panels is free, once a day: until then the crew does not know
+// how much dust has settled on them (the UI hides the number).
+export function checkInspect(g) {
+  if (g.phase !== "day") return { ok: false, reason: no("reason.notDay") };
+  if (g.today.inspected) return { ok: false, reason: no("reason.inspected") };
+  return { ok: true };
+}
+export function inspectPanels(g) {
+  const chk = checkInspect(g);
+  if (!chk.ok) return chk;
+  g.today.inspected = true;
+  g.today.log.push(no("log.inspect", { panel: g.panel }));
+  checkTasks(g);
+  return { ok: true, panel: g.panel };
+}
+
 export function checkClean(g) {
   if (g.phase !== "day") return { ok: false, reason: no("reason.notDay") };
   if (g.ap < C.clean.ap) return { ok: false, reason: no("reason.noAp") };
   if (g.panel >= 100) return { ok: false, reason: no("reason.panelClean") };
-  return { ok: true, gain: incomeFor(g, g.sol, 100) - expectedIncome(g) };
+  return { ok: true, gain: incomeFor(g, g.sol, 100) - incomeFor(g, g.sol) };
 }
 export function doClean(g) {
   const chk = checkClean(g);
@@ -238,7 +325,9 @@ export function doClean(g) {
   const before = g.panel;
   g.panel = 100;
   g.today.cleaned = true;
+  g.today.inspected = true; // you see the panels while you wipe them
   g.today.log.push(no("log.clean", { before, gain: chk.gain }));
+  checkTasks(g);
   return chk;
 }
 
@@ -253,8 +342,9 @@ export function doTend(g) {
   if (!chk.ok) return chk;
   g.ap -= C.tend.ap;
   g.today.tended = true;
-  g.science += C.greenhouse.tendScience;
+  addScience(g, C.greenhouse.tendScience);
   g.today.log.push(no("log.tend", { sci: C.greenhouse.tendScience, food: C.greenhouse.tendFood }));
+  checkTasks(g);
   queueCard(g, "veggie", "teach");
   return chk;
 }
@@ -275,6 +365,7 @@ export function doCall(g) {
   for (let s = g.sol + 2; s <= Math.min(C.totalSols, g.sol + 1 + C.call.forecastDays); s++) forecast.push(s);
   g.inbox.push({ sent: g.sol, arrives: g.sol + 1, forecast, science: C.call.science });
   g.today.log.push(no("log.call", { min: g.lightMinutes }));
+  checkTasks(g);
   queueCard(g, "commDelay", "teach");
   return chk;
 }
@@ -282,6 +373,7 @@ export function doCall(g) {
 // Sunset: the day's solar power joins the battery, panels get dusty, night begins.
 export function endDay(g) {
   if (g.phase !== "day") return;
+  checkTasks(g, true);
   const w = weatherOf(g, g.sol);
   const income = expectedIncome(g);
   // Power made today is "available tonight" and can exceed the battery cap;
@@ -289,7 +381,7 @@ export function endDay(g) {
   g.battery += income;
   g.today.income = income;
   g.today.panelBefore = g.panel;
-  g.panel = Math.max(0, g.panel - w.dust);
+  g.panel = Math.max(0, g.panel - (techOn(g, "dustShield") ? Math.ceil(w.dust / 2) : w.dust));
   g.today.batterySunset = g.battery;
   if (g.panel <= C.dirtyPanelCardAt) queueCard(g, "insightEnd", "teach");
   g.phase = "night";
@@ -301,10 +393,10 @@ export function endDay(g) {
 
 // ---------- phase 3: night ----------
 export function previewNight(g, alloc) {
-  const cost = nightCost(alloc);
+  const cost = nightCost(alloc, g);
   const storm = solarStormOn(g, g.sol);
   const ss = stormStrength(storm);
-  const o2Made = o2FromPower(alloc.o2);
+  const o2Made = o2FromPower(alloc.o2, g);
   const ghO2 = alloc.gh ? C.greenhouse.o2 : 0;
   const oxygenRaw = g.oxygen + o2Made + ghO2 - C.oxygenUse.crewDaily;
   const oxygen = clamp(oxygenRaw, 0, C.max.oxygen);
@@ -315,7 +407,7 @@ export function previewNight(g, alloc) {
   const overflow = Math.max(0, g.battery - cost - C.max.battery);
   const nextSol = g.sol + 1;
   const hasNext = nextSol <= C.totalSols;
-  const nextIncome = hasNext ? incomeFor(g, nextSol, g.panel) : null;
+  const nextIncome = hasNext ? powerFor(g, nextSol, g.panel) : null;
 
   const w = [];
   const add = (level, key, params = {}) => w.push({ level, key, params });
@@ -435,6 +527,7 @@ function recordHistory(g) {
     solarStorm: storm ? storm.strength : null,
     stormEvent: storm ? storm.event : null,
     cleaned: t.cleaned, tended: t.tended, called: t.called, dustDevil: t.dustDevil,
+    inspected: t.inspected, tasks: (t.tasks || []).map((k) => ({ kind: k.kind, site: k.site, done: k.done })),
   };
   if (prev >= 0) g.history[prev] = entry;
   else g.history.push(entry);

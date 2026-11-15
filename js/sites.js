@@ -13,7 +13,7 @@ export const RINGS = [67, 115, 166]; // tier 1 / 2 / 3 distance rings on the 2D 
 
 export const SITES = [
   { id: "dune", tier: 1, x: 120, y: 105, wx: 50.5, wz: 67.5, icon: "🏜️", fact: "thinAir" },
-  { id: "crater", tier: 1, x: 238, y: 168, wx: 61.4, wz: 56.8, icon: "🕳️", fact: "marsquake" }, // a real crater about 290 m wide
+  { id: "crater", tier: 1, x: 238, y: 168, wx: 64.5, wz: 54.5, icon: "🕳️", fact: "marsquake" },
   { id: "cliff", tier: 2, x: 275, y: 72, wx: 34.5, wz: 53.5, icon: "🧱", fact: "layers" },
   { id: "riverbed", tier: 2, x: 85, y: 200, wx: 41.5, wz: 49.5, icon: "🪨", fact: "gale" },
   { id: "canyon", tier: 3, x: 40, y: 45, wx: 15.5, wz: 49.5, icon: "⛰️", fact: "eva" },
