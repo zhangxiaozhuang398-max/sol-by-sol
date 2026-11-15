@@ -6,7 +6,7 @@ Built for the **NASA Space Apps Challenge 2026** challenge *Build a Junior Astro
 
 **▶ Play:** https://zhangxiaozhuang398-max.github.io/sol-by-sol/ (no download, no account; works on computers and phones)
 
-**Languages:** English and Simplified Chinese (中文). Use the 🌐 button on any screen, or open the game with `?lang=zh` / `?lang=en`. The choice is remembered in the browser.
+**Languages:** English and Simplified Chinese (中文). Use the 🌐 button on any screen, or open the game with `?lang=zh` / `?lang=en`. The game always opens in English; a language picked with 🌐 is kept while the tab stays open.
 
 ## The problem
 

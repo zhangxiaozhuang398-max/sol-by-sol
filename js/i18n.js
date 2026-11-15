@@ -1518,11 +1518,16 @@ const DICT = {
 export const LANGS = ["en", "zh"];
 const KEY = "solbysol.lang";
 
+// English by default. ?lang=zh opens in Chinese. A language picked with the
+// 🌐 button is kept for this browser tab only (reloads, a new mission), so
+// every new visit, for example on a shared demo or classroom computer, starts
+// in English.
 function initialLang() {
   const fromUrl = new URLSearchParams(location.search).get("lang");
   if (LANGS.includes(fromUrl)) return fromUrl;
   try {
-    const saved = localStorage.getItem(KEY);
+    localStorage.removeItem(KEY); // older versions remembered the language for good
+    const saved = sessionStorage.getItem(KEY);
     if (LANGS.includes(saved)) return saved;
   } catch { /* storage blocked */ }
   return "en";
@@ -1535,7 +1540,7 @@ export const getLang = () => lang;
 export function setLang(next) {
   if (!LANGS.includes(next)) return;
   lang = next;
-  try { localStorage.setItem(KEY, next); } catch { /* storage blocked */ }
+  try { sessionStorage.setItem(KEY, next); } catch { /* storage blocked */ }
 }
 
 // t("game.sol", { n: 3 }) → "Sol 3"
