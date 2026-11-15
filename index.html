@@ -10,6 +10,16 @@
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/layout.css">
+  <script>
+    // Optional look: ?theme=jazz | mission | cozy loads css/themes/<name>.css on top.
+    (function () {
+      var m = /[?&]theme=([a-z]+)/.exec(location.search);
+      if (m && ["jazz", "mission", "cozy"].indexOf(m[1]) >= 0) {
+        document.write('<link rel="stylesheet" href="css/themes/' + m[1] + '.css">');
+        document.documentElement.setAttribute("data-theme", m[1]);
+      }
+    })();
+  </script>
 </head>
 <body>
   <!-- Title screen -->
@@ -103,6 +113,9 @@
     </header>
 
     <main class="panel-box stage" id="stage" aria-live="polite"></main>
+    <!-- a short title card when a new phase starts (only some themes show it) -->
+    <div class="phase-card" id="phase-card" aria-hidden="true"><div class="pc-bars"><i></i><i></i><i></i><i></i></div>
+      <div class="pc-text"><b class="pc-sol"></b><span class="pc-phase"></span></div></div>
   </section>
 
   <!-- End screen -->

@@ -351,3 +351,6 @@ details.more .alerts { margin-bottom: 8px; }
 @media (prefers-reduced-motion: reduce) {
   .world.storm-alert::before, .btn.nudge, .btn.nudge::after, .gauge.bad, .guide.pop .guide-bot, .guide.pop p { animation: none !important; }
 }
+
+/* Phase title card: hidden unless a theme (css/themes/*.css) shows it. */
+.phase-card { display: none; }

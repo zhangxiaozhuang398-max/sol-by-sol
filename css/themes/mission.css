@@ -1,0 +1,186 @@
+/* =====================================================================
+   Theme "Mission control 1969": printed flight-plan paper. Cream sheets
+   with black rules, red signal colour, a typewriter/monospace voice for
+   labels, square instrument dials, and a teleprinter strip that types the
+   new phase across the top when it starts.
+   Loaded with ?theme=mission on top of style.css and layout.css.
+   ===================================================================== */
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=IBM+Plex+Sans+Condensed:wght@500;600;700&display=swap");
+
+:root {
+  --paper: #f1ebdd;
+  --paper-2: #e7dfcc;
+  --ink: #1b1b1b;
+  --red-m: #d0312d;
+  --bg: #f1ebdd;
+  --bg-2: #f1ebdd;
+  --card: #e7dfcc;
+  --card-2: #d9cfb8;
+  --line: #1b1b1b;
+  --text: #1b1b1b;
+  --muted: #5e584c;
+  --rust: #d0312d;
+  --rust-2: #d0312d;
+  --sand: #b0741a;
+  --teal: #13867d;
+  --green: #3b8a3a;
+  --red: #d0312d;
+  --blue: #2c5aa0;
+  --violet: #6b4fa0;
+  --warning: #b0741a;
+  --radius: 0;
+  --radius-sm: 0;
+  --shadow: none;
+  --mono: "IBM Plex Mono", ui-monospace, "Microsoft YaHei", monospace;
+  --cond: "IBM Plex Sans Condensed", "Microsoft YaHei", "PingFang SC", sans-serif;
+  font-family: var(--cond);
+  color-scheme: light;
+}
+body { background: #d9cfb8; }
+h1, h2, h3, h4, .brand-title, .brief-card .name, .res-val, .world-toast { font-family: var(--cond); font-weight: 700; letter-spacing: 0.01em; }
+a { color: var(--blue); }
+/* fine blueprint grid on every sheet */
+.game .stage, .gpanel, .game .hud-card, .title-card, .end-card {
+  background-color: var(--paper);
+  background-image: linear-gradient(rgba(27, 27, 27, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(27, 27, 27, 0.05) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+/* ---- buttons: printed tabs ---- */
+.btn { border-radius: 0; background: var(--paper); color: var(--ink); border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink);
+  font-family: var(--mono); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.88rem; }
+.btn.primary { background: var(--red-m); color: #fff; }
+.btn:hover:not(:disabled) { filter: none; background: var(--ink); color: var(--paper); }
+.btn.primary:hover:not(:disabled) { background: #a92420; color: #fff; }
+.btn:active:not(:disabled) { transform: translate(3px, 3px); box-shadow: none; }
+.btn.suggest { background: #f6d36b; color: var(--ink); border: 2px solid var(--ink); }
+.lang-toggle { border-radius: 0; border-color: var(--ink); color: var(--ink); font-family: var(--mono); }
+.lang-toggle::before { content: ""; }
+.game .top-actions .btn, .game .top-actions .lang-toggle { background: var(--paper); border: 2px solid var(--ink); color: var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+
+/* ---- top bar: a printed checklist strip ---- */
+.game .stepper { border-radius: 0; background: var(--paper); border: 2px solid var(--ink); padding: 0; gap: 0; box-shadow: 3px 3px 0 var(--ink); }
+.game .stepper li { border-radius: 0; border: 0; font-family: var(--mono); font-size: 0.8rem; text-transform: uppercase; color: var(--muted); }
+.game .stepper li + li { border-left: 1px dashed var(--ink); }
+.stepper li span { border-radius: 0; background: transparent; border: 1.5px solid currentColor; }
+.stepper li.done { color: var(--ink); text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.stepper li.done span { background: var(--ink); color: var(--paper); }
+.stepper li.active { background: var(--ink); color: var(--paper); }
+.stepper li.active span { background: var(--red-m); color: #fff; border-color: var(--red-m); }
+
+/* ---- supply card: an instrument panel ---- */
+.game .hud-card { border: 2px solid var(--ink); border-radius: 0; box-shadow: 5px 5px 0 var(--ink); color: var(--ink); }
+.game .hud-card .brand { border-bottom: 2px solid var(--ink); padding-bottom: 6px; }
+.game .hud-card .brand-title { color: var(--ink); text-transform: uppercase; letter-spacing: 0.08em; font-size: 1.15rem; }
+.game .hud-card .brand-sub { font-family: var(--mono); color: var(--red-m); font-weight: 700; }
+.brand-planet { background: var(--red-m); box-shadow: none; border: 2px solid var(--ink); animation: none; }
+.gauge { border-radius: 0; background: var(--paper); border: 1.5px solid var(--ink); }
+.gauge .ring { border-radius: 0; background: conic-gradient(var(--c) calc(var(--pct, 0) * 360deg), rgba(27, 27, 27, 0.1) 0); border-radius: 50%; box-shadow: 0 0 0 2px var(--ink); }
+.gauge .res-icon { background: var(--paper); box-shadow: inset 0 0 0 1.5px var(--ink); }
+.gauge .g-name { font-family: var(--mono); text-transform: uppercase; font-size: 0.72rem; color: var(--ink); letter-spacing: 0.06em; }
+.gauge .res-val { font-family: var(--mono); font-size: 1.05rem; }
+.gauge.low { border-color: var(--sand); background: #f7e6c4; }
+.gauge.bad { border-color: var(--red-m); background: #f6d2c8; }
+.gauge.bad .g-word { color: var(--red-m); }
+.res-icon .fl { fill: var(--c); }
+.hud-tap { font-family: var(--mono); color: var(--muted); }
+
+/* ---- Pip: a printed memo slip ---- */
+.guide { border-radius: 0; background: #fffbea; border: 1.5px solid var(--ink); border-left: 6px solid var(--teal); color: var(--ink); }
+.guide p b { color: var(--teal); font-family: var(--mono); text-transform: uppercase; }
+.guide-bot { border-radius: 0; background: var(--paper-2); border: 1.5px solid var(--ink); }
+.guide.think { border-left-color: var(--blue); }
+.guide.think p b { color: var(--blue); }
+.guide.worry { border-left-color: var(--sand); }
+.guide.worry p b { color: var(--sand); }
+.guide.alarm { border-left-color: var(--red-m); background: #fde6df; }
+.guide.alarm p b { color: var(--red-m); }
+
+/* ---- the phase panel: a flight-plan sheet ---- */
+.game .stage { border: 2px solid var(--ink); border-radius: 0; box-shadow: 6px 6px 0 var(--ink); color: var(--ink); }
+.stage-head { border-bottom: 3px double var(--ink); padding-bottom: 8px; }
+.stage-head h2 { color: var(--ink); text-transform: uppercase; letter-spacing: 0.06em; }
+.stage-head h2::before { content: "■ "; color: var(--red-m); }
+.stage-head .sub { font-family: var(--mono); font-size: 0.82rem; color: var(--muted); }
+.stage-foot { border-top: 1.5px dashed var(--ink); }
+.brief-card, .orders, .change, .proj-item, .arow, .settle-goals > div, .fact-card, .tech-card, .note, .task, .goal, .tech, .rock-shelf {
+  border-radius: 0; background: rgba(255, 255, 255, 0.45); border: 1.5px solid var(--ink); }
+.brief-card .label, .orders h3, .settle-goals h3, .gpanel h4, .card-title { font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.05em; color: var(--red-m); }
+.brief-card.danger { background: #f6d2c8; border-color: var(--red-m); }
+.brief-card.warn { background: #f7e6c4; }
+.orders { border-left: 6px solid var(--red-m); }
+.mail { border-radius: 0; background: #fffbea; border: 1.5px dashed var(--ink); font-family: var(--mono); font-size: 0.9rem; }
+.mail h4 { color: var(--blue); }
+.mail-day { border-radius: 0; background: var(--paper-2); border: 1px solid var(--ink); }
+.alert { border-radius: 0; background: rgba(255, 255, 255, 0.5); border: 1px solid var(--ink); border-left-width: 6px; }
+.alert.danger { background: #f6d2c8; }
+.alert.danger .tag { color: var(--red-m); }
+.alert.warn { background: #f7e6c4; }
+.alert.good { background: #dcebd3; }
+.task.done { background: #dcebd3; }
+.task.failed { background: #f6d2c8; }
+.task .tk { border-radius: 0; background: var(--paper-2); }
+.task .rw, .chip, .tech .at { border-radius: 0; background: var(--paper-2); color: var(--ink); }
+.pool .total { font-family: var(--mono); color: var(--red-m); }
+.alloc-bar { border-radius: 0; border: 1.5px solid var(--ink); }
+.storm-box { border-radius: 0; background: #f6d2c8; }
+.kcard-icon { border-radius: 0; background: var(--paper-2); border: 1.5px solid var(--ink); }
+details.more { border-radius: 0; background: rgba(255, 255, 255, 0.45); border: 1px dashed var(--ink); }
+.switch .track { background: var(--card-2); }
+.research-bar { background: var(--card-2); }
+
+/* ---- right column, map overlays ---- */
+.dock-btn { border-radius: 0; background: var(--paper); color: var(--ink); border: 2px solid var(--ink); font-family: var(--mono); text-transform: uppercase; font-size: 0.75rem; box-shadow: 2px 2px 0 var(--ink); }
+.dock-btn.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.dock-btn em { border-radius: 0; background: var(--red-m); color: #fff; }
+.gpanel { border-radius: 0; border: 2px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); color: var(--ink); }
+.gpanel-head { border-bottom: 3px double var(--ink); padding-bottom: 6px; }
+.gpanel-head h3 { color: var(--ink); text-transform: uppercase; letter-spacing: 0.06em; }
+.gpanel-x { border-radius: 0; background: var(--paper-2); color: var(--ink); border: 1.5px solid var(--ink); }
+.world-chip { border-radius: 0; background: var(--paper); color: var(--ink); border: 2px solid var(--ink); font-family: var(--mono); font-size: 0.8rem; }
+.world-chip.alert { background: var(--red-m); color: #fff; }
+.world-chip .pip.used { border-color: var(--ink); }
+.world-map { border-radius: 0; background: var(--paper); border: 2px solid var(--ink); }
+.world-map canvas { border-radius: 0; }
+.world-map-cap { color: var(--ink); font-family: var(--mono); }
+.world-prompt { border-radius: 0; background: var(--paper); border: 2px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); color: var(--ink); }
+.world-prompt.hint { background: #fffbea; font-family: var(--mono); font-size: 0.82rem; }
+.world-prompt p { color: var(--muted); }
+.world-keys { border-radius: 0; background: var(--paper); color: var(--ink); border: 1.5px solid var(--ink); }
+.world-prompt kbd, .world-keys kbd { border-radius: 0; background: var(--paper-2); border-color: var(--ink); color: var(--ink); }
+.world-toast { color: var(--ink); background: #fffbea; border: 2px solid var(--ink); padding: 2px 12px; text-shadow: none; font-family: var(--mono); font-size: 1.15rem; }
+dialog.sheet, #info, #collection { border-radius: 0 !important; border: 2px solid var(--ink) !important; background: var(--paper) !important; color: var(--ink) !important; box-shadow: 8px 8px 0 var(--ink) !important; }
+.fact-card { color: var(--ink); }
+
+/* ---- title screen ---- */
+#screen-title.active { min-height: 100vh; }
+.title-card { border: 2px solid var(--ink); border-radius: 0; box-shadow: 8px 8px 0 var(--ink); color: var(--ink); }
+.title-card h1 { color: var(--ink); text-transform: uppercase; letter-spacing: 0.08em; }
+.title-card h1 span { color: var(--red-m); }
+.tagline { font-family: var(--mono); color: var(--red-m); font-size: 1rem; }
+.title-scene svg .ground { fill: var(--ink); }
+.title-scene svg .sun { fill: var(--red-m); }
+.title-scene svg .dome { fill: var(--paper); stroke: var(--ink); }
+.title-scene svg .panel { fill: var(--blue); stroke: var(--ink); }
+.badge { color: var(--muted); }
+
+/* ---- the phase card: a teleprinter strip types the new phase ---- */
+.phase-card { display: block; position: fixed; left: 50%; top: 18%; z-index: 60; transform: translateX(-50%); pointer-events: none; visibility: hidden; }
+.phase-card.show { visibility: visible; animation: pcm-life 2.1s linear forwards; }
+.pc-bars { display: none; }
+.pc-text { display: flex; gap: 14px; align-items: baseline; padding: 10px 22px; background: var(--paper); border: 2px solid var(--ink); box-shadow: 6px 6px 0 var(--ink);
+  font-family: var(--mono); text-transform: uppercase; white-space: nowrap; overflow: hidden; }
+.phase-card.show .pc-text { animation: pcm-type 0.7s steps(18, end) both; }
+.pc-sol { color: var(--red-m); font-size: 1.6rem; font-weight: 700; }
+.pc-sol::before { content: "T+ "; color: var(--muted); }
+.pc-phase { color: var(--ink); font-size: 1.6rem; font-weight: 700; }
+.pc-phase::after { content: "_"; animation: pcm-caret 0.5s steps(1) infinite; }
+@keyframes pcm-type { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes pcm-caret { 50% { opacity: 0; } }
+@keyframes pcm-life { 0%, 85% { opacity: 1; visibility: visible; } 100% { opacity: 0; visibility: hidden; } }
+
+@media (max-width: 900px) {
+  .game .hud-card { box-shadow: none; border-width: 0 0 2px; }
+  .game .stage { box-shadow: 3px 3px 0 var(--ink); }
+  .pc-sol, .pc-phase { font-size: 1.1rem; }
+}

@@ -1,0 +1,180 @@
+/* =====================================================================
+   Theme "Jazz title card": a 1960s jazz-record / film-title look. Flat
+   blocks of orange, teal, mustard and cream on ink black, tall condensed
+   capitals, hard offset shadows, a little film grain, and a title card that
+   wipes across the screen in coloured bars when a new phase begins.
+   Loaded with ?theme=jazz on top of style.css and layout.css.
+   ===================================================================== */
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@500;600;700&display=swap");
+
+:root {
+  --ink: #15110e;
+  --cream: #f3e7cf;
+  --orange: #e8572a;
+  --mustard: #e9b44c;
+  --teal-j: #1f8f8a;
+  --red-j: #c8323a;
+  --bg: #15110e;
+  --bg-2: #1e1915;
+  --card: #2a231d;
+  --card-2: #3a3027;
+  --line: #f3e7cf;
+  --text: #f3e7cf;
+  --muted: #cdbb9b;
+  --rust: #e8572a;
+  --rust-2: #ff7a45;
+  --sand: #e9b44c;
+  --teal: #35b8ae;
+  --green: #9cc943;
+  --red: #ef5a3c;
+  --blue: #5d93d6;
+  --violet: #d38bd8;
+  --radius: 2px;
+  --radius-sm: 2px;
+  --shadow: 6px 6px 0 #000;
+  --title: "Bebas Neue", "Oswald", "Microsoft YaHei", "PingFang SC", sans-serif;
+}
+body { background: var(--ink); }
+/* film grain over everything */
+body::after {
+  content: ""; position: fixed; inset: 0; z-index: 100; pointer-events: none; opacity: 0.09; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+h1, h2, h3, h4, .brand-title, .brief-card .name, .res-val, .world-toast { font-family: var(--title); font-weight: 400; letter-spacing: 0.04em; }
+html[lang="zh-CN"] h1, html[lang="zh-CN"] h2, html[lang="zh-CN"] h3, html[lang="zh-CN"] h4 { font-weight: 800; letter-spacing: 0.02em; }
+
+/* ---- buttons: flat slabs with a hard shadow ---- */
+.btn { border-radius: 0; text-transform: uppercase; letter-spacing: 0.06em; font-family: "Oswald", var(--cjk); font-weight: 600;
+  background: var(--cream); color: var(--ink); box-shadow: 4px 4px 0 #000; }
+.btn.primary { background: var(--orange); color: var(--ink); }
+.btn:hover:not(:disabled) { filter: none; transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #000; }
+.btn:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #000; }
+.btn.suggest { background: var(--mustard); color: var(--ink); }
+.lang-toggle { border-radius: 0; border-color: var(--cream); font-family: "Oswald", var(--cjk); text-transform: uppercase; }
+.game .top-actions .btn, .game .top-actions .lang-toggle { background: var(--ink); color: var(--cream); border: 2px solid var(--cream); box-shadow: 3px 3px 0 var(--orange); }
+.game .top-actions .btn:hover { background: var(--teal-j); }
+
+/* ---- top bar: the four phases as colour blocks ---- */
+.game .stepper { border-radius: 0; background: var(--ink); border: 2px solid var(--cream); padding: 0; gap: 0; box-shadow: 5px 5px 0 var(--teal-j); }
+.game .stepper li { border-radius: 0; border: 0; padding: 6px 14px; font-family: "Oswald", var(--cjk); text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.game .stepper li + li { border-left: 2px solid var(--cream); }
+.stepper li span { border-radius: 0; background: transparent; border: 2px solid currentColor; font-family: var(--title); font-size: 0.95rem; }
+.stepper li.done { color: var(--cream); background: #2a231d; }
+.stepper li.done span { background: transparent; }
+.stepper li.active { background: var(--orange); color: var(--ink); }
+.stepper li.active span { background: var(--ink); color: var(--orange); border-color: var(--ink); }
+
+/* ---- supply card: mustard title block, gauges as tiles ---- */
+.game .hud-card { background: var(--ink); border: 3px solid var(--cream); border-radius: 0; box-shadow: 8px 8px 0 var(--orange); padding: 0 0 10px; gap: 8px; }
+.game .hud-card .brand { background: var(--mustard); color: var(--ink); padding: 8px 12px; }
+.game .hud-card .brand-title { color: var(--ink); font-size: 1.7rem; line-height: 1; }
+.game .hud-card .brand-sub { color: var(--ink); font-family: "Oswald", var(--cjk); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+.brand-planet { background: var(--orange); box-shadow: 3px 3px 0 var(--ink); animation: none; }
+.game .hud-card .hud, .game .hud-card .guide { margin: 0 10px; }
+.gauge { border-radius: 0; background: #221c17; border: 2px solid transparent; }
+.gauge .ring { background: conic-gradient(var(--c) calc(var(--pct, 0) * 360deg), rgba(243, 231, 207, 0.14) 0); }
+.gauge .res-icon { background: var(--ink); }
+.gauge .g-name { font-family: "Oswald", var(--cjk); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+.gauge .res-val { font-size: 1.5rem; }
+.gauge.low { border-color: var(--mustard); }
+.gauge.bad { border-color: var(--orange); background: #3a1a12; }
+.hud-tap { font-family: "Oswald", var(--cjk); text-transform: uppercase; letter-spacing: 0.08em; }
+
+/* ---- Pip ---- */
+.guide { border-radius: 0; background: var(--teal-j); border: 0; color: var(--cream); box-shadow: 4px 4px 0 #000; }
+.guide p b { color: var(--mustard); font-family: var(--title); font-size: 1.2rem; letter-spacing: 0.08em; }
+.guide-bot { border-radius: 0; background: var(--cream); border: 2px solid var(--ink); }
+.guide.think { background: #2c5f8f; }
+.guide.worry { background: #a4741c; }
+.guide.alarm { background: var(--red-j); }
+.guide.think p b, .guide.worry p b, .guide.alarm p b { color: var(--cream); }
+
+/* ---- the phase panel: an orange title slab across the top ---- */
+.game .stage { background: var(--ink); border: 3px solid var(--cream); border-radius: 0; box-shadow: 10px 10px 0 var(--teal-j); padding: 0 22px 20px; }
+.stage-head { margin: 0 -22px 18px; padding: 12px 22px 10px; background: var(--orange); color: var(--ink); position: sticky; top: 0; z-index: 2;
+  background-image: linear-gradient(100deg, transparent 0 72%, var(--mustard) 72% 78%, var(--teal-j) 78% 84%, transparent 84%); }
+.stage-head h2 { color: var(--ink); font-size: 2.6rem; line-height: 0.9; }
+.stage-head .sub { color: var(--ink); font-family: "Oswald", var(--cjk); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+.stage-head .collapse-btn { background: var(--ink); color: var(--cream); box-shadow: 3px 3px 0 #000; }
+.stage-foot { border-top: 3px solid var(--cream); }
+.brief-card, .orders, .change, .proj-item, .arow, .mail, .settle-goals > div, .fact-card, .tech-card, .note, .alert, .task, .goal, .tech, .rock-shelf, .storm-box { border-radius: 0; }
+.brief-card { background: #241e19; border: 0; border-top: 6px solid var(--teal-j); }
+.brief-card:nth-child(2) { border-top-color: var(--mustard); }
+.brief-card:nth-child(3) { border-top-color: var(--orange); }
+.brief-card .label, .orders h3, .settle-goals h3 { font-family: "Oswald", var(--cjk); text-transform: uppercase; letter-spacing: 0.1em; }
+.brief-card .name { font-size: 1.7rem; }
+.brief-card.danger { background: #3a1a12; border-color: var(--orange); }
+.orders { background: #241e19; border-left: 0; border-top: 6px solid var(--mustard); }
+.mail { background: var(--cream); color: var(--ink); border: 0; box-shadow: 5px 5px 0 #000; }
+.mail h4 { color: var(--red-j); }
+.mail-day { background: var(--ink); color: var(--cream); border-radius: 0; }
+.alert.danger { background: #3a1a12; }
+.alert.warn { background: #3a2d14; }
+.task { background: #241e19; }
+.task .tk, .task .rw { border-radius: 0; }
+.chip { border-radius: 0; }
+.pool .total { font-family: var(--title); font-size: 2.6rem; color: var(--mustard); }
+.alloc-bar { border-radius: 0; }
+
+/* ---- right column, map overlays ---- */
+.dock-btn { border-radius: 0; background: var(--ink); border: 2px solid var(--cream); font-family: "Oswald", var(--cjk); text-transform: uppercase; letter-spacing: 0.05em; box-shadow: 3px 3px 0 #000; }
+.dock-btn.on { background: var(--teal-j); border-color: var(--cream); }
+.dock-btn em { border-radius: 0; background: var(--mustard); color: var(--ink); }
+.gpanel { border-radius: 0; background: var(--ink); border: 3px solid var(--cream); box-shadow: 8px 8px 0 var(--mustard); }
+.gpanel-head { margin: -12px -14px 10px; padding: 8px 14px; background: var(--teal-j); }
+.gpanel-head h3 { color: var(--cream); font-size: 1.6rem; }
+.gpanel-x { border-radius: 0; background: var(--ink); color: var(--cream); }
+.world-chip { border-radius: 0; background: var(--ink); border: 2px solid var(--cream); font-family: "Oswald", var(--cjk); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+.world-chip.alert { background: var(--red-j); }
+.world-map { border-radius: 0; background: var(--ink); border: 2px solid var(--cream); box-shadow: 5px 5px 0 var(--orange); }
+.world-map canvas { border-radius: 0; }
+.world-prompt { border-radius: 0; background: var(--ink); border: 3px solid var(--cream); box-shadow: 8px 8px 0 var(--orange); }
+.world-prompt.hint { background: var(--cream); color: var(--ink); border: 0; box-shadow: 5px 5px 0 #000; font-family: "Oswald", var(--cjk); }
+.world-keys { border-radius: 0; background: var(--ink); }
+.world-prompt kbd, .world-keys kbd { border-radius: 0; background: var(--mustard); color: var(--ink); border-color: var(--ink); }
+.world-toast { color: var(--mustard); font-size: 2.2rem; text-shadow: 3px 3px 0 #000; }
+dialog.sheet, #info, #collection { border-radius: 0 !important; border: 3px solid var(--cream) !important; box-shadow: 10px 10px 0 var(--orange) !important; background: var(--ink) !important; }
+.nudge::after { filter: drop-shadow(2px 2px 0 #000); }
+
+/* ---- title screen: a record sleeve ---- */
+#screen-title.active { display: grid; place-items: center; min-height: 100vh; padding: 16px;
+  background: linear-gradient(105deg, var(--orange) 0 34%, var(--ink) 34% 36%, var(--teal-j) 36% 52%, var(--ink) 52% 54%, var(--mustard) 54% 60%, var(--ink) 60%); }
+.title-card { background: var(--ink); border: 3px solid var(--cream); border-radius: 0; box-shadow: 14px 14px 0 #000; }
+.title-card h1 { font-size: clamp(3.6rem, 13vw, 6.4rem); color: var(--cream); line-height: 0.9; text-shadow: 4px 4px 0 var(--orange), 8px 8px 0 var(--teal-j); }
+.title-card h1 span { color: var(--mustard); }
+.tagline { font-family: "Oswald", var(--cjk); text-transform: uppercase; letter-spacing: 0.08em; color: var(--mustard); }
+.title-scene svg .ground { fill: var(--orange); }
+.title-scene svg .sun { fill: var(--mustard); }
+.title-scene svg .dome { fill: var(--cream); stroke: var(--ink); }
+.title-scene svg .panel { fill: var(--teal-j); stroke: var(--cream); }
+
+/* ---- the phase title card: coloured bars wipe across, big capitals, bars wipe out ---- */
+.phase-card { display: block; position: fixed; inset: 0; z-index: 60; pointer-events: none; visibility: hidden; overflow: hidden; }
+.phase-card.show { visibility: visible; animation: pc-hide 2.1s steps(1, end) forwards; }
+.pc-bars { position: absolute; inset: -10% -20%; display: grid; grid-template-rows: 1fr 1.2fr 0.7fr 1fr; transform: rotate(-8deg); }
+.pc-bars i { display: block; transform: translateX(-110%); }
+.pc-bars i:nth-child(1) { background: var(--orange); }
+.pc-bars i:nth-child(2) { background: var(--ink); }
+.pc-bars i:nth-child(3) { background: var(--mustard); }
+.pc-bars i:nth-child(4) { background: var(--teal-j); }
+.phase-card.show .pc-bars i { animation: pc-wipe 1.9s cubic-bezier(0.7, 0, 0.2, 1) forwards; }
+.phase-card.show .pc-bars i:nth-child(2) { animation-delay: 0.06s; animation-name: pc-wipe-r; transform: translateX(110%); }
+.phase-card.show .pc-bars i:nth-child(3) { animation-delay: 0.12s; }
+.phase-card.show .pc-bars i:nth-child(4) { animation-delay: 0.03s; animation-name: pc-wipe-r; transform: translateX(110%); }
+.pc-text { position: absolute; left: 8%; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; opacity: 0; }
+.phase-card.show .pc-text { animation: pc-text 1.9s ease forwards; }
+.pc-sol { font-family: var(--title); font-weight: 400; font-size: clamp(5rem, 16vw, 12rem); line-height: 0.85; color: var(--cream); text-shadow: 6px 6px 0 #000; letter-spacing: 0.02em; }
+.pc-phase { align-self: flex-start; margin-top: 10px; padding: 4px 14px; font-family: "Oswald", var(--cjk); font-weight: 700; font-size: clamp(1.3rem, 3.4vw, 2.4rem); text-transform: uppercase; letter-spacing: 0.12em; background: var(--cream); color: var(--ink); box-shadow: 5px 5px 0 #000; }
+@keyframes pc-wipe { 0% { transform: translateX(-110%); } 28%, 72% { transform: translateX(0); } 100% { transform: translateX(110%); } }
+@keyframes pc-wipe-r { 0% { transform: translateX(110%); } 28%, 72% { transform: translateX(0); } 100% { transform: translateX(-110%); } }
+@keyframes pc-text { 0%, 22% { opacity: 0; transform: translate(-40px, -50%); } 32%, 70% { opacity: 1; transform: translate(0, -50%); } 82%, 100% { opacity: 0; transform: translate(40px, -50%); } }
+@keyframes pc-hide { 0% { visibility: visible; } 100% { visibility: hidden; } }
+
+@media (max-width: 900px) {
+  .game .hud-card { box-shadow: none; border-width: 0 0 3px; }
+  .game .hud-card .brand { padding: 4px 10px; }
+  .game .hud-card .brand-title { font-size: 1.2rem; }
+  .game .stage { box-shadow: 5px 5px 0 var(--teal-j); padding: 0 14px 14px; }
+  .stage-head { margin: 0 -14px 12px; padding: 8px 14px; }
+  .stage-head h2 { font-size: 2rem; }
+}

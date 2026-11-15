@@ -1,0 +1,172 @@
+/* =====================================================================
+   Theme "Cozy outpost": a farm-game feel that matches the cartoon base
+   buildings. Panels are parchment in thick wooden frames with brass
+   corners, buttons are leafy green or wooden signs, text is warm brown,
+   and a ribbon banner drops in when a new phase starts.
+   Loaded with ?theme=cozy on top of style.css and layout.css.
+   ===================================================================== */
+@import url("https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap");
+
+:root {
+  --wood: #9a5f31;
+  --wood-d: #6b3d1d;
+  --wood-l: #c8874c;
+  --parch: #fbecc8;
+  --parch-2: #f2dcaa;
+  --brown: #4e2c14;
+  --leaf: #6cb33f;
+  --leaf-d: #3f7c22;
+  --bg: #2b1a10;
+  --bg-2: #fbecc8;
+  --card: #f2dcaa;
+  --card-2: #e8c98c;
+  --line: #9a5f31;
+  --text: #4e2c14;
+  --muted: #86603d;
+  --rust: #e07a3f;
+  --rust-2: #f08c4c;
+  --sand: #c4761f;
+  --teal: #2f9c92;
+  --green: #4f9a2c;
+  --red: #d6453b;
+  --blue: #3c78c4;
+  --violet: #8a5cc0;
+  --warning: #c4761f;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow: 0 4px 0 var(--wood-d);
+  --round: "Fredoka", "Baloo 2", "Microsoft YaHei", "PingFang SC", sans-serif;
+  color-scheme: light;
+}
+h1, h2, h3, h4, .brand-title, .brief-card .name, .res-val, .world-toast { font-family: var(--round); font-weight: 700; }
+a { color: var(--blue); }
+
+/* a wooden frame with a parchment inside: used for every floating panel */
+.game .stage, .gpanel, .game .hud-card, .world-prompt, .title-card, .end-card {
+  background: var(--parch); color: var(--brown);
+  border: 6px solid var(--wood); border-radius: 18px;
+  box-shadow: inset 0 0 0 2px var(--wood-l), inset 0 0 22px rgba(154, 95, 49, 0.25), 0 0 0 2px var(--wood-d), 0 8px 0 var(--wood-d), 0 14px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* ---- buttons: green leaf for "go", wooden signs for the rest ---- */
+.btn { border-radius: 12px; font-family: var(--round); font-weight: 600; color: #fff8e6; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+  background: linear-gradient(180deg, var(--wood-l), var(--wood)); border: 2px solid var(--wood-d); box-shadow: 0 4px 0 var(--wood-d); }
+.btn.primary { background: linear-gradient(180deg, #8bd05a, var(--leaf)); border-color: var(--leaf-d); box-shadow: 0 4px 0 var(--leaf-d); color: #fff; }
+.btn.suggest { background: linear-gradient(180deg, #ffe08a, #f2b632); border: 2px solid #a8740f; box-shadow: 0 4px 0 #a8740f; color: var(--brown); text-shadow: none; }
+.btn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 var(--wood-d); }
+.lang-toggle { background: linear-gradient(180deg, var(--wood-l), var(--wood)); color: #fff8e6; border: 2px solid var(--wood-d); }
+.game .top-actions .btn, .game .top-actions .lang-toggle { background: linear-gradient(180deg, var(--wood-l), var(--wood)); border: 2px solid var(--wood-d); box-shadow: 0 3px 0 var(--wood-d); color: #fff8e6; }
+
+/* ---- top bar: a wooden plank with four pegs ---- */
+.game .stepper { background: linear-gradient(180deg, var(--wood-l), var(--wood)); border: 3px solid var(--wood-d); border-radius: 14px; box-shadow: 0 4px 0 var(--wood-d); }
+.game .stepper li { color: #f6dfb6; font-family: var(--round); font-weight: 600; }
+.stepper li span { background: var(--wood-d); color: #f6dfb6; }
+.stepper li.done { color: #fff8e6; }
+.stepper li.done span { background: var(--leaf); color: #fff; }
+.stepper li.active { background: var(--parch); color: var(--brown); border-color: var(--wood-d); }
+.stepper li.active span { background: var(--rust); color: #fff; }
+
+/* ---- supply card ---- */
+.game .hud-card .brand-title { color: var(--wood-d); }
+.game .hud-card .brand-sub { color: var(--muted); font-family: var(--round); font-weight: 600; }
+.gauge { background: var(--parch-2); border: 2px solid rgba(154, 95, 49, 0.35); border-radius: 14px; }
+.gauge .ring { background: conic-gradient(var(--c) calc(var(--pct, 0) * 360deg), rgba(107, 61, 29, 0.15) 0); box-shadow: 0 0 0 2px var(--wood-d); }
+.gauge .res-icon { background: #fff7e3; }
+.gauge .g-name { color: var(--wood-d); font-family: var(--round); }
+.gauge.low { border-color: var(--sand); background: #f9dda0; }
+.gauge.bad { border-color: var(--red); background: #f8cdbd; }
+.gauge.bad .g-word { color: var(--red); }
+
+/* ---- Pip: a speech bubble ---- */
+.guide { position: relative; background: #fff; border: 3px solid var(--wood-d); border-radius: 18px; color: var(--brown); box-shadow: 0 3px 0 var(--wood-d); }
+.guide p b { color: var(--leaf-d); font-family: var(--round); }
+.guide-bot { background: #e6f4ff; border: 3px solid var(--wood-d); }
+.guide.think, .guide.think .guide-bot { border-color: var(--blue); }
+.guide.think p b { color: var(--blue); }
+.guide.worry, .guide.worry .guide-bot { border-color: var(--sand); }
+.guide.worry p b { color: var(--sand); }
+.guide.alarm { background: #ffe3dc; }
+.guide.alarm, .guide.alarm .guide-bot { border-color: var(--red); }
+.guide.alarm p b { color: var(--red); }
+
+/* ---- the phase panel ---- */
+.stage-head { padding-bottom: 10px; border-bottom: 3px dotted var(--wood-l); }
+.stage-head h2 { color: var(--wood-d); font-size: 1.8rem; }
+.stage-head .sub { color: var(--muted); }
+.stage-foot { border-top: 3px dotted var(--wood-l); }
+.brief-card, .orders, .change, .proj-item, .arow, .settle-goals > div, .fact-card, .tech-card, .note, .task, .goal, .tech, .rock-shelf {
+  background: #fff7e3; border: 2px solid rgba(154, 95, 49, 0.35); }
+.brief-card .label, .orders h3, .settle-goals h3 { color: var(--wood); font-family: var(--round); }
+.brief-card.danger { background: #fbd7cb; border-color: var(--red); }
+.brief-card.warn { background: #fbe5b4; border-color: var(--sand); }
+.mail { background: #fffdf4; border: 2px dashed var(--wood); }
+.mail h4 { color: var(--teal); }
+.mail-day { background: var(--parch-2); }
+.alert { background: #fff7e3; }
+.alert.danger { background: #fbd7cb; }
+.alert.danger .tag { color: var(--red); }
+.alert.warn { background: #fbe5b4; }
+.alert.good { background: #dff0cf; }
+.task.done { background: #dff0cf; }
+.task.failed { background: #fbd7cb; }
+.task .tk { background: var(--parch-2); }
+.task .rw, .chip, .tech .at { background: var(--parch-2); color: var(--brown); }
+.pool .total { color: var(--leaf-d); font-family: var(--round); }
+.storm-box { background: #fbd7cb; color: var(--brown); }
+.kcard-icon { background: var(--parch-2); }
+details.more { background: rgba(255, 255, 255, 0.5); }
+.switch .track { background: var(--card-2); }
+.research-bar { background: var(--card-2); }
+.mini-rack .tubes { background: var(--parch-2); }
+
+/* ---- right column, map overlays ---- */
+.dock-btn { background: linear-gradient(180deg, var(--wood-l), var(--wood)); color: #fff8e6; border: 2px solid var(--wood-d); box-shadow: 0 3px 0 var(--wood-d); font-family: var(--round); }
+.dock-btn.on { background: var(--parch); color: var(--brown); border-color: var(--wood-d); }
+.dock-btn em { background: var(--leaf); color: #fff; }
+.gpanel-head h3 { color: var(--wood-d); }
+.gpanel-x { background: var(--wood); color: #fff8e6; }
+.gpanel .sol { background: #fff7e3; }
+.world-chip { background: var(--parch); color: var(--brown); border: 3px solid var(--wood); }
+.world-chip.alert { background: #fbd7cb; border-color: var(--red); }
+.world-chip .pip.used { border-color: var(--wood); }
+.world-map { background: var(--wood); border: 3px solid var(--wood-d); }
+.world-map-cap { color: #fff8e6; }
+.world-prompt.hint { background: var(--parch); border-width: 4px; }
+.world-prompt p { color: var(--muted); }
+.world-keys { background: var(--parch); color: var(--brown); border: 2px solid var(--wood); }
+.world-prompt kbd, .world-keys kbd { background: #fff; border-color: var(--wood); color: var(--brown); }
+.world-toast { color: #fff8e6; text-shadow: 0 2px 0 var(--wood-d), 0 0 10px rgba(0, 0, 0, 0.6); }
+dialog.sheet, #info, #collection { background: var(--parch) !important; color: var(--brown) !important; border: 6px solid var(--wood) !important; border-radius: 18px !important; }
+.fact-card { color: var(--brown); }
+
+/* ---- title screen ---- */
+body { background: radial-gradient(circle at 30% 10%, #6a3a1e, #2b1a10 70%); }
+.title-card h1 { color: var(--wood-d); }
+.title-card h1 span { color: var(--leaf-d); }
+.tagline { color: var(--muted); }
+.badge { color: var(--muted); }
+.title-scene svg .ground { fill: #d88a54; }
+.title-scene svg .dome { fill: #fff; stroke: var(--wood-d); }
+.title-scene svg .panel { fill: var(--blue); stroke: var(--wood-d); }
+
+/* ---- the phase card: a ribbon banner drops in and swings ---- */
+.phase-card { display: block; position: fixed; left: 50%; top: 14%; z-index: 60; transform: translateX(-50%); pointer-events: none; visibility: hidden; }
+.phase-card.show { visibility: visible; animation: pcc-life 2.1s linear forwards; }
+.pc-bars { display: none; }
+.pc-text { position: relative; display: flex; flex-direction: column; align-items: center; padding: 10px 46px 12px; color: #fff8e6;
+  background: linear-gradient(180deg, #e8784a, #c9542a); border: 3px solid #8a3417; border-radius: 6px; box-shadow: 0 6px 0 #8a3417, 0 14px 24px rgba(0, 0, 0, 0.35);
+  font-family: var(--round); text-shadow: 0 2px 0 #8a3417; transform-origin: 50% -60px; }
+.pc-text::before, .pc-text::after { content: ""; position: absolute; top: 14px; width: 34px; height: 100%; background: #b44722; border: 3px solid #8a3417; z-index: -1; }
+.pc-text::before { left: -28px; clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 30% 50%); }
+.pc-text::after { right: -28px; clip-path: polygon(0 0, 100% 0, 70% 50%, 100% 100%, 0 100%); }
+.phase-card.show .pc-text { animation: pcc-drop 0.9s cubic-bezier(0.3, 1.5, 0.5, 1) both; }
+.pc-sol { font-size: 1rem; font-weight: 600; letter-spacing: 0.06em; }
+.pc-phase { font-size: 2rem; font-weight: 700; line-height: 1.1; }
+@keyframes pcc-drop { 0% { transform: translateY(-160px) rotate(-6deg); } 60% { transform: translateY(0) rotate(3deg); } 80% { transform: rotate(-1.5deg); } 100% { transform: none; } }
+@keyframes pcc-life { 0%, 85% { opacity: 1; visibility: visible; } 100% { opacity: 0; visibility: hidden; } }
+
+@media (max-width: 900px) {
+  .game .hud-card { border-width: 0 0 4px; border-radius: 0; box-shadow: 0 3px 0 var(--wood-d); }
+  .game .stage { border-width: 4px; }
+  .pc-phase { font-size: 1.4rem; }
+}

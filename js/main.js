@@ -141,8 +141,21 @@ function render() {
     stage.scrollTop = 0;
     if (ui.lastPhase !== null) window.scrollTo({ top: 0 });
     ui.lastPhase = phaseKey;
+    phaseCard();
   }
   save();
+}
+
+// A title card for the new phase ("SOL 3 · Night power"). Hidden by default;
+// a theme (css/themes/*.css) can show it as a short animation.
+function phaseCard() {
+  const el = $("#phase-card");
+  if (!el || s.phase === "end" || calmMotion.matches) return;
+  $(".pc-sol", el).textContent = t("game.sol", { n: s.sol });
+  $(".pc-phase", el).textContent = t(`step.${s.phase}`);
+  replay(el, "show");
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove("show"), 2200);
 }
 
 // ---------- Pip the robot: one short sentence for right now ----------
