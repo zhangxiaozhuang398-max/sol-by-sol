@@ -4,6 +4,13 @@
 
 const DICT = {
   en: {
+    "panel.open": "📋 Show panel",
+    "panel.peek": "👀 Look outside",
+    "chip.stormIn": "⚠️ Solar storm in {n} sol(s)",
+    "hud.rocks": "rocks",
+    "toast.rare": "⭐ Rare find: {rock}!",
+    "toast.rock": "Found {rock}!",
+    "drill.busy": "Drilling a sample…",
     "ksettle.storm": "☀️ Tonight's storm really happened on {date}.",
     "ksettle.why": "🤔 Why did it change?",
     "knight.more": "⚠️ Things to watch ({n})",
@@ -468,6 +475,13 @@ const DICT = {
   },
 
   zh: {
+    "panel.open": "📋 展开面板",
+    "panel.peek": "👀 看看外面",
+    "chip.stormIn": "⚠️ 太阳风暴 {n} 天后到",
+    "hud.rocks": "块岩石",
+    "toast.rare": "⭐ 稀有发现：{rock}！",
+    "toast.rock": "找到了：{rock}！",
+    "drill.busy": "正在钻取样本……",
     "ksettle.storm": "☀️ 今晚的太阳风暴，真实发生在 {date}。",
     "ksettle.why": "🤔 为什么会这样变？",
     "knight.more": "⚠️ 注意事项（{n}）",

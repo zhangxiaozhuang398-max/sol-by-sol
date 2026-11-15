@@ -33,6 +33,24 @@ export const SHORT = {
   eva: { en: "Going outside finds the best science, but uses air and brings more radiation.", zh: "出舱能找到最好的发现，但要用氧气，辐射也更多。" },
 };
 
+// ---------- rocks found when sampling (just for fun; no effect on the rules) ----------
+// Each site has its typical rock; sometimes you find something rare. All of these
+// are real kinds of rock that rovers have found in Jezero or Gale crater.
+export const ROCKS = {
+  dune: { icon: "🏜️", en: "wind-blown sand", zh: "风吹来的细沙" },
+  crater: { icon: "🪨", en: "impact-shattered rock", zh: "被撞碎的岩石" },
+  cliff: { icon: "📚", en: "layered sedimentary rock", zh: "层层叠叠的沉积岩" },
+  riverbed: { icon: "⚪", en: "a round river pebble", zh: "被水磨圆的鹅卵石" },
+  canyon: { icon: "🌑", en: "dark volcanic basalt", zh: "黑色的火山玄武岩" },
+  delta: { icon: "🟫", en: "lake-bottom mudstone", zh: "湖底的泥岩" },
+  olivine: { icon: "💚", en: "olivine-rich rock with green crystals", zh: "含绿色橄榄石晶体的岩石", rare: true },
+  carbonate: { icon: "💎", en: "carbonate rock that formed in water", zh: "在水里形成的碳酸盐岩", rare: true },
+};
+export function rockFor(siteId, rnd = Math.random) {
+  if (rnd() < 0.15) return siteId === "delta" || siteId === "riverbed" ? "carbonate" : "olivine";
+  return ROCKS[siteId] ? siteId : "crater";
+}
+
 // ---------- how worried should we be about each resource? ----------
 // "ok" | "low" | "bad", used for the face under each gauge.
 export function moodOf(s, key) {

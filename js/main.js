@@ -4,9 +4,9 @@ import { SITES, BASE, RINGS, WORLD_BASE, siteById } from "./sites.js";
 import { createWorld as createWorld2D } from "./world2d.js";
 import { FACTS } from "./facts.js";
 import { buildReport } from "./report.js";
-import { SHORT, guideLine, moodOf, suggestAlloc } from "./kid.js?v=k1";
-import { t, tr, pick, getLang, setLang, applyStatic } from "./i18n.js?v=k1";
-import { audio } from "./audio.js?v=3d3";
+import { SHORT, guideLine, moodOf, suggestAlloc, ROCKS, rockFor } from "./kid.js?v=k2";
+import { t, tr, pick, getLang, setLang, applyStatic } from "./i18n.js?v=k2";
+import { audio } from "./audio.js?v=k2";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -133,8 +133,12 @@ function render() {
   syncWorld();
   renderStage();
   updateGuide();
+  // the rover-map button is rebuilt by renderStage, so nudge it afterwards
+  $("#to-classic")?.classList.toggle("nudge", s.phase === "day" && walking() && tutorialTarget() === "map");
   if (ui.lastPhase !== phaseKey) {
     stage.scrollTop = 0;
+    ui.collapsed = false;
+    stage.classList.remove("collapsed");
     if (ui.lastPhase !== null) window.scrollTo({ top: 0 });
     ui.lastPhase = phaseKey;
   }
@@ -188,10 +192,21 @@ function renderHud() {
     </button>
     <div class="hud-mini">
       <button class="mini${flash("panel", s.panel)}" type="button" data-fact="dustDevil" aria-label="${esc(t("hud.panel"))}: ${s.panel}%">🔆 <b>${s.panel}%</b> <small>${esc(t("hud.panel"))}</small></button>
+      <div class="mini rocks" title="${esc(t("hud.rocks"))}">🪨 <b>${(s.rocks || []).length}</b> <small>${esc(t("hud.rocks"))}</small></div>
       <div class="mini sci${flash("science", s.science)}" title="${esc(t("hud.science"))}">🔬 <b>${s.science}</b> <span class="stars-got">${"⭐".repeat(got)}${"☆".repeat(C.stars.length - got)}</span>${nextStar != null ? ` <small>→ ${nextStar}</small>` : ""}</div>
     </div>
     <p class="hud-tap">${esc(t("hud.tap"))}</p>`;
+  const moods = ["oxygen", "battery", "food", "dose"].map((k) => moodOf(s, k));
+  if (ui.prevMoods && moods.some((m, i) => m === "bad" && ui.prevMoods[i] !== "bad")) alarmOnce();
+  ui.prevMoods = moods;
   ui.prevHud = { battery: s.battery, oxygen: s.oxygen, dose: s.dose, food: s.food, panel: s.panel, science: s.science };
+}
+
+let lastAlarm = 0;
+function alarmOnce() {
+  if (performance.now() - lastAlarm < 2500) return;
+  lastAlarm = performance.now();
+  audio.alarm();
 }
 
 // ---------- the robot guide: one short sentence for right now ----------
@@ -207,6 +222,7 @@ function updateGuide(preview) {
   el.classList.remove("hidden", "happy", "think", "worry", "alarm");
   el.classList.add(line.mood);
   if (el.dataset.text === text) return;
+  if (line.mood === "alarm") alarmOnce();
   el.dataset.text = text;
   el.innerHTML = `<span class="guide-bot" aria-hidden="true">🤖<i>${BOT_FACE[line.mood]}</i></span>
     <p><b>${esc(t("guide.name"))}</b>${esc(text)}</p>`;
@@ -242,6 +258,27 @@ function renderStage() {
   else if (s.phase === "night") renderNight();
   else if (s.phase === "settle") renderSettle();
   else showEnd();
+  addCollapseButton();
+}
+
+// Let players fold the panel away to look at the base, the stars or the storm.
+function addCollapseButton() {
+  if (!["briefing", "night", "settle"].includes(s.phase) || !world) return;
+  const head = stage.querySelector(".stage-head");
+  if (!head || head.querySelector(".collapse-btn")) return;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "btn small collapse-btn";
+  const label = () => { btn.textContent = t(ui.collapsed ? "panel.open" : "panel.peek"); };
+  label();
+  btn.onclick = () => {
+    ui.collapsed = !ui.collapsed;
+    stage.classList.toggle("collapsed", ui.collapsed);
+    label();
+    audio.click();
+  };
+  head.appendChild(btn);
+  stage.classList.toggle("collapsed", !!ui.collapsed);
 }
 
 // ---------- phase 1: briefing ----------
@@ -431,7 +468,7 @@ async function ensureWorld() {
   mount.innerHTML = "";
   if (WORLD_MODE === "3d") {
     try {
-      const { createWorld } = await import("./world3d.js?v=3d4");
+      const { createWorld } = await import("./world3d.js?v=k2");
       const w = await createWorld({
         mount, minimap: $("#minimap"), joystick: $("#joy"),
         dataDir: "data/mars", modelDir: "assets/models",
@@ -581,7 +618,12 @@ function syncWorld() {
   const creditEl = $(".side-credit");
   if (creditEl) creditEl.textContent = t(is3D() ? "world.credit3d" : "world.credit");
   world.setTargets(worldTargets());
-  world.setLook(s.phase, E.weatherKey(s, s.sol));
+  const stormNow = E.solarStormOn(s, s.sol);
+  const stormNext = E.activeWarnings(s).find((x) => x.sol > s.sol);
+  world.setLook(s.phase, E.weatherKey(s, s.sol), stormNow ? "storm" : stormNext ? "watch" : "");
+  $("#world").classList.toggle("dusty", E.weatherKey(s, s.sol) === "dust");
+  $("#world").classList.toggle("storm-alert", !!stormNow);
+  world.setHighlight?.(play ? tutorialTarget() : null);
   audio.setWind(E.weatherKey(s, s.sol), s.phase);
   if (play && ui.worldDay !== s.sol) {
     world.respawn();
@@ -595,8 +637,8 @@ function syncWorld() {
     const key = E.weatherKey(s, s.sol);
     const storm = E.solarStormOn(s, s.sol);
     const chip = $("#world-weather");
-    chip.classList.toggle("alert", !!storm);
-    chip.textContent = storm ? t("world.stormAlert") : `${wIcon(key)} ${wName(key)}`;
+    chip.classList.toggle("alert", !!storm || !!stormNext);
+    chip.textContent = storm ? t("world.stormAlert") : stormNext ? t("chip.stormIn", { n: stormNext.sol - s.sol }) : `${wIcon(key)} ${wName(key)}`;
   }
   updatePrompt();
 }
@@ -628,9 +670,23 @@ function promptButton(label, ok = true) {
   return `<button class="btn primary" id="use-btn" type="button" ${ok ? "" : "disabled"}>${esc(label)} <kbd>E</kbd></button>`;
 }
 
+// First sol: a bouncing arrow shows what to do next. Later sols only point
+// home when the day's action points are used up.
+function tutorialTarget() {
+  if (!s || s.phase !== "day" || ui.classic) return null;
+  const atBase = !is3D() || ui.place === "base";
+  if (!atBase) return s.visits[ui.place] > 0 || s.ap <= 0 ? null : ui.place;
+  if (s.ap <= 0) return "habitat";
+  if (s.sol !== 1) return null;
+  if (!s.today.tended) return "greenhouse";
+  if (!s.today.evas.length && is3D()) return "map";
+  return null; // tutorial done: explore freely until the action points run out
+}
+
 function updatePrompt() {
   const el = $("#world-prompt");
   if (!world || !s || s.phase !== "day" || ui.classic) { el.innerHTML = ""; return; }
+  if (ui.drilling) return; // the drilling bar is showing
   const id = world.near;
   el.className = "world-prompt";
   $("#world").classList.toggle("has-card", !!id);
@@ -677,8 +733,8 @@ function updatePrompt() {
   updateGuide();
 }
 
-function toast(text) {
-  audio.chime();
+function toast(text, quiet = false) {
+  if (!quiet) audio.chime();
   const el = $("#world-toast");
   el.textContent = text;
   el.classList.remove("show");
@@ -704,9 +760,8 @@ function usePrompt() {
   const id = world.near;
   if (!id) return;
   if (siteById(id)) {
-    const r = E.doEva(s, id);
-    if (!r.ok) return;
-    toast(`+${r.cost.science} 🔬   −${r.cost.power} ⚡  −${r.cost.oxygen} 🫁  +${r.cost.dose} ☢️`);
+    startDrill(id);
+    return;
   } else if (id === "panels") {
     const r = E.doClean(s);
     if (!r.ok) return;
@@ -725,6 +780,60 @@ function usePrompt() {
     return;
   }
   render();
+}
+
+// Sampling takes a moment: the astronaut drills, dust flies, then the rock pops
+// out and the numbers fly to the sidebar. The rules are the same as before.
+const DRILL_MS = 1600;
+function startDrill(id) {
+  if (ui.drilling || !E.checkEva(s, id).ok) return;
+  ui.drilling = true;
+  world.setEnabled(false);
+  world.drillBurst?.(DRILL_MS / 1000);
+  audio.drill(DRILL_MS / 1000);
+  const el = $("#world-prompt");
+  el.className = "world-prompt drilling";
+  el.innerHTML = `<div class="drill"><span class="drill-icon" aria-hidden="true">🪛</span><b>${esc(t("drill.busy"))}</b>
+    <span class="drill-bar"><i style="animation-duration:${DRILL_MS}ms"></i></span></div>`;
+  setTimeout(() => {
+    ui.drilling = false;
+    world.setEnabled(true);
+    const r = E.doEva(s, id);
+    if (!r.ok) { render(); return; }
+    const rock = rockFor(id);
+    const R = ROCKS[rock];
+    s.rocks = (s.rocks || []).concat([{ sol: s.sol, site: id, rock }]);
+    audio.found(!!R.rare);
+    toast(t(R.rare ? "toast.rare" : "toast.rock", { rock: `${R.icon} ${pick(R)}` }), true);
+    flyNumbers([
+      [`+${r.cost.science} 🔬`, ".mini.sci", "good"],
+      [`−${r.cost.power} ⚡`, '.gauge[data-fact="coldNights"]', "bad"],
+      [`−${r.cost.oxygen} 🫁`, '.gauge[data-fact="moxie"]', "bad"],
+      [`+${r.cost.dose} ☢️`, ".dose-badge", "bad"],
+    ]);
+    render();
+  }, DRILL_MS);
+}
+
+// Little labels that fly from the middle of the map to a spot in the sidebar.
+function flyNumbers(list) {
+  const from = $("#world").getBoundingClientRect();
+  const x0 = from.left + from.width / 2, y0 = from.top + from.height * 0.45;
+  list.forEach(([text, sel, kind], i) => {
+    const target = document.querySelector(sel);
+    if (!target) return;
+    const to = target.getBoundingClientRect();
+    const el = document.createElement("div");
+    el.className = `fly ${kind}`;
+    el.textContent = text;
+    el.style.left = `${x0}px`;
+    el.style.top = `${y0 + i * 6}px`;
+    el.style.setProperty("--tx", `${to.left + to.width / 2 - x0}px`);
+    el.style.setProperty("--ty", `${to.top + to.height / 2 - y0}px`);
+    el.style.animationDelay = `${i * 110}ms`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1500 + i * 110);
+  });
 }
 
 function renderDayWorld() {

@@ -56,7 +56,7 @@ LOOKS.settle = LOOKS.night;
 const WEATHER = {
   sunny: { fog: [350, 9000], haze: 0, dim: 1 },
   hazy: { fog: [90, 2600], haze: 0.45, dim: 0.8 },
-  dust: { fog: [18, 230], haze: 0.92, dim: 0.5 },
+  dust: { fog: [5, 85], haze: 1, dim: 0.42 },
 };
 const HAZE_COLOR = 0xb9865c;
 
@@ -572,15 +572,54 @@ export async function createWorld(opts) {
   }
 
   // ---- blowing dust (dust-storm sols) ----
-  const DUST_N = 600;
+  const DUST_N = 1600;
   const dustArr = new Float32Array(DUST_N * 3);
   for (let i = 0; i < DUST_N * 3; i++) dustArr[i] = (Math.random() - 0.5) * 50;
+  for (let i = 0; i < DUST_N; i++) dustArr[i * 3 + 1] = Math.random() * 12;
   const dustGeo = new THREE.BufferGeometry();
   dustGeo.setAttribute("position", new THREE.BufferAttribute(dustArr, 3));
-  const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({ color: srgb(0xf0c08a), size: 0.12, transparent: true, opacity: 0.7, depthWrite: false }));
+  const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({ color: srgb(0xe9b47e), size: 0.16, transparent: true, opacity: 0.85, depthWrite: false }));
   dust.visible = false;
   dust.frustumCulled = false;
   scene.add(dust);
+
+  // ---- tutorial arrow: a bouncing yellow arrow above the next thing to do ----
+  const arrow = new THREE.Group();
+  const arrowMat = new THREE.MeshBasicMaterial({ color: srgb(0xffd23f), fog: false, depthTest: false, transparent: true });
+  const arrowHead = new THREE.Mesh(new THREE.ConeGeometry(0.55, 0.9, 20), arrowMat);
+  arrowHead.rotation.x = Math.PI; // point down
+  const arrowTail = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.8, 14), arrowMat);
+  arrowTail.position.y = 0.8;
+  arrow.add(arrowHead, arrowTail);
+  arrow.renderOrder = 30;
+  arrowHead.renderOrder = arrowTail.renderOrder = 30;
+  arrow.visible = false;
+  scene.add(arrow);
+  let arrowFor = null;
+
+  // ---- dust burst when the astronaut drills a sample ----
+  const BURST_N = 90;
+  const burstGeo = new THREE.BufferGeometry();
+  burstGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(BURST_N * 3), 3));
+  const burstVel = new Float32Array(BURST_N * 3);
+  const burst = new THREE.Points(burstGeo, new THREE.PointsMaterial({ color: srgb(0xc98a5a), size: 0.18, transparent: true, opacity: 0, depthWrite: false }));
+  burst.frustumCulled = false;
+  scene.add(burst);
+  let burstLeft = 0;
+  function startBurst(x, z, seconds) {
+    const p = burstGeo.attributes.position.array;
+    for (let i = 0; i < BURST_N; i++) {
+      p[i * 3] = x + (Math.random() - 0.5) * 0.4;
+      p[i * 3 + 1] = 0.1;
+      p[i * 3 + 2] = z + (Math.random() - 0.5) * 0.4;
+      const a = Math.random() * Math.PI * 2, sp = 0.6 + Math.random() * 1.6;
+      burstVel[i * 3] = Math.cos(a) * sp;
+      burstVel[i * 3 + 1] = 1.2 + Math.random() * 2.2;
+      burstVel[i * 3 + 2] = Math.sin(a) * sp;
+    }
+    burstGeo.attributes.position.needsUpdate = true;
+    burstLeft = seconds;
+  }
 
   // ---- NASA models ----
   const gltf = new GLTFLoader();
@@ -645,6 +684,7 @@ export async function createWorld(opts) {
   };
   const tgt = { horizon: new THREE.Color(), zenith: new THREE.Color(), sun: new THREE.Color(), glow: new THREE.Color(), ground: new THREE.Color(), sunDir: new THREE.Vector3() };
   const hazeC = srgb(HAZE_COLOR);
+  const alertH = srgb(0xe0705a), alertZ = srgb(0x7a2e3e);
 
   function applyLook(dt) {
     const L = LOOKS[st.phase] || LOOKS.day;
@@ -654,6 +694,11 @@ export async function createWorld(opts) {
     tgt.zenith.set(L.zenith);
     if (!night) { tgt.horizon.lerp(hazeC, Wd.haze * 0.75); tgt.zenith.lerp(hazeC, Wd.haze); }
     else if (Wd.haze > 0.5) { tgt.horizon.multiplyScalar(0.6); tgt.zenith.lerp(tgt.horizon, 0.6); }
+    if (st.alert) {
+      const k = st.alert === "storm" ? 1 : 0.45;
+      tgt.horizon.lerp(alertH, (night ? 0.25 : 0.45) * k);
+      tgt.zenith.lerp(alertZ, (night ? 0.3 : 0.55) * k);
+    }
     tgt.sun.set(L.sun);
     tgt.glow.set(L.glow);
     tgt.ground.set(L.ground).multiplyScalar(night ? 1 : 0.55 + 0.45 * Wd.dim);
@@ -1234,11 +1279,40 @@ export async function createWorld(opts) {
     const pulse = 0.55 + 0.25 * Math.sin(st.time * 3);
     for (const r of pulses) r.material.opacity = pulse;
 
+    if (arrowFor && st.mode === "play") {
+      const t = targets.find((x) => x.id === arrowFor);
+      if (t) {
+        arrow.visible = true;
+        arrow.position.set(t.mx ?? t.x, (t.labelY || 4) + 1.6 + Math.abs(Math.sin(st.time * 3.2)) * 0.7, t.mz ?? t.z);
+        arrow.rotation.y += dt * 1.5;
+      } else arrow.visible = false;
+    } else arrow.visible = false;
+
+    if (burstLeft > 0) {
+      burstLeft -= dt;
+      const p = burstGeo.attributes.position.array;
+      for (let i = 0; i < BURST_N; i++) {
+        // restart particles so the drill keeps throwing dust while it runs
+        if (p[i * 3 + 1] <= 0.02 && burstLeft > 0.5) {
+          p[i * 3] = st.x + Math.sin(st.heading) * 0.9 + (Math.random() - 0.5) * 0.3;
+          p[i * 3 + 2] = st.z + Math.cos(st.heading) * 0.9 + (Math.random() - 0.5) * 0.3;
+          p[i * 3 + 1] = 0.1;
+          burstVel[i * 3 + 1] = 1.2 + Math.random() * 2.2;
+        }
+        burstVel[i * 3 + 1] -= 3.7 * dt; // Mars gravity
+        p[i * 3] += burstVel[i * 3] * dt;
+        p[i * 3 + 1] = Math.max(0.01, p[i * 3 + 1] + burstVel[i * 3 + 1] * dt);
+        p[i * 3 + 2] += burstVel[i * 3 + 2] * dt;
+      }
+      burstGeo.attributes.position.needsUpdate = true;
+      burst.material.opacity = Math.min(0.9, burstLeft * 1.5);
+    } else burst.material.opacity = 0;
+
     if (dust.visible) {
       const arr = dustGeo.attributes.position.array;
       for (let i = 0; i < DUST_N; i++) {
-        arr[i * 3] += dt * 14;
-        arr[i * 3 + 1] += dt * 0.8;
+        arr[i * 3] += dt * (16 + (i % 7) * 2);
+        arr[i * 3 + 1] += dt * (0.6 + (i % 5) * 0.25);
         if (arr[i * 3] > 25) arr[i * 3] = -25;
         if (arr[i * 3 + 1] > 12) arr[i * 3 + 1] = 0;
       }
@@ -1356,9 +1430,16 @@ export async function createWorld(opts) {
         onNear(null);
       }
     },
-    setLook(phase, weather) {
+    setLook(phase, weather, alert = "") {
       st.phase = phase;
       st.weather = weather;
+      st.alert = alert; // "" | "watch" (storm coming) | "storm" (storm today)
+    },
+    // Point a bouncing arrow at a target id (or null to hide it).
+    setHighlight(id) { arrowFor = id || null; },
+    // Throw dust from the astronaut's hands for a moment (sampling).
+    drillBurst(seconds = 1.6) {
+      startBurst(st.x + Math.sin(st.heading) * 0.9, st.z + Math.cos(st.heading) * 0.9, seconds);
     },
     setEnabled(v) {
       st.enabled = v;

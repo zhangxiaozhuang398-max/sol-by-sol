@@ -49,6 +49,8 @@ When a mission ends, the **debrief explains why, using the player's own numbers*
 - **Pip the robot** says one short sentence for right now ("A solar storm hits today! Stay inside and turn on the shield tonight."), picked from the game state by `js/kid.js`. Longer explanations are folded under "More details" or "Learn more".
 - **Big picture gauges** for air, power and food, each with a face (😊 / 😟 / 😱), a radiation badge, and the numbers kept small.
 - **One-sentence knowledge cards.** Every card leads with a single kid-level sentence; the full text, the game lesson and the NASA source sit behind "Learn more".
+- **First-sol tutorial**: a bouncing arrow points at the greenhouse, then the rover-map button wiggles, so a new player learns by doing.
+- **Feedback you can feel**: sampling takes a short drill with flying dust and a buzzing sound, then a rock pops out (each site has its own real rock type, with a 15% chance of a rare olivine or carbonate rock; finds are just for fun and do not change the rules) and the costs fly into the sidebar. Gauges that turn red beep; storm days tint the sky red; dust storms fill the view with blowing dust. Panels can be folded away ("Look outside") to see the base, the stars or the storm.
 - **Suggest a plan** at night tries every power setting and picks the safest one, keeping a battery reserve when dark days are forecast. It only suggests: the player can change anything before confirming. In 400 simulated missions, a player who always took the suggestion and did simple daytime jobs survived about 91–95% of the time.
 
 ## NASA data used
