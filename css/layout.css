@@ -453,3 +453,26 @@ dialog.bigmap canvas { display: block; width: 100%; height: auto; max-height: 68
 .bigmap-info div { color: var(--muted); font-size: 0.84rem; margin: 2px 0 6px; }
 .bigmap-info .btn { width: auto; margin-top: 2px; box-shadow: none; }
 .bigmap-legend { font-size: 0.74rem; color: var(--muted); margin: 0; }
+
+/* ---- research rewards (config.apBonus): +1 action point a day ---- */
+.research-bar .gift-mark { position: absolute; top: -19px; transform: translateX(-50%); font-size: 0.8rem; filter: grayscale(1); opacity: 0.6; }
+.research-bar .gift-mark.got { filter: none; opacity: 1; }
+.rewards { margin: 10px 0 12px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--bg-2); border-left: 5px solid var(--sand); }
+.rewards h4 { margin: 0 0 2px; font-size: 1rem; color: var(--sand); }
+.rewards .rw-intro { margin: 0 0 8px; font-size: 0.78rem; color: var(--muted); }
+.rewards ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.reward { display: grid; grid-template-columns: 30px 1fr; gap: 8px; align-items: start; padding: 7px 9px; border-radius: var(--radius-sm); background: var(--card); border: 2px solid transparent; }
+.reward .ri { font-size: 1.3rem; line-height: 1.2; text-align: center; }
+.reward b { font-size: 0.9rem; }
+.reward .at { margin-left: 6px; font-size: 0.7rem; font-weight: 800; padding: 1px 7px; border-radius: 999px; background: var(--card-2); color: var(--muted); white-space: nowrap; }
+.reward small { display: block; font-size: 0.76rem; color: var(--muted); margin-top: 2px; }
+.reward.got { border-color: var(--green); }
+.reward.got .at { background: var(--green); color: #12301f; }
+.reward.next { border-color: var(--sand); }
+.reward.next .at { background: var(--sand); color: #2a1208; }
+.reward.locked .ri { filter: grayscale(1); opacity: 0.6; }
+.reward .prog { height: 6px; border-radius: 3px; background: var(--bg); margin-top: 5px; overflow: hidden; }
+.reward .prog i { display: block; height: 100%; background: var(--sand); border-radius: 3px; }
+.reward-card { border-left-color: var(--sand); background: linear-gradient(135deg, rgba(243, 181, 98, 0.2), var(--card)); }
+.reward-card .label { color: var(--sand); }
+.reward-card .rw-tip { font-size: 0.85rem; color: var(--muted); }

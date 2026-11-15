@@ -12,7 +12,10 @@ import { SITES } from "../js/sites.js";
 import { suggestAlloc } from "../js/kid.js";
 
 const pool = (await (await fetch("../data/space_weather_events.json")).json()).events;
-const games = +new URLSearchParams(location.search).get("games") || 300;
+const params = new URLSearchParams(location.search);
+const games = +params.get("games") || 300;
+// try other research rewards: ?apb=30,70 (or ?apb= for none)
+if (params.has("apb")) C.apBonus = params.get("apb") ? params.get("apb").split(",").map(Number) : [];
 const N = C.totalSols;
 
 // Night plan. "careful" players weigh everything (the same search as Pip's

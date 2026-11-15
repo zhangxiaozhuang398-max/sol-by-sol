@@ -233,6 +233,11 @@ export const builtCount = (g) => builtTechs(g).length;
 export const nextTech = (g) => C.tech.find((k) => g.science < k.at) || null;
 // blueprints that are ready but not built yet
 export const buildable = (g) => C.tech.filter((k) => g.science >= k.at && !techOn(g, k.id));
+// research rewards (config.apBonus): one more action point a day for each total reached
+export const apBonusCount = (g) => C.apBonus.filter((n) => g.science >= n).length;
+export const maxAp = (g) => C.actionPoints + apBonusCount(g);
+export const apBonusBetween = (from, to) => C.apBonus.filter((n) => n > from && n <= to);
+export const nextApBonus = (g) => C.apBonus.find((n) => g.science < n) ?? null;
 
 export function checkBuild(g, id) {
   const x = techById(id);
@@ -399,7 +404,7 @@ function receive(g, m) {
 // ---------- phase 1: briefing ----------
 function startSol(g) {
   g.phase = "briefing";
-  g.ap = C.actionPoints;
+  g.ap = maxAp(g);
   g.today = {
     evas: [], cleaned: false, tended: false, called: false, inspected: false, repaired: false,
     income: 0, overflow: 0, panelBefore: g.panel, batterySunset: null,
@@ -422,6 +427,9 @@ function startSol(g) {
   if (g.dustStorm.start === g.sol) g.stormReady = g.battery >= C.goals.stormBattery;
   g.today.tasks = genTasks(g);
   checkGoals(g);
+  g.ap = maxAp(g); // research that arrived overnight counts for the reward today
+  g.today.apGain = g.ap - (g.apMax || C.actionPoints); // >0 on the first morning with a research reward
+  g.apMax = g.ap;
   g.morning = snapshot(g);
 }
 

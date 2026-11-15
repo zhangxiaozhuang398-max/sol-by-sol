@@ -527,12 +527,13 @@ function renderBriefing() {
       ${space}
     </div>
     ${mail}
+    ${s.today.apGain > 0 ? rewardCardHtml("today") : ""}
     ${newTech.map(techCardHtml).join("")}
     <div class="orders"><h3>${esc(t("brief.orders", { n: s.sol }))}</h3>
       <ul class="task-list">${s.today.tasks.map((k, i) => taskHtml(k, i)).join("")}</ul></div>
     ${alertHtml(alerts)}
     <div class="stage-foot">
-      <span class="hint">${t("brief.ap", { n: C.actionPoints })}</span>
+      <span class="hint">${t("brief.ap", { n: s.ap })}</span>
       <button class="btn primary" id="go-day" type="button">${esc(t("brief.go"))}</button>
     </div>`;
   $("#go-day").onclick = () => { E.beginDay(s); ui.site = null; render(); };
@@ -594,7 +595,7 @@ function actionButton(id, icon, name, desc, chk) {
 }
 
 function renderDayClassic() {
-  const pips = Array.from({ length: C.actionPoints }, (_, i) => `<span class="pip${i < s.ap ? "" : " used"}"></span>`).join("");
+  const pips = Array.from({ length: Math.max(s.apMax || C.actionPoints, s.ap) }, (_, i) => `<span class="pip${i < s.ap ? "" : " used"}"></span>`).join("");
   const clean = E.checkClean(s);
   const key = E.weatherKey(s, s.sol);
   stage.innerHTML = `
@@ -718,7 +719,7 @@ function syncWorld() {
   world.setMode(play ? "play" : "cinematic");
   world.start();
   if (play) {
-    const pips = Array.from({ length: C.actionPoints }, (_, i) => `<span class="pip${i < s.ap ? "" : " used"}"></span>`).join("");
+    const pips = Array.from({ length: Math.max(s.apMax || C.actionPoints, s.ap) }, (_, i) => `<span class="pip${i < s.ap ? "" : " used"}"></span>`).join("");
     $("#world-ap").innerHTML = `${esc(t("day.ap"))} ${pips}`;
     const key = E.weatherKey(s, s.sol);
     const storm = E.knownStormOn(s, s.sol);
@@ -1161,6 +1162,7 @@ function renderSettle() {
         <ul class="task-list">${tasks.map((k, i) => taskHtml(k, i, { final: true })).join("")}</ul></div>
       <div><h3>${esc(t("research.title"))}</h3>${researchHtml()}</div>
     </div>
+    ${E.apBonusBetween(m.science, s.science).length && s.sol < N ? rewardCardHtml("tomorrow") : ""}
     ${newTech.map(techCardHtml).join("")}
     ${h.alarm ? alertHtml([{ level: "danger", key: h.evas.some((e) => e.storm) ? "settle.surprise" : "settle.alarm" }]) : ""}
     ${storm ? stormBoxHtml(storm) : ""}
@@ -1320,13 +1322,38 @@ function researchHtml(withLink = true) {
     return `<span class="step${cls}" style="left:${pos(k.at)}%" title="${esc(pick(info.name))}">${info.icon}<b>${k.at}</b></span>`;
   }).join("");
   const stars = [1, 2].map((i) => `<span class="star-mark" style="left:${pos(C.stars[i])}%">${"⭐".repeat(i + 1)}</span>`).join("");
+  const gifts = C.apBonus.map((n) => `<span class="gift-mark${s.science >= n ? " got" : ""}" style="left:${pos(n)}%" title="${esc(t("reward.name"))}">🎁</span>`).join("");
   const nx = E.nextTech(s);
   const ready = E.buildable(s);
   return `<div class="research-line"><span class="big">${s.science}</span><span>${esc(t("research.pts"))}</span></div>
-    <div class="research-bar" role="img" aria-label="${esc(t("research.aria", { n: s.science, max }))}"><div class="fill" style="width:${pos(s.science)}%"></div>${steps}${stars}</div>
+    <div class="research-bar" role="img" aria-label="${esc(t("research.aria", { n: s.science, max }))}"><div class="fill" style="width:${pos(s.science)}%"></div>${steps}${stars}${gifts}</div>
     ${ready.length ? `<div class="research-ready">🔧 ${t("research.ready", { names: ready.map((k) => `<b>${esc(t(`techname.${k.id}`))}</b>`).join(esc(t("fmt.sep"))) })}</div>` : ""}
     <div class="research-next">${nx ? t("research.next", { name: esc(t(`techname.${nx.id}`)), n: nx.at - s.science }) : esc(t("research.all"))}
       ${withLink ? ` <button class="linkish" type="button" data-open-panel="tech">${esc(t("research.open"))}</button>` : ""}</div>`;
+}
+
+// Research rewards (config.apBonus): one more action point every day, free.
+// A row in the tech panel, with how far the next one is.
+function rewardsHtml() {
+  const nx = E.nextApBonus(s);
+  const rows = C.apBonus.map((n, i) => {
+    const got = s.science >= n, next = n === nx;
+    const prev = i ? C.apBonus[i - 1] : 0;
+    const status = got ? t("reward.got") : t("reward.at", { n });
+    return `<li class="reward ${got ? "got" : next ? "next" : "locked"}">
+      <span class="ri" aria-hidden="true">${got ? "✅" : "🎁"}</span>
+      <div><b>${esc(t("reward.name"))}</b><span class="at">${esc(status)}</span>
+        <small>${esc(t("reward.total", { n: C.actionPoints + i + 1 }))}${next ? ` · ${esc(t("reward.left", { n: n - s.science }))}` : ""}</small>
+        ${next ? `<div class="prog" aria-hidden="true"><i style="width:${Math.max(0, Math.min(100, ((s.science - prev) / (n - prev)) * 100))}%"></i></div>` : ""}</div></li>`;
+  }).join("");
+  return `<div class="rewards"><h4>🎁 ${esc(t("reward.title"))}</h4><p class="rw-intro">${esc(t("reward.intro"))}</p><ul>${rows}</ul></div>`;
+}
+// The card in the morning report (first day with the extra point) or night report (just earned).
+function rewardCardHtml(kind) {
+  return `<div class="tech-card reward-card"><div class="label">🎁 ${esc(t("reward.label"))}</div>
+    <h3>${esc(t("reward.name"))}</h3>
+    <p>${esc(kind === "today" ? t("reward.today", { n: s.ap }) : t("reward.tomorrow", { n: E.maxAp(s) }))}</p>
+    <p class="rw-tip">${esc(t("reward.tip"))}</p></div>`;
 }
 
 // Which survey sites a tool opens (for the tech panel and cards).
@@ -1417,6 +1444,7 @@ function renderTechPanel() {
   const top = el.scrollTop;
   el.innerHTML = `${panelHead("tech.title")}<p class="tech-intro">${esc(t("tech.intro"))}</p>
     ${researchHtml(false)}
+    ${rewardsHtml()}
     <div class="tech-list">${C.tech.map((k) => techItemHtml(k, nx)).join("")}</div>`;
   el.scrollTop = top;
 }
@@ -1450,6 +1478,11 @@ function noticeTech() {
   const before = ui.prevSci == null ? s.science : ui.prevSci;
   ui.prevSci = s.science;
   const gained = E.techsBetween(before, s.science);
+  if (E.apBonusBetween(before, s.science).length && s.phase === "day" && s.sol < N) { // a research reward
+    replay($('.dock-btn[data-panel="tech"]'), "ping");
+    audio.found(true);
+    if (walking()) setTimeout(() => toast(t("reward.toast")), gained.length ? 3400 : 1700);
+  }
   if (!gained.length) return;
   replay($('.dock-btn[data-panel="tech"]'), "ping");
   if (s.phase === "day" && walking()) {

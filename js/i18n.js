@@ -4,6 +4,20 @@
 
 const DICT = {
   en: {
+    // research rewards (config.apBonus)
+    "reward.title": "Research rewards",
+    "reward.intro": "No building needed: reach the research total and the crew gets one more action point every day, starting the next morning.",
+    "reward.name": "+1 action point every day",
+    "reward.at": "at {n} research",
+    "reward.got": "earned",
+    "reward.total": "{n} action points a day",
+    "reward.left": "{n} more research to go",
+    "reward.label": "Research reward",
+    "reward.today": "From today you have {n} action points every day!",
+    "reward.tomorrow": "From tomorrow morning you get {n} action points every day.",
+    "reward.tip": "You don't have to use them all: every trip still uses power and air.",
+    "reward.toast": "🎁 Research reward: +1 action point from tomorrow!",
+    "guide.brief.apGain": "🎁 Research reward! You have {n} action points today. Trips still cost power and air.",
     // kid-friendly layer (js/kid.js): Pip, ring gauges, rocks, suggest a plan
     "guide.name": "Pip",
     "guide.hello": "Hi, I'm Pip! 👋",
@@ -729,6 +743,20 @@ const DICT = {
   },
 
   zh: {
+    // research rewards (config.apBonus)
+    "reward.title": "研究奖励",
+    "reward.intro": "不用建造：研究点到了就自动送，每天多 1 个行动点，从第二天早上开始。",
+    "reward.name": "每天行动点 +1",
+    "reward.at": "研究点 {n} 时获得",
+    "reward.got": "已获得",
+    "reward.total": "每天 {n} 个行动点",
+    "reward.left": "还差 {n} 研究点",
+    "reward.label": "研究奖励",
+    "reward.today": "从今天起，你每天有 {n} 个行动点！",
+    "reward.tomorrow": "从明天早上起，你每天有 {n} 个行动点。",
+    "reward.tip": "不一定要全部用完：每次出门还是要耗电、耗氧气。",
+    "reward.toast": "🎁 研究奖励：明天起行动点 +1！",
+    "guide.brief.apGain": "🎁 研究奖励！今天有 {n} 个行动点。出门还是要耗电和氧气哦。",
     // kid-friendly layer (js/kid.js): Pip, ring gauges, rocks, suggest a plan
     "guide.name": "小皮",
     "guide.hello": "你好，我是小皮！👋",

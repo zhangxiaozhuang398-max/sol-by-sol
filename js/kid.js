@@ -93,6 +93,7 @@ export function guideLine(s, ctx = {}) {
     if (storm) return say("guide.brief.stormToday", "alarm");
     if (w === "dust") return say("guide.brief.dustToday", "worry");
     if (s.today.broke && s.today.broke.length) return say("guide.brief.broke", "alarm");
+    if (s.today.apGain > 0) return say("guide.brief.apGain", "happy", { n: s.ap });
     if (fault) return say("guide.brief.fault", "worry");
     if (upcoming.length) return say("guide.brief.stormSoon", "worry", { n: upcoming[0].sol - sol });
     if (tw === "dust") return say("guide.brief.dustTomorrow", "worry");
