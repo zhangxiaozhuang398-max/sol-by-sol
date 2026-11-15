@@ -48,8 +48,13 @@ function init() {
   windSource.connect(windFilter).connect(windGain).connect(master);
   windSource.start();
   applyWind();
+  // the background music (js/music.js) plays into its own bus under the sound effects
+  musicBus = ctx.createGain();
+  musicBus.gain.value = 0;
+  musicBus.connect(master);
   if (ctx.state === "suspended") ctx.resume().catch(() => {});
 }
+let musicBus = null;
 
 function ensure() {
   if (!ctx) init();
@@ -222,4 +227,8 @@ function found(rare = false) {
 export const audio = {
   init, ensure, setWind, setEnabled, toggle, click, step, chime, whoosh, alarm, drill, found,
   isEnabled: () => enabled,
+  // for js/music.js: the audio context (null until the first tap), its bus and the shared noise
+  context: () => ctx,
+  musicBus: () => musicBus,
+  noise: () => noise,
 };

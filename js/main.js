@@ -7,6 +7,7 @@ import { buildReport } from "./report.js";
 import { t, tr, pick, getLang, setLang, applyStatic } from "./i18n.js";
 import { SHORT, ROCKS, rockFor, moodOf, guideLine, suggestAlloc } from "./kid.js";
 import { audio } from "./audio.js";
+import { music } from "./music.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -43,8 +44,8 @@ function updateSoundBtn() {
   b.title = t(on ? "top.soundOn" : "top.soundOff");
 }
 $("#btn-sound")?.addEventListener("click", () => { audio.toggle(); updateSoundBtn(); });
-document.addEventListener("pointerdown", () => audio.init(), { once: true });
-document.addEventListener("keydown", () => audio.init(), { once: true });
+document.addEventListener("pointerdown", () => { audio.init(); updateMusic(); }, { once: true });
+document.addEventListener("keydown", () => { audio.init(); updateMusic(); }, { once: true });
 
 // ---------- saving (per browser, optional) ----------
 const SAVE_KEY = "solbysol.save";
@@ -74,8 +75,23 @@ function show(id) {
   $$(".screen").forEach((el) => el.classList.toggle("active", el.id === id));
   if (world && id !== "screen-game") world.stop();
   window.scrollTo({ top: 0 });
+  updateMusic();
 }
 const activeScreen = () => $(".screen.active")?.id;
+
+// The background music (js/music.js) follows the game: bright jazz for the
+// morning report and the title, a soft version while walking, bass and long
+// chords at night, and a tense version on a storm day (a solar storm the crew
+// knows about, or a dust storm).
+function musicMood() {
+  const screen = activeScreen();
+  if (screen === "screen-end") return s && s.outcome && s.outcome.success ? "briefing" : "night";
+  if (screen !== "screen-game" || !s) return "briefing";
+  const storm = !!E.knownStormOn(s, s.sol) || E.weatherKey(s, s.sol) === "dust";
+  if (storm && s.phase !== "settle") return "storm";
+  return { briefing: "briefing", day: "day", night: "night", settle: "night" }[s.phase] || "briefing";
+}
+function updateMusic() { music.setMood(musicMood()); }
 
 function factHtml(id, label = "", withLesson = false) {
   const f = FACTS[id];
@@ -140,6 +156,7 @@ function render() {
   noticeTech();
   updateGuide();
   updateNudges();
+  updateMusic();
   if (ui.lastPhase !== phaseKey) {
     stage.scrollTop = 0;
     if (ui.lastPhase !== null) window.scrollTo({ top: 0 });
