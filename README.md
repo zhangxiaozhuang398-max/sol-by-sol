@@ -96,6 +96,7 @@ Plain HTML, CSS and JavaScript (ES modules), no framework, no build step. Hosted
 
 ```
 index.html, css/style.css
+css/themes/    the look: jazz.css (1960s jazz title-card style, default); mission.css and cozy.css for testing (?theme=mission, ?theme=cozy, ?theme=classic)
 js/config.js   every tunable number, with the real-world fact it is anchored to
 js/game.js     pure game logic (seeded, testable): the four phases and all rules
 js/report.js   failure / success debrief built from the player's own run
@@ -105,6 +106,8 @@ assets/        cartoon drawings of the base buildings, survey sites and rover (f
 js/facts.js    sourced story and knowledge cards (English + Chinese)
 js/i18n.js     interface text (English + Chinese)
 js/main.js     user interface (world prompts, power sliders, report, end screen)
+js/kid.js      kid-friendly layer: Pip the robot guide, one-sentence cards, rocks, "Suggest a plan"
+js/audio.js    synthesized sounds (no audio files), with a mute button
 data/space_weather_events.json   curated NASA DONKI events
 data/mars/     Jezero ground picture (CTX, tinted) as JPEG chunks, MOLA elevation grid, Viking tiles
 scripts/       data fetch + balance simulation

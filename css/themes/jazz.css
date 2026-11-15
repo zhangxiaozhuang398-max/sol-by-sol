@@ -136,6 +136,18 @@ html[lang="zh-CN"] h1, html[lang="zh-CN"] h2, html[lang="zh-CN"] h3, html[lang="
 dialog.sheet, #info, #collection { border-radius: 0 !important; border: 3px solid var(--cream) !important; box-shadow: 10px 10px 0 var(--orange) !important; background: var(--ink) !important; }
 .nudge::after { filter: drop-shadow(2px 2px 0 #000); }
 
+/* ---- end screen: the closing credits ---- */
+#screen-end.active { min-height: 100vh;
+  background: linear-gradient(75deg, var(--ink) 0 62%, var(--teal-j) 62% 74%, var(--ink) 74% 76%, var(--mustard) 76% 82%, var(--ink) 82% 84%, var(--orange) 84%); }
+.end-card { background: var(--ink); border: 3px solid var(--cream); border-radius: 0; box-shadow: 14px 14px 0 #000; }
+.end-hero h1 { font-size: clamp(2.6rem, 8vw, 4.4rem); color: var(--cream); line-height: 0.95; text-shadow: 4px 4px 0 var(--orange), 8px 8px 0 var(--teal-j); }
+.end-card > h3 { margin-top: 22px; padding: 6px 12px; background: var(--mustard); color: var(--ink); font-size: 1.6rem; }
+.report-box, .stat, .chart, .card-grid .fact-card { border-radius: 0; }
+.report-box { background: #241e19; border-top: 6px solid var(--orange); }
+.report-box h3 { color: var(--mustard); font-size: 1.6rem; }
+.stat { background: #241e19; border-left: 6px solid var(--teal-j); }
+.stat .v { font-family: var(--title); font-size: 1.8rem; color: var(--cream); }
+
 /* ---- title screen: a record sleeve ---- */
 #screen-title.active { display: grid; place-items: center; min-height: 100vh; padding: 16px;
   background: linear-gradient(105deg, var(--orange) 0 34%, var(--ink) 34% 36%, var(--teal-j) 36% 52%, var(--ink) 52% 54%, var(--mustard) 54% 60%, var(--ink) 60%); }
@@ -177,4 +189,10 @@ dialog.sheet, #info, #collection { border-radius: 0 !important; border: 3px soli
   .game .stage { box-shadow: 5px 5px 0 var(--teal-j); padding: 0 14px 14px; }
   .stage-head { margin: 0 -14px 12px; padding: 8px 14px; }
   .stage-head h2 { font-size: 2rem; }
+  .game .topbar { gap: 6px; }
+  .game .stepper { box-shadow: 3px 3px 0 var(--teal-j); }
+  .game .stepper li { padding: 3px 7px; }
+  .game .stepper li.active b { display: none; } /* the phase name is in the panel title and the title card */
+  .game .top-actions { gap: 5px; }
+  .game .top-actions .btn, .game .top-actions .lang-toggle { padding: 4px 8px; box-shadow: 2px 2px 0 var(--orange); }
 }

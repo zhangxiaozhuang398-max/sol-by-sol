@@ -10,14 +10,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/layout.css">
+  <!-- The look: "jazz title card" (css/themes/jazz.css). Other looks for testing:
+       ?theme=mission, ?theme=cozy, or ?theme=classic for the plain style underneath. -->
+  <link rel="stylesheet" href="css/themes/jazz.css" id="theme-css">
   <script>
-    // Optional look: ?theme=jazz | mission | cozy loads css/themes/<name>.css on top.
     (function () {
-      var m = /[?&]theme=([a-z]+)/.exec(location.search);
-      if (m && ["jazz", "mission", "cozy"].indexOf(m[1]) >= 0) {
-        document.write('<link rel="stylesheet" href="css/themes/' + m[1] + '.css">');
-        document.documentElement.setAttribute("data-theme", m[1]);
-      }
+      var m = /[?&]theme=([a-z]+)/.exec(location.search), name = "jazz", link = document.getElementById("theme-css");
+      if (m && (m[1] === "mission" || m[1] === "cozy")) { name = m[1]; link.href = "css/themes/" + name + ".css"; }
+      else if (m && m[1] === "classic") { name = "classic"; link.parentNode.removeChild(link); }
+      document.documentElement.setAttribute("data-theme", name);
     })();
   </script>
 </head>
