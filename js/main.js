@@ -5,6 +5,8 @@ import { createWorld } from "./world2d.js";
 import { FACTS, SITE_STORIES, TECH_INFO } from "./facts.js";
 import { buildReport } from "./report.js";
 import { t, tr, pick, getLang, setLang, applyStatic } from "./i18n.js";
+import { SHORT, ROCKS, rockFor, moodOf, guideLine, suggestAlloc } from "./kid.js";
+import { audio } from "./audio.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -25,9 +27,24 @@ function freshUi() {
     // which right-hand panel is open: "tasks", "tech", "cal" or null (phones start closed)
     panel: window.matchMedia("(max-width: 900px)").matches ? null : "tasks",
     prevSci: null, doneMark: "",
+    collapsed: false, suggested: false, prevMoods: null,
   };
 }
 const stage = $("#stage");
+
+// Optional synthesized sound (js/audio.js). The button shows the saved choice;
+// browsers only let audio start after the first tap or key press.
+function updateSoundBtn() {
+  const b = $("#btn-sound");
+  if (!b) return;
+  const on = audio.isEnabled();
+  b.textContent = on ? "🔊" : "🔇";
+  b.setAttribute("aria-label", t(on ? "top.soundOn" : "top.soundOff"));
+  b.title = t(on ? "top.soundOn" : "top.soundOff");
+}
+$("#btn-sound")?.addEventListener("click", () => { audio.toggle(); updateSoundBtn(); });
+document.addEventListener("pointerdown", () => audio.init(), { once: true });
+document.addEventListener("keydown", () => audio.init(), { once: true });
 
 // ---------- saving (per browser, optional) ----------
 const SAVE_KEY = "solbysol.save";
@@ -63,10 +80,16 @@ const activeScreen = () => $(".screen.active")?.id;
 function factHtml(id, label = "", withLesson = false) {
   const f = FACTS[id];
   if (!f) return "";
+  // One short sentence up front; the full card is folded behind "Learn more".
+  const short = SHORT[id] ? pick(SHORT[id]) : pick(f.text);
   return `${label ? `<div class="label">${esc(label)}</div>` : ""}
-    <h3>${f.icon} ${esc(pick(f.title))}</h3><p>${esc(pick(f.text))}</p>
-    ${withLesson && f.lesson ? `<p class="lesson">🎮 ${esc(pick(f.lesson))}</p>` : ""}
-    <p class="src">${esc(t("fact.source"))} <a href="${f.source.url}" target="_blank" rel="noopener">${esc(pick(f.source.label))} ↗</a></p>`;
+    <div class="kcard"><span class="kcard-icon" aria-hidden="true">${f.icon}</span>
+      <div><h3>${esc(pick(f.title))}</h3><p class="kcard-short">${esc(short)}</p></div></div>
+    <details class="more"><summary>${esc(t("learn.more"))}</summary>
+      <p>${esc(pick(f.text))}</p>
+      ${withLesson && f.lesson ? `<p class="lesson">🎮 ${esc(pick(f.lesson))}</p>` : ""}
+      <p class="src">${esc(t("fact.source"))} <a href="${f.source.url}" target="_blank" rel="noopener">${esc(pick(f.source.label))} ↗</a></p>
+    </details>`;
 }
 function openInfo(html, wide = false) {
   $("#info-body").innerHTML = html;
@@ -88,8 +111,11 @@ function storyHtml(id, fresh) {
     <h3>${st.icon} ${esc(t(`site.${id}.name`))}</h3>
     <div class="tube-rack"><span class="tubes" aria-hidden="true">${tubes}</span><span>${esc(t("story.tube", { n: sealed, total: SITES.length }))}</span></div>
     <p class="story-sample"><span aria-hidden="true">🧪</span> <b>${esc(t("story.sample"))}</b> ${esc(pick(story.sample))}</p>
-    ${part("sci", "🔬", "science")}${part("fut", "🚀", "future")}${part("his", "📜", "history")}
-    <p class="src">${esc(t("fact.source"))} <a href="${story.source.url}" target="_blank" rel="noopener">${esc(pick(story.source.label))} ↗</a></p>`;
+    ${part("sci", "🔬", "science")}
+    <details class="more"><summary>${esc(t("learn.more"))}</summary>
+      ${part("fut", "🚀", "future")}${part("his", "📜", "history")}
+      <p class="src">${esc(t("fact.source"))} <a href="${story.source.url}" target="_blank" rel="noopener">${esc(pick(story.source.label))} ↗</a></p>
+    </details>`;
 }
 
 function alertHtml(list) {
@@ -104,16 +130,61 @@ function render() {
   renderCalendar();
   const phaseKey = `${s.sol}-${s.phase}`;
   syncWorld();
+  if (ui.lastPhase !== phaseKey) { ui.collapsed = false; ui.suggested = false; } // a new phase starts unfolded
   renderStage();
   $("#screen-game").classList.toggle("staged", !stage.classList.contains("hidden"));
   renderPanels();
   noticeTech();
+  updateGuide();
+  updateNudges();
   if (ui.lastPhase !== phaseKey) {
     stage.scrollTop = 0;
     if (ui.lastPhase !== null) window.scrollTo({ top: 0 });
     ui.lastPhase = phaseKey;
   }
   save();
+}
+
+// ---------- Pip the robot: one short sentence for right now ----------
+const BOT_FACE = { happy: "🙂", think: "🤔", worry: "😟", alarm: "😱" };
+let lastAlarm = 0;
+function alarmOnce() { // never more than one alarm every few seconds
+  if (performance.now() - lastAlarm < 2500) return;
+  lastAlarm = performance.now();
+  audio.alarm();
+}
+function updateGuide(preview) {
+  const el = $("#guide");
+  if (!el) return;
+  if (!s || s.phase === "end" || activeScreen() !== "screen-game") { el.classList.add("hidden"); return; }
+  const p = preview || (s.phase === "night" && ui.alloc ? E.previewNight(s, ui.alloc) : null);
+  const line = guideLine(s, { walking: walking(), near: world ? world.near : null, preview: p, suggested: ui.suggested });
+  if (!line) { el.classList.add("hidden"); el.dataset.text = ""; return; }
+  const text = t(line.key, line.params);
+  el.classList.remove("hidden", "happy", "think", "worry", "alarm");
+  el.classList.add(line.mood);
+  if (el.dataset.text === text) return;
+  if (line.mood === "alarm") alarmOnce();
+  el.dataset.text = text;
+  el.innerHTML = `<span class="guide-bot" aria-hidden="true">🤖<i>${BOT_FACE[line.mood]}</i></span>
+    <p><b>${esc(t("guide.name"))}</b>${esc(text)}</p>`;
+  replay(el, "pop"); // a little hop when Pip says something new
+}
+
+// ---------- tutorial: a bouncing arrow on the next button to press ----------
+// Only on the first sol (and whenever the day's work is finished), so new
+// players always know where to go next. The gold arrows on the map do the rest.
+function updateNudges() {
+  $$(".nudge").forEach((el) => el.classList.remove("nudge"));
+  if (!s || s.phase === "end") return;
+  const first = s.sol === 1;
+  let target = null;
+  if (s.phase === "briefing" && first) target = "#go-day";
+  else if (s.phase === "night" && first) target = ui.suggested ? "#confirm-night" : "#suggest";
+  else if (s.phase === "settle" && first) target = "#next-sol";
+  else if (s.phase === "day" && walking() && s.ap <= 0) target = "#end-day";
+  else if (s.phase === "day" && !walking() && s.ap <= 0) target = "#go-night";
+  if (target) $(target)?.classList.add("nudge");
 }
 
 function renderTop() {
@@ -190,14 +261,14 @@ function hudRows() {
   if (s.phase === "day") batteryNote = t("hud.note.batteryDay", { n: sunsetPower() });
   if (s.phase === "night") batteryNote = t("hud.note.batteryNight", { n: s.today.income });
   return [
-    { key: "battery", val: s.battery, max: C.max.battery, c: "var(--blue)", note: batteryNote, fact: "coldNights",
-      unit: s.battery > C.max.battery ? t("hud.avail") : `/${C.max.battery}` },
     { key: "oxygen", val: s.oxygen, max: C.max.oxygen, unit: `/${C.max.oxygen}`, c: "var(--teal)", fact: "moxie",
       note: t(s.oxygen < 25 ? "hud.note.o2low" : "hud.note.o2", { n: C.oxygenUse.crewDaily }), bad: s.oxygen < 25 },
-    { key: "dose", val: s.dose, max: C.max.dose, unit: `/${C.max.dose}`, c: "var(--red)", fact: "radiationAddsUp", upIsBad: true,
-      note: t(s.dose >= 70 ? "hud.note.doseHigh" : "hud.note.dose"), bad: s.dose >= 70 },
+    { key: "battery", val: s.battery, max: C.max.battery, c: "var(--blue)", note: batteryNote, fact: "coldNights",
+      unit: s.battery > C.max.battery ? t("hud.avail") : `/${C.max.battery}` },
     { key: "food", val: s.food, max: N, unit: t("unit.days"), c: "var(--green)", fact: "veggie",
       note: nights <= 0 ? "" : foodShort > 0 ? t("hud.note.foodShort", { n: foodShort }) : t("hud.note.foodOk"), bad: foodShort > 0 },
+    { key: "dose", val: s.dose, max: C.max.dose, unit: `/${C.max.dose}`, c: "var(--red)", fact: "radiationAddsUp", upIsBad: true,
+      note: t(s.dose >= 70 ? "hud.note.doseHigh" : "hud.note.dose"), bad: s.dose >= 70 },
     // Panel cleanliness is found out at the panels (free daily check); research
     // lives in the mission panel on the right.
   ];
@@ -209,15 +280,17 @@ function sunsetPower() {
   return s.today && s.today.inspected ? E.expectedIncome(s) : `≤${E.maxPowerFor(s, s.sol)}`;
 }
 
+// Each supply is a big ring that empties as it runs out, with the moving icon
+// in the middle and a face underneath (😊 good, 😟 getting low, 😱 danger).
+// Tapping a ring opens its knowledge card.
+const FACE = { ok: "😊", low: "😟", bad: "😱" };
 function hudRowHtml(r, i) {
-  return `${r.divider ? '<div class="res-divider"></div>' : ""}<div class="res" data-res="${r.key}" style="--c:${r.c};--i:${i}">
-      <div class="res-head"><span class="res-icon" aria-hidden="true">${HUD_ICONS[r.key]}</span><span class="res-name">${esc(t(`hud.${r.key}`))}</span>
+  return `<button class="res gauge" type="button" data-res="${r.key}" data-fact="${r.fact}" style="--c:${r.c};--i:${i}">
+      <span class="ring" aria-hidden="true"><span class="res-icon">${HUD_ICONS[r.key]}</span></span>
+      <span class="g-name">${esc(t(`hud.short.${r.key}`))}</span>
       <span class="res-val"><span class="num"></span><small></small></span>
-      ${r.fact ? `<button class="info" data-fact="${r.fact}" aria-label="${esc(t("hud.info"))}">?</button>` : ""}</div>
-      <div class="bar${r.thin ? " thin" : ""}"><div class="fill"></div>${r.stars ? `<div class="tick" style="left:${(C.stars[1] / C.stars[2]) * 100}%"></div>` : ""}</div>
-      <div class="res-note" hidden></div>
-      ${r.stars ? `<div class="stars-row"><span>${esc(t("hud.star1", { n: N }))}</span><span>⭐⭐ ${C.stars[1]}</span><span>⭐⭐⭐ ${C.stars[2]}</span></div>` : ""}
-    </div>`;
+      <span class="g-mood"><span class="g-face"></span><span class="g-word"></span></span>
+    </button>`;
 }
 
 // The rows are built once (per language) and then updated in place, so the bars
@@ -228,7 +301,7 @@ function renderHud() {
   const prev = ui.prevHud || {};
   const rows = hudRows();
   if (hud.dataset.lang !== getLang() || !hud.firstElementChild) {
-    hud.innerHTML = rows.map(hudRowHtml).join("");
+    hud.innerHTML = `<div class="gauges">${rows.map(hudRowHtml).join("")}</div><p class="hud-tap">${esc(t("hud.tap"))}</p>`;
     hud.dataset.lang = getLang();
   }
   if (first) {
@@ -242,15 +315,15 @@ function renderHud() {
     const el = $(`[data-res="${r.key}"]`, hud);
     const pct = Math.max(0, Math.min(1, r.val / r.max));
     el.style.setProperty("--pct", pct.toFixed(3));
-    el.classList.toggle("warn", !!r.bad);
-    const fill = $(".fill", el);
-    if (first) { // start empty so the bar grows in
-      fill.style.transition = "none";
-      fill.style.width = "0%";
-      void fill.offsetWidth;
-      fill.style.transition = "";
-    }
-    fill.style.width = `${pct * 100}%`;
+    const mood = moodOf(s, r.key);
+    el.classList.remove("ok", "low", "bad");
+    el.classList.add(mood);
+    el.classList.toggle("warn", !!r.bad || mood === "bad");
+    const word = t(r.key === "dose" ? `hud.dose.${mood}` : `hud.mood.${mood}`);
+    $(".g-face", el).textContent = FACE[mood];
+    $(".g-word", el).textContent = word;
+    el.title = r.note || "";
+    el.setAttribute("aria-label", `${t(`hud.short.${r.key}`)}: ${r.val}${r.unit.startsWith("/") ? r.unit : ` ${r.unit}`}. ${word}${r.note ? `. ${r.note}` : ""}`);
     $(".res-val small", el).textContent = r.unit;
     const numEl = $(".num", el);
     const had = prev[r.key] != null && numEl.textContent !== "";
@@ -262,16 +335,12 @@ function renderHud() {
       replay(el, "flash");
       floatDelta(el, r.val - prev[r.key], !!r.upIsBad);
     }
-    const note = $(".res-note", el);
-    note.hidden = !r.note;
-    note.textContent = r.note || "";
-    note.classList.toggle("bad", !!r.bad);
-    if (r.stars) {
-      const got = E.starsFor(s.science);
-      $$(".stars-row span", el).forEach((sp, i) => sp.classList.toggle("got", got > i));
-    }
   });
-  ui.prevHud = { battery: s.battery, oxygen: s.oxygen, dose: s.dose, food: s.food, panel: s.panel, science: s.science };
+  // a supply that has just turned to "danger" sounds the alarm
+  const moods = rows.map((r) => moodOf(s, r.key));
+  if (ui.prevMoods && moods.some((m, i) => m === "bad" && ui.prevMoods[i] !== "bad")) alarmOnce();
+  ui.prevMoods = moods;
+  ui.prevHud ={ battery: s.battery, oxygen: s.oxygen, dose: s.dose, food: s.food, panel: s.panel, science: s.science };
 }
 
 function renderCalendar() {
@@ -300,6 +369,28 @@ function renderStage() {
   else if (s.phase === "night") renderNight();
   else if (s.phase === "settle") renderSettle();
   else showEnd();
+  addCollapseButton();
+}
+
+// "Look outside": fold the floating panel away to see the base, the night sky
+// or the storm, and unfold it again. Every new phase starts unfolded.
+function addCollapseButton() {
+  const can = ["briefing", "night", "settle"].includes(s.phase) && !!world;
+  stage.classList.toggle("collapsed", can && ui.collapsed);
+  if (!can) return;
+  const head = stage.querySelector(".stage-head");
+  if (!head || head.querySelector(".collapse-btn")) return;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "btn small collapse-btn";
+  btn.textContent = t(ui.collapsed ? "panel.open" : "panel.peek");
+  btn.onclick = () => {
+    ui.collapsed = !ui.collapsed;
+    stage.classList.toggle("collapsed", ui.collapsed);
+    btn.textContent = t(ui.collapsed ? "panel.open" : "panel.peek");
+    audio.click();
+  };
+  head.appendChild(btn);
 }
 
 // ---------- phase 1: briefing ----------
@@ -465,7 +556,12 @@ function renderDayClassic() {
     el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick_(); } });
   });
   const go = $("#go-eva");
-  if (go) go.onclick = () => { E.doEva(s, ui.site); render(); };
+  if (go) go.onclick = () => {
+    const site = ui.site;
+    if (!E.doEva(s, site).ok) return;
+    toast(rockLine(collectRock(site)));
+    render();
+  };
   $("#do-inspect").onclick = () => { E.inspectPanels(s); render(); };
   $("#do-clean").onclick = () => { E.doClean(s); render(); };
   $("#do-tend").onclick = () => { E.doTend(s); render(); };
@@ -486,7 +582,7 @@ async function ensureWorld() {
   try {
     world = await createWorld({
       mount: $("#world-view"), minimap: $("#minimap"), joystick: $("#joy"),
-      onNear: () => updatePrompt(), onUse: () => usePrompt(),
+      onNear: () => { updatePrompt(); updateGuide(); }, onUse: () => usePrompt(),
     });
   } catch (err) {
     console.warn("3D world unavailable, using the simple map", err);
@@ -527,6 +623,8 @@ function syncWorld() {
   world.setTargets(worldTargets());
   world.setFocus(play ? focusTargets() : []);
   world.setLook(s.phase, E.weatherKey(s, s.sol));
+  el.classList.toggle("storm-alert", play && !!E.solarStormOn(s, s.sol)); // red, pulsing edges on a solar-storm day
+  audio.setWind(E.weatherKey(s, s.sol), s.phase);
   if (play && ui.worldDay !== s.sol) {
     world.respawn();
     ui.worldDay = s.sol;
@@ -659,6 +757,7 @@ async function usePrompt() {
     const el = $("#world-prompt");
     el.className = "world-prompt hint busy";
     el.textContent = t(`world.busy.${job}`);
+    if (job === "sample" && !calmMotion.matches) audio.drill(JOB_MS.sample / 1000);
     try {
       await world.playAction(job, id, calmMotion.matches ? 0 : JOB_MS[job]);
     } finally {
@@ -672,7 +771,8 @@ async function usePrompt() {
   if (siteById(id)) {
     const r = E.doEva(s, id);
     if (!r.ok) { updatePrompt(); return; }
-    toast(`+${r.cost.science} 🔬   −${r.cost.power} ⚡  −${r.cost.oxygen} 🫁  +${r.cost.dose} ☢️`);
+    const rock = collectRock(id);
+    toast(`${rockLine(rock)}   +${r.cost.science} 🔬  −${r.cost.power} ⚡  −${r.cost.oxygen} 🫁  +${r.cost.dose} ☢️`);
     render();
     if (r.cost.visits === 0 && s.phase === "day") openInfo(storyHtml(id, true), true); // first sample from this site
     return;
@@ -697,7 +797,28 @@ async function usePrompt() {
     openInfo(factHtml(WORLD_BASE.landmark.fact, "", true));
     return;
   }
+  audio.chime();
   render();
+}
+
+// Every sample puts a real kind of Mars rock in the collection (just for fun:
+// rocks never change the rules). Sometimes it is a rare one.
+function collectRock(siteId) {
+  const id = rockFor(siteId);
+  if (!s.rocks) s.rocks = [];
+  s.rocks.push(id);
+  audio.found(!!ROCKS[id].rare);
+  return id;
+}
+function rockLine(id) {
+  const r = ROCKS[id];
+  return `${r.icon} ${t(r.rare ? "toast.rare" : "toast.rock", { rock: pick(r) })}`;
+}
+function rocksHtml() {
+  const list = s.rocks || [];
+  if (!list.length) return `<div class="rock-shelf empty">🪨 ${esc(t("rocks.none"))}</div>`;
+  const icons = list.map((id) => `<span class="rk${ROCKS[id].rare ? " rare" : ""}" title="${esc(pick(ROCKS[id]))}">${ROCKS[id].icon}</span>`).join("");
+  return `<div class="rock-shelf"><span class="rk-title">🪨 ${esc(t("rocks.title", { n: list.length }))}</span><span class="rks">${icons}</span></div>`;
 }
 
 // Walking day: the map is the screen. The day's log, the "simple map" switch
@@ -722,7 +843,9 @@ function renderNight() {
   stage.innerHTML = `
     <div class="stage-head"><h2>${esc(t("night.title"))}</h2><span class="sub">${esc(t("night.sub"))}</span></div>
     <div class="pool"><span>${esc(t("night.pool"))}</span><span class="total">${s.battery} ⚡</span>
-      <span>${esc(t("night.poolFrom", { before, income: s.today.income }))}</span></div>
+      <span>${esc(t("night.poolFrom", { before, income: s.today.income }))}</span>
+      <button class="btn suggest" id="suggest" type="button">${esc(t("knight.suggest"))}</button></div>
+    <p class="suggest-note" id="suggest-note">${ui.suggested ? esc(t("knight.suggested")) : ""}</p>
     <div class="alloc-bar" id="alloc-bar"></div>
     <div class="alloc-legend">
       <span><i style="background:#8a5a6e"></i>${esc(t("night.leg.ls"))}</span><span><i style="background:var(--teal)"></i>${esc(t("night.leg.o2"))}</span>
@@ -762,6 +885,17 @@ function renderNight() {
     ui.alloc = null;
     render();
   };
+  // "Suggest a plan": set the sliders to a safe split. The player can still change anything.
+  $("#suggest").onclick = () => {
+    ui.alloc = suggestAlloc(s);
+    ui.suggested = true;
+    audio.chime();
+    const top = stage.scrollTop;
+    renderNight();
+    addCollapseButton();
+    stage.scrollTop = top;
+    updateNudges();
+  };
   updateNight();
 }
 
@@ -797,9 +931,13 @@ function updateNight() {
   ];
   $("#proj").innerHTML = cells.map(([ic, k, v, d, c]) =>
     `<div class="proj-item" style="--c:${c}"><div class="k">${ic} ${esc(t(k))}</div><div class="v">${v}</div><div class="delta">${esc(d)}</div></div>`).join("");
-  $("#night-alerts").innerHTML = alertHtml(p.warnings);
+  // the warnings that matter stay in view; the small "good to know" notes fold away
+  const big = p.warnings.filter((w) => w.level !== "info"), small = p.warnings.filter((w) => w.level === "info");
+  $("#night-alerts").innerHTML = alertHtml(big) + (small.length
+    ? `<details class="more"><summary>${esc(t("knight.more", { n: small.length }))}</summary>${alertHtml(small)}</details>` : "");
   $("#night-hint").textContent = tomorrow;
   $("#confirm-night").disabled = p.overBudget;
+  updateGuide(p);
 }
 
 // ---------- phase 4: settle ----------
@@ -1049,6 +1187,7 @@ function renderTasksPanel() {
   const top = el.scrollTop;
   el.innerHTML = `${panelHead("tasks.title")}
     ${goalHtml()}
+    ${rocksHtml()}
     <h4>${esc(t("tasks.today", { n: s.sol }))}</h4>
     <ul class="task-list">${tasks.map((k, i) => taskHtml(k, i, { go: walkingDay, fresh, final })).join("")}</ul>
     ${walkingDay ? `<p class="task-hint">${esc(t("tasks.hintGo"))}</p>` : ""}
@@ -1159,6 +1298,7 @@ function showHelp() {
 // ---------- language ----------
 function refreshLanguage() {
   applyStatic();
+  updateSoundBtn();
   updateCollectionCount();
   if (s && activeScreen() === "screen-game") render();
   if (s?.outcome && activeScreen() === "screen-end") renderEnd();
@@ -1223,6 +1363,7 @@ $("#btn-collection").addEventListener("click", () => {
 // ---------- boot ----------
 ensureWorld();
 applyStatic();
+updateSoundBtn();
 updateCollectionCount();
 updateContinue();
 $("#btn-start").disabled = true;
