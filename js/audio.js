@@ -3,6 +3,7 @@
 // after a user gesture, so init() is called on the first pointerdown.
 const STORAGE = "solbysol.sound";
 const LEVELS_KEY = "solbysol.levels";
+const MASTER = 0.55; // overall base volume (the sliders in Settings scale each group under it)
 let ctx = null;
 let master = null;
 let musicVol = null, amb = null, sfx = null; // the three volume groups
@@ -53,8 +54,15 @@ function init() {
   if (!AC) return;
   ctx = new AC();
   master = ctx.createGain();
-  master.gain.value = enabled ? 0.35 : 0;
-  master.connect(ctx.destination);
+  master.gain.value = enabled ? MASTER : 0;
+  // a gentle limiter so the louder base volume never crackles when music and effects meet
+  const limiter = ctx.createDynamicsCompressor();
+  limiter.threshold.value = -6;
+  limiter.knee.value = 6;
+  limiter.ratio.value = 8;
+  limiter.attack.value = 0.003;
+  limiter.release.value = 0.25;
+  master.connect(limiter).connect(ctx.destination);
   // three volume levels the player can set (right-click the sound button): music, Mars sounds, effects
   musicVol = ctx.createGain();
   amb = ctx.createGain();
@@ -174,7 +182,7 @@ function setWind(weather, phase) {
 function setEnabled(on) {
   enabled = !!on;
   try { localStorage.setItem(STORAGE, enabled ? "on" : "off"); } catch { /* ignore */ }
-  if (master && ctx) master.gain.setTargetAtTime(enabled ? 0.35 : 0, ctx.currentTime, 0.03);
+  if (master && ctx) master.gain.setTargetAtTime(enabled ? MASTER : 0, ctx.currentTime, 0.03);
 }
 
 function toggle() {
