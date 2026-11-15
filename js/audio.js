@@ -150,7 +150,76 @@ function whoosh() {
   src.stop(t + 0.6);
 }
 
+// Two-tone warning beep: something is in danger.
+function alarm() {
+  if (!ensure()) return;
+  const t = ctx.currentTime;
+  for (let i = 0; i < 4; i++) {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = "square";
+    o.frequency.value = i % 2 ? 620 : 880;
+    const at = t + i * 0.16;
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.exponentialRampToValueAtTime(0.03, at + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + 0.14);
+    o.connect(g).connect(master);
+    o.start(at);
+    o.stop(at + 0.15);
+  }
+}
+
+// A buzzing rock drill for about `seconds`.
+function drill(seconds = 1.5) {
+  if (!ensure()) return;
+  const t = ctx.currentTime;
+  const src = ctx.createBufferSource();
+  src.buffer = noise;
+  src.loop = true;
+  const f = ctx.createBiquadFilter();
+  f.type = "bandpass";
+  f.Q.value = 3;
+  f.frequency.setValueAtTime(420, t);
+  f.frequency.linearRampToValueAtTime(700, t + seconds);
+  const buzz = ctx.createOscillator();
+  buzz.type = "sawtooth";
+  buzz.frequency.value = 55;
+  const bg = ctx.createGain();
+  bg.gain.value = 0.012;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.09, t + 0.08);
+  g.gain.setValueAtTime(0.09, t + seconds - 0.1);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + seconds);
+  src.connect(f).connect(g).connect(master);
+  buzz.connect(bg).connect(g);
+  src.start(t);
+  buzz.start(t);
+  src.stop(t + seconds + 0.05);
+  buzz.stop(t + seconds + 0.05);
+}
+
+// Happy rising notes: a sample was found.
+function found(rare = false) {
+  if (!ensure()) return;
+  const t = ctx.currentTime;
+  const notes = rare ? [523, 659, 784, 1047] : [587, 784, 988];
+  notes.forEach((freq, i) => {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = "triangle";
+    o.frequency.value = freq;
+    const at = t + i * 0.08;
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.exponentialRampToValueAtTime(0.05, at + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + 0.35);
+    o.connect(g).connect(master);
+    o.start(at);
+    o.stop(at + 0.37);
+  });
+}
+
 export const audio = {
-  init, ensure, setWind, setEnabled, toggle, click, step, chime, whoosh,
+  init, ensure, setWind, setEnabled, toggle, click, step, chime, whoosh, alarm, drill, found,
   isEnabled: () => enabled,
 };
